@@ -1,0 +1,79 @@
+<main class="mx-auto grid min-h-dvh max-w-5xl place-items-center px-6 py-12">
+  <section class="w-full max-w-md border border-stone-300 bg-white p-7 sm:p-9" aria-labelledby="sign-up-title">
+    <p class="text-sm font-medium text-stone-600">PawHeaven</p>
+    <h1 id="sign-up-title" class="mt-3 text-3xl font-semibold tracking-tight text-stone-950">Create your account</h1>
+    <p class="mt-2 leading-6 text-stone-700">Your account lets you save pets and begin an adoption application.</p>
+
+    <form class="mt-8 space-y-5" data-sign-up-form novalidate>
+      <div>
+        <label class="mb-2 block text-sm font-medium text-stone-900" for="name">Full name</label>
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="name" name="name" type="text" autocomplete="name" required />
+      </div>
+      <div>
+        <label class="mb-2 block text-sm font-medium text-stone-900" for="email">Email address</label>
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="email" name="email" type="email" autocomplete="email" required placeholder="name@example.com" />
+      </div>
+      <div>
+        <label class="mb-2 block text-sm font-medium text-stone-900" for="password">Password</label>
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="password-help" />
+        <p id="password-help" class="mt-2 text-sm text-stone-600">Use at least 8 characters.</p>
+      </div>
+      <div>
+        <label class="mb-2 block text-sm font-medium text-stone-900" for="confirm-password">Confirm password</label>
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" required />
+      </div>
+      <p class="hidden border-l-4 border-red-700 bg-red-50 px-3 py-2 text-sm text-red-900" data-form-error role="alert"></p>
+      <button class="w-full bg-[var(--color-moss)] px-4 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70" type="submit" data-submit>Create account</button>
+    </form>
+
+    <p class="mt-6 text-sm text-stone-700">Already registered? <a class="font-medium text-[var(--color-moss-dark)] underline underline-offset-4" href="/login">Log in</a>.</p>
+  </section>
+</main>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('[data-sign-up-form]');
+  const error = document.querySelector<HTMLParagraphElement>('[data-form-error]');
+  const submit = document.querySelector<HTMLButtonElement>('[data-submit]');
+  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+
+  function showError(message: string) {
+    if (!error) return;
+    error.textContent = message;
+    error.classList.remove('hidden');
+  }
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    error?.classList.add('hidden');
+    if (!form.reportValidity()) return;
+
+    const values = new FormData(form);
+    if (values.get('password') !== values.get('confirmPassword')) {
+      showError('The passwords do not match.');
+      return;
+    }
+
+    if (submit) {
+      submit.disabled = true;
+      submit.textContent = 'Creating account…';
+    }
+
+    try {
+      const response = await fetch(`${apiBase}/auth/register`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: values.get('name'), email: values.get('email'), password: values.get('password') }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || 'We could not create your account.');
+      window.location.assign('/account');
+    } catch (exception) {
+      showError(exception instanceof Error ? exception.message : 'We could not create your account. Please try again.');
+      if (submit) {
+        submit.disabled = false;
+        submit.textContent = 'Create account';
+      }
+    }
+  });
+</script>

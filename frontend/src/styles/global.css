@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+  --color-page: #f7f3eb;
+  --color-ink: #292524;
+  --color-moss: #426447;
+  --color-moss-dark: #2f4b34;
+  --color-warm: #c96e3d;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  body { min-width: 320px; }
+
+  button, input, select { font: inherit; }
+
+  :focus-visible {
+    outline: 3px solid var(--color-warm);
+    outline-offset: 2px;
+  }
+}
