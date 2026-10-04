@@ -16,7 +16,7 @@ const seedPets = [
 <script>
   type Pet = { id: string; name: string; type: string; breed: string; age: string; daysInShelter: number; tags: string[]; status: string; summary: string };
   const container = document.querySelector<HTMLElement>('[data-pet-detail]');
-  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || '/api';
   const seedPets: Pet[] = JSON.parse(container?.dataset.pets || '[]');
   const id = new URLSearchParams(window.location.search).get('id') || 'maple';
 

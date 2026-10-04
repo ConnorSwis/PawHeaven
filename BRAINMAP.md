@@ -95,7 +95,7 @@ The Sprint 2 draft already selected MySQL and proposed these core tables: `users
 | Database | MySQL. |
 | Backend | Still to be chosen or implemented; it must expose the REST contract below. Node.js + Express is compatible with the selected frontend and team skills. |
 | Session model | Server-managed session with cookie credentials. |
-| Hosting | Not decided. Keep URLs and secrets in environment variables so local development and deployment can differ safely. |
+| Frontend hosting | Cloudflare Workers static assets. `frontend/wrangler.jsonc` deploys Astro's `dist/` directory as the `pawheaven-frontend` Worker. |
 
 ## 6. Current frontend
 
@@ -135,7 +135,7 @@ Each screen-specific behavior is self-contained on purpose. Do not introduce a s
 
 ## 7. Frontend-to-backend API contract
 
-Set `PUBLIC_API_BASE_URL` in `frontend/.env`. It defaults to `http://localhost:3000/api`.
+Set `PUBLIC_API_BASE_URL` in `frontend/.env`. It defaults locally to `http://localhost:3000/api`; use the production API URL as a build-time environment variable when deploying, or `/api` when the API shares the deployed hostname.
 
 | Request | Required behavior |
 | --- | --- |
@@ -246,5 +246,17 @@ cp .env.example .env
 npm run dev
 npm run build
 ```
+
+### Cloudflare Workers
+
+```sh
+cd frontend
+npm run workers:dev
+npm run workers:deploy:dry-run
+npm run workers:types
+npm run workers:deploy
+```
+
+The static frontend is ready for Cloudflare Workers. A team member must authenticate Wrangler with the group's Cloudflare account before the first actual deployment. If the future backend runs on Workers and connects to the planned MySQL database, use Cloudflare Hyperdrive rather than a direct database connection. Keep secrets in Cloudflare's secret store and local development values in `.dev.vars`.
 
 The frontend needs Node.js 22.12 or newer. Keep credentials and database passwords out of the repository; use `.env` files and provide only `.env.example` as a template.

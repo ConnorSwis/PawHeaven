@@ -25,7 +25,7 @@
   const form = document.querySelector<HTMLFormElement>('[data-login-form]');
   const error = document.querySelector<HTMLParagraphElement>('[data-form-error]');
   const submit = document.querySelector<HTMLButtonElement>('[data-submit]');
-  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || '/api';
 
   function showError(message: string) {
     if (!error) return;

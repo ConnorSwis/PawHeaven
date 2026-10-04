@@ -9,6 +9,10 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "workers:dev": "npm run build && wrangler dev",
+    "workers:deploy": "npm run build && wrangler deploy",
+    "workers:deploy:dry-run": "npm run build && wrangler deploy --dry-run",
+    "workers:types": "wrangler types",
     "astro": "astro"
   },
   "dependencies": {
@@ -18,5 +22,8 @@
   },
   "allowScripts": {
     "esbuild": true
+  },
+  "devDependencies": {
+    "wrangler": "^4.147.0"
   }
 }

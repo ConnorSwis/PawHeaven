@@ -7,7 +7,7 @@
 <script>
   type User = { id: string; name: string; email: string; role: 'user' | 'admin' | 'staff' };
   const panel = document.querySelector<HTMLElement>('[data-account-panel]');
-  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || '/api';
 
   function textElement(tag: string, className: string, content: string) {
     const node = document.createElement(tag);

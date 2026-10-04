@@ -23,6 +23,28 @@ Open the local address printed by Astro. Create a production build with:
 npm run build
 ```
 
+## Deploy to Cloudflare Workers
+
+This project is configured as a static-assets Cloudflare Worker. Its build output is deployed from `dist/`; no Worker script is needed while the app remains a static Astro site.
+
+```sh
+# Build and run the Cloudflare Worker locally.
+npm run workers:dev
+
+# Validate the deployment configuration without publishing.
+npm run workers:deploy:dry-run
+
+# Refresh generated Cloudflare binding types after wrangler.jsonc changes.
+npm run workers:types
+
+# Publish after logging in to the team's Cloudflare account.
+npm run workers:deploy
+```
+
+The first production deployment will create or update the `pawheaven-frontend` Worker. Before publishing, a team member must run `npx wrangler login` with the group's Cloudflare account.
+
+`PUBLIC_API_BASE_URL` is compiled into the browser bundle at build time. For local work, `.env` points to `http://localhost:3000/api`. For a production build, set it to the deployed API URL in the build environment. If the API is served by the same Worker or hostname, use `/api` instead. Never commit credentials; use `.dev.vars` for local Worker values and Cloudflare secrets for server-side secrets.
+
 ## Routes
 
 | Route | Purpose |
