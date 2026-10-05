@@ -1,0 +1,23 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'PawHeaven animal shelter portal' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <title>{title} | PawHeaven</title>
+  </head>
+  <body class="bg-[var(--color-page)] text-stone-900 antialiased">
+    <slot />
+  </body>
+</html>

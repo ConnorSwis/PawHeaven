@@ -1,0 +1,82 @@
+---
+const seedPets = [
+  { id: 'maple', name: 'Maple', type: 'Dog', breed: 'Labrador mix', age: '3 years', daysInShelter: 18, tags: ['big-dog', 'good-with-kids'], status: 'Available', summary: 'Maple is an affectionate dog who enjoys a walk, a quiet afternoon, and meeting new people.' },
+  { id: 'milo', name: 'Milo', type: 'Cat', breed: 'Domestic shorthair', age: '2 years', daysInShelter: 42, tags: ['calm', 'indoor'], status: 'Available', summary: 'Milo prefers a calm home and will happily spend the day near a sunny window.' },
+  { id: 'nala', name: 'Nala', type: 'Dog', breed: 'Hound mix', age: '5 years', daysInShelter: 76, tags: ['big-dog', 'gentle'], status: 'Available', summary: 'Nala is a gentle companion who is ready for patient people and plenty of space to sniff.' },
+  { id: 'pepper', name: 'Pepper', type: 'Cat', breed: 'Tortoiseshell', age: '1 year', daysInShelter: 9, tags: ['playful', 'indoor'], status: 'Available', summary: 'Pepper is a curious young cat who likes toys, climbing, and a little attention each day.' },
+];
+---
+
+<main class="mx-auto grid min-h-dvh max-w-5xl place-items-center px-6 py-12">
+  <article class="w-full max-w-2xl border border-stone-300 bg-white p-7 sm:p-10" data-pet-detail data-pets={JSON.stringify(seedPets)} aria-live="polite">
+    <p class="text-sm text-stone-600">Loading pet details…</p>
+  </article>
+</main>
+
+<script>
+  type Pet = { id: string; name: string; type: string; breed: string; age: string; daysInShelter: number; tags: string[]; status: string; summary: string };
+  const container = document.querySelector<HTMLElement>('[data-pet-detail]');
+  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || '/api';
+  const seedPets: Pet[] = JSON.parse(container?.dataset.pets || '[]');
+  const id = new URLSearchParams(window.location.search).get('id') || 'maple';
+
+  function element(tag: string, className: string, content: string) {
+    const node = document.createElement(tag);
+    node.className = className;
+    node.textContent = content;
+    return node;
+  }
+
+  function displayPet(pet: Pet, note?: string) {
+    if (!container) return;
+    container.replaceChildren();
+    const category = element('p', 'text-sm font-medium text-[var(--color-moss-dark)]', `${pet.type} · ${pet.status}`);
+    const name = element('h1', 'mt-3 text-3xl font-semibold tracking-tight text-stone-950', pet.name);
+    const description = element('p', 'mt-5 max-w-xl leading-7 text-stone-700', pet.summary);
+    const details = document.createElement('dl');
+    details.className = 'mt-8 grid border-y border-stone-300 sm:grid-cols-3';
+    [['Breed', pet.breed], ['Age', pet.age], ['Time in shelter', `${pet.daysInShelter} days`]].forEach(([term, value]) => {
+      const item = document.createElement('div');
+      item.className = 'border-stone-300 py-4 sm:border-r sm:px-4 first:sm:pl-0 last:sm:border-r-0';
+      item.append(element('dt', 'text-sm text-stone-600', term), element('dd', 'mt-1 font-medium text-stone-950', value));
+      details.append(item);
+    });
+    const tagHeading = element('h2', 'mt-7 text-base font-semibold text-stone-950', 'Shelter tags');
+    const tags = document.createElement('div');
+    tags.className = 'mt-3 flex flex-wrap gap-2';
+    pet.tags.forEach((tag) => tags.append(element('span', 'border border-stone-300 px-2 py-1 text-sm text-stone-700', tag.replaceAll('-', ' '))));
+    const back = document.createElement('a');
+    back.href = '/pets';
+    back.className = 'mt-8 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4';
+    back.textContent = 'Back to available pets';
+    container.append(category, name, description, details, tagHeading, tags, back);
+    if (note) container.append(element('p', 'mt-5 text-sm text-stone-600', note));
+  }
+
+  function displayNotFound() {
+    if (!container) return;
+    container.replaceChildren(
+      element('h1', 'text-2xl font-semibold text-stone-950', 'Pet not found'),
+      element('p', 'mt-3 leading-7 text-stone-700', 'This animal may no longer be listed. Return to the current available pets.'),
+    );
+    const back = document.createElement('a');
+    back.href = '/pets';
+    back.className = 'mt-7 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4';
+    back.textContent = 'Back to available pets';
+    container.append(back);
+  }
+
+  async function loadPet() {
+    try {
+      const response = await fetch(`${apiBase}/pets/${encodeURIComponent(id)}`, { credentials: 'include' });
+      if (response.status === 404) return displayNotFound();
+      if (!response.ok) throw new Error('Pet details are unavailable.');
+      displayPet(await response.json());
+    } catch {
+      const fallback = seedPets.find((pet) => pet.id === id);
+      fallback ? displayPet(fallback, 'Sample pet information is shown while the shelter API is unavailable.') : displayNotFound();
+    }
+  }
+
+  loadPet();
+</script>
