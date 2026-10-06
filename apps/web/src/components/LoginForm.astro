@@ -7,15 +7,19 @@
     <form class="mt-8 space-y-5" data-login-form novalidate>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="email">Email address</label>
-        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="email" name="email" type="email" autocomplete="email" required placeholder="name@example.com" />
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="email" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" required maxlength="254" aria-describedby="email-error" placeholder="name@example.com" />
+        <p id="email-error" class="mt-2 hidden text-sm text-red-800" data-field-error="email"></p>
       </div>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="password">Password</label>
-        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="password" name="password" type="password" autocomplete="current-password" required />
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024" aria-describedby="password-error" />
+        <p id="password-error" class="mt-2 hidden text-sm text-red-800" data-field-error="password"></p>
       </div>
-      <p class="hidden border-l-4 border-red-700 bg-red-50 px-3 py-2 text-sm text-red-900" data-form-error role="alert"></p>
+      <p class="hidden border-l-4 border-red-700 bg-red-50 px-3 py-2 text-sm text-red-900" data-form-error role="alert" tabindex="-1"></p>
       <button class="w-full bg-[var(--color-moss)] px-4 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70" type="submit" data-submit>Log in</button>
     </form>
+
+    <noscript><p class="mt-5 border-l-4 border-amber-700 bg-amber-50 px-3 py-2 text-sm text-amber-900">JavaScript is required to log in securely. Please enable it and reload this page.</p></noscript>
 
     <p class="mt-6 text-sm text-stone-700">Need an account? <a class="font-medium text-[var(--color-moss-dark)] underline underline-offset-4" href="/sign-up">Create one</a>.</p>
   </section>
@@ -25,37 +29,100 @@
   const form = document.querySelector<HTMLFormElement>('[data-login-form]');
   const error = document.querySelector<HTMLParagraphElement>('[data-form-error]');
   const submit = document.querySelector<HTMLButtonElement>('[data-submit]');
-  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api';
+  const email = form?.elements.namedItem('email') as HTMLInputElement | null;
+  const password = form?.elements.namedItem('password') as HTMLInputElement | null;
+  const apiBase = (import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api').replace(/\/$/, '');
+  let submitting = false;
 
-  function showError(message: string) {
+  function showError(message: string, focus = true) {
     if (!error) return;
     error.textContent = message;
     error.classList.remove('hidden');
+    if (focus) error.focus();
   }
+
+  function clearError() { error?.classList.add('hidden'); }
+
+  function setFieldError(input: HTMLInputElement | null, message: string) {
+    if (!input) return;
+    input.setAttribute('aria-invalid', 'true');
+    const fieldError = document.querySelector<HTMLParagraphElement>(`[data-field-error="${input.name}"]`);
+    if (!fieldError) return;
+    fieldError.textContent = message;
+    fieldError.classList.remove('hidden');
+  }
+
+  function clearFieldError(input: HTMLInputElement | null) {
+    if (!input) return;
+    input.removeAttribute('aria-invalid');
+    const fieldError = document.querySelector<HTMLParagraphElement>(`[data-field-error="${input.name}"]`);
+    fieldError?.classList.add('hidden');
+  }
+
+  function validate() {
+    clearError();
+    clearFieldError(email);
+    clearFieldError(password);
+    const invalid: HTMLInputElement[] = [];
+    if (!email) return invalid;
+    email.value = email.value.trim();
+    if (!email.value) { setFieldError(email, 'Enter your email address.'); invalid.push(email); }
+    else if (!email.validity.valid) { setFieldError(email, 'Enter a valid email address, such as name@example.com.'); invalid.push(email); }
+    if (!password) return invalid;
+    if (!password.value) { setFieldError(password, 'Enter your password.'); invalid.push(password); }
+    else if (password.value.length > 1024) { setFieldError(password, 'Your password is too long. Use 1,024 characters or fewer.'); invalid.push(password); }
+    return invalid;
+  }
+
+  async function login(credentials: { email: string; password: string }) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(`${apiBase}/auth/login`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials), signal: controller.signal,
+      });
+      const payload = await response.json().catch(() => null) as { message?: unknown; user?: unknown } | null;
+      if (response.ok && payload?.user && typeof payload.user === 'object') return;
+      if (response.ok) throw new Error('The account service returned an unexpected response. Please try again.');
+      if (response.status === 429) throw new Error('Too many login attempts. Please wait a few minutes before trying again.');
+      if (response.status >= 500) throw new Error('The account service is temporarily unavailable. Please try again in a few minutes.');
+      throw new Error(typeof payload?.message === 'string' ? payload.message : 'We could not log you in. Check your email and password.');
+    } catch (exception) {
+      if (controller.signal.aborted) throw new Error('The login request timed out. Check your connection and try again.');
+      if (exception instanceof TypeError) throw new Error('We could not reach the account service. Check your connection and try again.');
+      throw exception;
+    } finally { window.clearTimeout(timeout); }
+  }
+
+  for (const input of [email, password]) input?.addEventListener('input', () => {
+    clearFieldError(input);
+    clearError();
+  });
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    error?.classList.add('hidden');
-
-    if (!form.reportValidity()) return;
+    if (submitting) return;
+    const invalid = validate();
+    if (invalid.length) {
+      showError('Please correct the highlighted fields.');
+      invalid[0]?.focus();
+      return;
+    }
+    if (!email || !password) return;
+    submitting = true;
     if (submit) {
       submit.disabled = true;
       submit.textContent = 'Logging in…';
     }
 
-    const values = new FormData(form);
     try {
-      const response = await fetch(`${apiBase}/auth/login`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: values.get('email'), password: values.get('password') }),
-      });
-      const payload = await response.json().catch(() => ({})) as { message?: string };
-      if (!response.ok) throw new Error(payload.message || 'We could not log you in. Check your email and password.');
+      await login({ email: email.value, password: password.value });
       window.location.assign('/account');
     } catch (exception) {
       showError(exception instanceof Error ? exception.message : 'We could not log you in. Please try again.');
+    } finally {
+      submitting = false;
       if (submit) {
         submit.disabled = false;
         submit.textContent = 'Log in';

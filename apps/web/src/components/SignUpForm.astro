@@ -7,24 +7,35 @@
     <form class="mt-8 space-y-5" data-sign-up-form novalidate>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="name">Full name</label>
-        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="name" name="name" type="text" autocomplete="name" required />
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="name" name="name" type="text" autocomplete="name" required maxlength="100" aria-describedby="name-error" />
+        <p id="name-error" class="mt-2 hidden text-sm text-red-800" data-field-error="name"></p>
       </div>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="email">Email address</label>
-        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="email" name="email" type="email" autocomplete="email" required placeholder="name@example.com" />
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="email" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" required maxlength="254" aria-describedby="email-error" placeholder="name@example.com" />
+        <p id="email-error" class="mt-2 hidden text-sm text-red-800" data-field-error="email"></p>
       </div>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="password">Password</label>
-        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="password-help" />
-        <p id="password-help" class="mt-2 text-sm text-stone-600">Use at least 8 characters.</p>
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required aria-describedby="password-help password-error" />
+        <p id="password-help" class="mt-2 text-sm text-stone-600">Use 8 to 1,024 characters.</p>
+        <p id="password-error" class="mt-2 hidden text-sm text-red-800" data-field-error="password"></p>
       </div>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="confirm-password">Confirm password</label>
-        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" required />
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required aria-describedby="confirm-password-error" />
+        <p id="confirm-password-error" class="mt-2 hidden text-sm text-red-800" data-field-error="confirmPassword"></p>
       </div>
-      <p class="hidden border-l-4 border-red-700 bg-red-50 px-3 py-2 text-sm text-red-900" data-form-error role="alert"></p>
+      <p class="hidden border-l-4 border-red-700 bg-red-50 px-3 py-2 text-sm text-red-900" data-form-error role="alert" tabindex="-1"></p>
       <button class="w-full bg-[var(--color-moss)] px-4 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70" type="submit" data-submit>Create account</button>
     </form>
+    <section class="mt-8 hidden border border-stone-300 bg-stone-50 p-4 leading-7 text-stone-900" data-confirmation tabindex="-1" aria-labelledby="confirmation-title">
+      <h2 id="confirmation-title" class="text-lg font-semibold">Check your inbox</h2>
+      <p class="mt-2">If the address can be used for an account, we’ve sent the next steps there. Confirm your email before logging in.</p>
+      <a class="mt-4 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4" href="/login">Go to log in</a>
+    </section>
+
+    <noscript><p class="mt-5 border-l-4 border-amber-700 bg-amber-50 px-3 py-2 text-sm text-amber-900">JavaScript is required to create an account securely. Please enable it and reload this page.</p></noscript>
 
     <p class="mt-6 text-sm text-stone-700">Already registered? <a class="font-medium text-[var(--color-moss-dark)] underline underline-offset-4" href="/login">Log in</a>.</p>
   </section>
@@ -34,54 +45,116 @@
   const form = document.querySelector<HTMLFormElement>('[data-sign-up-form]');
   const error = document.querySelector<HTMLParagraphElement>('[data-form-error]');
   const submit = document.querySelector<HTMLButtonElement>('[data-submit]');
-  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api';
+  const name = form?.elements.namedItem('name') as HTMLInputElement | null;
+  const email = form?.elements.namedItem('email') as HTMLInputElement | null;
+  const password = form?.elements.namedItem('password') as HTMLInputElement | null;
+  const confirmation = form?.elements.namedItem('confirmPassword') as HTMLInputElement | null;
+  const confirmationNotice = document.querySelector<HTMLElement>('[data-confirmation]');
+  const apiBase = (import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api').replace(/\/$/, '');
+  let submitting = false;
 
-  function showError(message: string) {
+  function showError(message: string, focus = true) {
     if (!error) return;
     error.textContent = message;
     error.classList.remove('hidden');
+    if (focus) error.focus();
   }
+
+  function clearError() { error?.classList.add('hidden'); }
+
+  function setFieldError(input: HTMLInputElement | null, message: string) {
+    if (!input) return;
+    input.setAttribute('aria-invalid', 'true');
+    const fieldError = document.querySelector<HTMLParagraphElement>(`[data-field-error="${input.name}"]`);
+    if (!fieldError) return;
+    fieldError.textContent = message;
+    fieldError.classList.remove('hidden');
+  }
+
+  function clearFieldError(input: HTMLInputElement | null) {
+    if (!input) return;
+    input.removeAttribute('aria-invalid');
+    const fieldError = document.querySelector<HTMLParagraphElement>(`[data-field-error="${input.name}"]`);
+    fieldError?.classList.add('hidden');
+  }
+
+  function validate() {
+    clearError();
+    const inputs = [name, email, password, confirmation];
+    inputs.forEach(clearFieldError);
+    const invalid: HTMLInputElement[] = [];
+    if (!name || !email || !password || !confirmation) return invalid;
+    name.value = name.value.trim().replace(/\s+/g, ' ');
+    email.value = email.value.trim();
+    if (!name.value) { setFieldError(name, 'Enter your full name.'); invalid.push(name); }
+    else if (name.value.length > 100) { setFieldError(name, 'Use 100 characters or fewer for your name.'); invalid.push(name); }
+    if (!email.value) { setFieldError(email, 'Enter your email address.'); invalid.push(email); }
+    else if (!email.validity.valid) { setFieldError(email, 'Enter a valid email address, such as name@example.com.'); invalid.push(email); }
+    if (!password.value) { setFieldError(password, 'Create a password.'); invalid.push(password); }
+    else if (password.value.length < 8) { setFieldError(password, 'Use at least 8 characters for your password.'); invalid.push(password); }
+    else if (password.value.length > 1024) { setFieldError(password, 'Your password is too long. Use 1,024 characters or fewer.'); invalid.push(password); }
+    if (!confirmation.value) { setFieldError(confirmation, 'Re-enter your password to confirm it.'); invalid.push(confirmation); }
+    else if (confirmation.value !== password.value) { setFieldError(confirmation, 'The passwords do not match.'); invalid.push(confirmation); }
+    return invalid;
+  }
+
+  async function register(details: { name: string; email: string; password: string }) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(`${apiBase}/auth/register`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(details), signal: controller.signal,
+      });
+      const payload = await response.json().catch(() => null) as { message?: unknown; requiresEmailConfirmation?: unknown; user?: unknown } | null;
+      if (response.ok && payload?.requiresEmailConfirmation === true) return { requiresEmailConfirmation: true };
+      if (response.ok && payload?.user && typeof payload.user === 'object') return { requiresEmailConfirmation: false };
+      if (response.ok) throw new Error('The account service returned an unexpected response. Please try again.');
+      if (response.status === 429) throw new Error('Too many account attempts. Please wait a few minutes before trying again.');
+      if (response.status >= 500) throw new Error('The account service is temporarily unavailable. Please try again in a few minutes.');
+      throw new Error(typeof payload?.message === 'string' ? payload.message : 'We could not create your account. Please review your details and try again.');
+    } catch (exception) {
+      if (controller.signal.aborted) throw new Error('The account request timed out. Check your connection and try again.');
+      if (exception instanceof TypeError) throw new Error('We could not reach the account service. Check your connection and try again.');
+      throw exception;
+    } finally { window.clearTimeout(timeout); }
+  }
+
+  for (const input of [name, email, password, confirmation]) input?.addEventListener('input', () => {
+    clearFieldError(input);
+    clearError();
+  });
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    error?.classList.add('hidden');
-    if (!form.reportValidity()) return;
-
-    const values = new FormData(form);
-    if (values.get('password') !== values.get('confirmPassword')) {
-      showError('The passwords do not match.');
+    if (submitting) return;
+    const invalid = validate();
+    if (invalid.length) {
+      showError('Please correct the highlighted fields.');
+      invalid[0]?.focus();
       return;
     }
+    if (!name || !email || !password) return;
 
+    submitting = true;
     if (submit) {
       submit.disabled = true;
       submit.textContent = 'Creating account…';
     }
 
     try {
-      const response = await fetch(`${apiBase}/auth/register`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: values.get('name'), email: values.get('email'), password: values.get('password') }),
-      });
-      const payload = await response.json().catch(() => ({})) as { message?: string; requiresEmailConfirmation?: boolean };
-      if (!response.ok) throw new Error(payload.message || 'We could not create your account.');
-      if (payload.requiresEmailConfirmation) {
-        form.replaceChildren();
-        const notice = document.createElement('p');
-        notice.className = 'border border-stone-300 bg-white p-4 leading-7 text-stone-900';
-        notice.textContent = payload.message || 'Check your email to confirm your account, then log in.';
-        const link = document.createElement('a');
-        link.href = '/login';
-        link.className = 'mt-4 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4';
-        link.textContent = 'Go to log in';
-        form.append(notice, link);
+      const result = await register({ name: name.value, email: email.value, password: password.value });
+      if (result.requiresEmailConfirmation) {
+        form.hidden = true;
+        confirmationNotice?.classList.remove('hidden');
+        confirmationNotice?.focus();
         return;
       }
       window.location.assign('/account');
     } catch (exception) {
       showError(exception instanceof Error ? exception.message : 'We could not create your account. Please try again.');
+    } finally {
+      submitting = false;
       if (submit) {
         submit.disabled = false;
         submit.textContent = 'Create account';

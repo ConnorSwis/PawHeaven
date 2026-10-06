@@ -39,6 +39,19 @@ function errorResponse(message: string, status: number): ApiResponse {
   return respond({ message }, status);
 }
 
+function validEmail(value: string): boolean {
+  return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function authFailure(action: 'login' | 'register', error: { message: string; status?: number }): ApiResponse {
+  console.error(JSON.stringify({ operation: `auth.${action}`, error: error.message }));
+  if (error.status === 429) return errorResponse('Too many attempts. Please wait a few minutes before trying again.', 429);
+  if (error.status && error.status >= 500) return errorResponse('The account service is temporarily unavailable. Please try again in a few minutes.', 503);
+  if (action === 'login') return errorResponse('We could not log you in. Check your email and password, and confirm your email if you recently registered.', 401);
+  if (/signups? (are )?(disabled|not allowed)/i.test(error.message)) return errorResponse('Online account creation is not available right now. Please contact the shelter for help.', 403);
+  return errorResponse('We could not create an account with those details. If you already have an account, try logging in.', 400);
+}
+
 function parseCookies(request: Request): Record<string, string> {
   return Object.fromEntries((request.headers.get('Cookie') ?? '').split(';').map((part) => {
     const index = part.indexOf('=');
@@ -180,19 +193,23 @@ async function authRoutes(request: Request, env: Env, path: string): Promise<Api
   if (path === '/auth/register' && request.method === 'POST') {
     const body = await jsonBody(request) as Record<string, unknown> | null;
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
-    const email = typeof body?.email === 'string' ? body.email.trim() : '';
+    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
     const password = body?.password;
-    if (!name || name.length > 100 || !/^\S+@\S+\.\S+$/.test(email) || typeof password !== 'string' || password.length < 8) return errorResponse('Enter a name, valid email, and password of at least 8 characters.', 400);
+    if (!name || name.length > 100 || !validEmail(email) || typeof password !== 'string' || password.length < 8 || password.length > 1024) return errorResponse('Enter a name, valid email, and password between 8 and 1,024 characters.', 400);
     const { data, error } = await supabase(env).auth.signUp({ email, password, options: { data: { name } } });
-    if (error) return errorResponse(error.message, error.status || 400);
-    if (!data.session || !data.user) return respond({ message: 'Check your email to confirm your account, then log in.', requiresEmailConfirmation: true }, 202);
+    if (error) return authFailure('register', error);
+    if (!data.user) return errorResponse('The account service returned an unexpected response. Please try again in a few minutes.', 503);
+    if (!data.session) return respond({ message: 'If the address can be used for an account, check its inbox for the next steps before logging in.', requiresEmailConfirmation: true }, 202);
     return withSession(respond({ user: apiUser(data.user) }, 201), request, data.session);
   }
   if (path === '/auth/login' && request.method === 'POST') {
     const body = await jsonBody(request) as Record<string, unknown> | null;
-    if (typeof body?.email !== 'string' || typeof body?.password !== 'string') return errorResponse('Enter your email and password.', 400);
-    const { data, error } = await supabase(env).auth.signInWithPassword({ email: body.email, password: body.password });
-    if (error || !data.session || !data.user) return errorResponse('Invalid email or password.', 401);
+    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const password = body?.password;
+    if (!validEmail(email) || typeof password !== 'string' || password.length === 0 || password.length > 1024) return errorResponse('Enter a valid email address and password.', 400);
+    const { data, error } = await supabase(env).auth.signInWithPassword({ email, password });
+    if (error) return authFailure('login', error);
+    if (!data.session || !data.user) return errorResponse('The account service returned an unexpected response. Please try again in a few minutes.', 503);
     return withSession(respond({ user: apiUser(data.user) }), request, data.session);
   }
   if (path === '/auth/me' && request.method === 'GET') {
