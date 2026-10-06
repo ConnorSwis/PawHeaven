@@ -11,7 +11,7 @@
     "dev:web": "npm run dev -w @pawheaven/web",
     "dev:staff": "npm run dev -w @pawheaven/staff",
     "dev:api": "npm run dev -w @pawheaven/api",
-    "build": "npm run build -w @pawheaven/web && npm run build -w @pawheaven/staff",
-    "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run check:astro -w @pawheaven/staff && npm run check -w @pawheaven/api && npm run workers:deploy:dry-run -w @pawheaven/api"
+    "build": "npm run build -w @pawheaven/web && npm run build -w @pawheaven/staff && npm run build -w @pawheaven/api",
+    "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run check:astro -w @pawheaven/staff && npm run workers:deploy:dry-run -w @pawheaven/api"
   }
 }

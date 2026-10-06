@@ -75,6 +75,8 @@ npm run workers:deploy -w @pawheaven/staff
 
 Attach each Worker to its custom domain in Cloudflare. The API's host-only `SameSite=Lax` cookies depend on the sites sharing a parent domain. Test login and staff access on those real domains; separate `workers.dev` preview hostnames can behave differently. Set the Supabase Auth site URL to the public domain and allow its confirmation redirects.
 
+For Cloudflare Workers Builds, set each Worker's **root directory** to its app folder (`apps/web`, `apps/staff`, or `apps/api`). Use `npm run build` as the build command and `npx wrangler deploy` as the deploy command. The API's build script generates Cloudflare binding types and checks TypeScript; Wrangler bundles the Worker during deployment.
+
 ## Working agreements
 
 - Read `BRAINMAP.md` before implementing a feature and update it as requirements or decisions change.
