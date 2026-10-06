@@ -68,12 +68,14 @@ The public site still has clearly labeled sample pet listings when the API or da
 
 The implemented DBMS is Supabase-hosted PostgreSQL. The only PawHeaven-owned table currently deployed is `public.pets`; `auth.users`, `storage.buckets`, and `storage.objects` are managed by Supabase. Do not describe the following proposed tables as already deployed.
 
+As of 2026-10-06, migration `20261005235950_adoption_applications_and_appointments.sql` defines `public.adoption_applications` and `public.appointments` with row-level security, but it has not been applied to the hosted project and no API routes or pages use the tables. Signed-in applicants may insert an unreviewed application for an available pet and read their own applications and appointments. Because the app has no staff roles, the shelter reviews applications and schedules visits in the Supabase dashboard, which RLS does not limit. A partial unique index allows one open (`Submitted` or `Under review`) application per person per pet. Deleting a pet or user cascades to their applications and appointments. Status values are a draft: applications use `Submitted`, `Under review`, `Approved`, `Rejected`, and `Withdrawn`; appointments use `Scheduled`, `Completed`, and `Cancelled`.
+
 | Table | Key columns and types | Relationships |
 | --- | --- | --- |
 | `public.pets` (implemented) | `id uuid` PK; `name`, `species`, `breed`, `age_label`, `status`, `summary`, `image_path` as `text`; `intake_date date`; `tags text[]`; `created_at timestamptz` | `image_path` is a Storage object path, not a SQL foreign key. |
 | `auth.users` (Supabase-managed) | `id uuid` PK; `email varchar`; `encrypted_password varchar`; `raw_user_meta_data jsonb` for display name; `created_at timestamptz` | Future user-owned rows reference `auth.users.id`. |
-| `public.adoption_applications` (proposed) | `id uuid` PK; `applicant_id uuid` FK; `pet_id uuid` FK; `status text`; `answers jsonb`; `submitted_at timestamptz`; `reviewed_by uuid` nullable FK; `reviewed_at timestamptz` nullable | Many applications per user and per pet; reviewer points to the user who handled the request. |
-| `public.appointments` (proposed) | `id uuid` PK; `application_id uuid` FK; `scheduled_at timestamptz`; `status text`; `notes text` nullable | One application may have multiple proposed/rescheduled visits. |
+| `public.adoption_applications` (migration written, not applied) | `id uuid` PK; `applicant_id uuid` FK; `pet_id uuid` FK; `status text`; `answers jsonb`; `submitted_at timestamptz`; `reviewed_by uuid` nullable FK; `reviewed_at timestamptz` nullable | Many applications per user and per pet; reviewer points to the user who handled the request. |
+| `public.appointments` (migration written, not applied) | `id uuid` PK; `application_id uuid` FK; `scheduled_at timestamptz`; `status text`; `notes text` nullable; `created_at timestamptz` | One application may have multiple proposed/rescheduled visits. |
 | `public.quiz_responses` (proposed) | `id uuid` PK; `user_id uuid` FK; `answers jsonb`; `completed_at timestamptz` | A user may submit multiple matching quizzes. |
 | `public.suppliers` (proposed inventory) | `id uuid` PK; `name text`; `email text` nullable; `phone text` nullable | One supplier may provide many inventory items. |
 | `public.inventory_items` (proposed inventory) | `id uuid` PK; `supplier_id uuid` nullable FK; `name text`; `category text`; `unit text`; `quantity_on_hand numeric`; `expires_on date` nullable | Each item may have a supplier and many transactions. |
@@ -107,7 +109,7 @@ The report also calls for ten use cases with one requirement each, a user-manage
 
 - The retirement removes the application-side management paths only; it does not change the hosted Supabase project or migration history. On 2026-10-06, four available dog listings (Maple, Milo, Nala, and Pepper) were seeded and paired with public `pet-images/seed/` JPEGs; the browser fallback data mirrors those listings.
 - Configure the team's public and API custom domains, exact API allowed origins, Astro build-time API URL, and Supabase Auth redirect URL. Deploy each Worker independently.
-- Add adoption applications and appointment tables/API/UI after the team confirms the data fields and workflow.
+- Review the adoption application and appointment migration, then have a team member with project access run `npx supabase db push` and the Supabase security advisors. Confirm the drafted fields, statuses, and dashboard-based review with the team before adding API routes and UI.
 - Add pagination beyond 200 pets, image optimization, request rate limiting, and a stronger session strategy if traffic or security needs grow.
 - Complete the report's database and screenshot requirements with the updated Postgres decision.
 
