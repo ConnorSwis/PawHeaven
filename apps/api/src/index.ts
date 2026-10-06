@@ -1,5 +1,5 @@
 import { createClient, type Session, type User } from '@supabase/supabase-js';
-import type { ApiUser, Pet, PetInput, PetStatus, Role } from '@pawheaven/contracts';
+import type { ApiUser, Pet, PetStatus } from '@pawheaven/contracts';
 
 type DatabasePet = {
   id: string;
@@ -14,17 +14,13 @@ type DatabasePet = {
   image_path: string | null;
 };
 
-type Identity = { user: User; token: string; refreshed?: Session };
+type Identity = { user: User; refreshed?: Session };
 type ApiResponse = Response;
 const ACCESS_COOKIE = 'ph_access';
 const REFRESH_COOKIE = 'ph_refresh';
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-const IMAGE_TYPES = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']]);
-
-function supabase(env: Env, token?: string) {
+function supabase(env: Env) {
   return createClient(env.SUPABASE_URL, env.SUPABASE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
-    ...(token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {}),
   });
 }
 
@@ -81,18 +77,13 @@ async function identity(request: Request, env: Env): Promise<Identity | null> {
   const access = cookies[ACCESS_COOKIE];
   if (access) {
     const { data, error } = await supabase(env).auth.getUser(access);
-    if (!error && data.user) return { user: data.user, token: access };
+    if (!error && data.user) return { user: data.user };
   }
   const refresh = cookies[REFRESH_COOKIE];
   if (!refresh) return null;
   const { data, error } = await supabase(env).auth.refreshSession({ refresh_token: refresh });
   if (error || !data.user || !data.session) return null;
-  return { user: data.user, token: data.session.access_token, refreshed: data.session };
-}
-
-function roleOf(user: User): Role {
-  const role = user.app_metadata?.role;
-  return role === 'staff' || role === 'admin' ? role : 'user';
+  return { user: data.user, refreshed: data.session };
 }
 
 function apiUser(user: User): ApiUser {
@@ -100,7 +91,6 @@ function apiUser(user: User): ApiUser {
     id: user.id,
     email: user.email ?? '',
     name: typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : user.email ?? 'PawHeaven member',
-    role: roleOf(user),
   };
 }
 
@@ -124,26 +114,6 @@ function petForClient(row: DatabasePet, env: Env): Pet {
     summary: row.summary,
     imageUrl: row.image_path ? supabase(env).storage.from('pet-images').getPublicUrl(row.image_path).data.publicUrl : null,
   };
-}
-
-function parsePetInput(value: unknown): PetInput | null {
-  if (!value || typeof value !== 'object') return null;
-  const body = value as Record<string, unknown>;
-  const text = (key: string, max: number) => typeof body[key] === 'string' && (body[key] as string).trim().length > 0 && (body[key] as string).trim().length <= max;
-  if (!text('name', 100) || !text('type', 60) || !text('breed', 100) || !text('age', 60) || !text('summary', 2000)) return null;
-  if (typeof body.intakeDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.intakeDate) || Number.isNaN(Date.parse(body.intakeDate)) || body.intakeDate > new Date().toISOString().slice(0, 10)) return null;
-  if (!Array.isArray(body.tags) || body.tags.length > 12 || !body.tags.every((tag) => typeof tag === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(tag) && tag.length <= 40)) return null;
-  if (body.status !== 'Available' && body.status !== 'Pending' && body.status !== 'Adopted') return null;
-  return {
-    name: (body.name as string).trim(), type: (body.type as string).trim(), breed: (body.breed as string).trim(),
-    age: (body.age as string).trim(), summary: (body.summary as string).trim(), intakeDate: body.intakeDate,
-    tags: [...new Set(body.tags as string[])], status: body.status,
-  };
-}
-
-function databaseInput(input: PetInput) {
-  return { name: input.name, species: input.type, breed: input.breed, age_label: input.age,
-    intake_date: input.intakeDate, tags: input.tags, status: input.status, summary: input.summary };
 }
 
 async function readLimited(request: Request, limit: number): Promise<Uint8Array | null> {
@@ -174,14 +144,6 @@ async function jsonBody(request: Request): Promise<unknown | null> {
   const bytes = await readLimited(request, 16_384);
   if (!bytes) return null;
   try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { return null; }
-}
-
-async function imageIsValid(file: File): Promise<boolean> {
-  const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
-  if (file.type === 'image/jpeg') return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  if (file.type === 'image/png') return [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => bytes[index] === byte);
-  if (file.type === 'image/webp') return new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF' && new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP';
-  return false;
 }
 
 function databaseError(operation: string, error: { message: string }): ApiResponse {
@@ -252,86 +214,11 @@ async function publicPetRoutes(request: Request, env: Env, path: string): Promis
   return errorResponse('Not found.', 404);
 }
 
-async function staffPetRoutes(request: Request, env: Env, path: string): Promise<ApiResponse> {
-  const current = await identity(request, env);
-  if (!current) return clearSession(errorResponse('Sign in to continue.', 401), request);
-  if (roleOf(current.user) === 'user') return errorResponse('Staff access required.', 403);
-  const client = supabase(env, current.token);
-  let response: ApiResponse;
-  if (path === '/staff/pets' && request.method === 'GET') {
-    const { data, error } = await client.from('pets').select('*').order('name', { ascending: true }).limit(200);
-    response = error ? databaseError('staff.pets.list', error) : respond({ pets: (data as DatabasePet[]).map((row) => petForClient(row, env)) });
-  } else if (path === '/staff/pets' && request.method === 'POST') {
-    const input = parsePetInput(await jsonBody(request));
-    if (!input) response = errorResponse('Check the pet fields and try again.', 400);
-    else {
-      const { data, error } = await client.from('pets').insert(databaseInput(input)).select('*').single();
-      response = error ? databaseError('staff.pets.create', error) : respond(petForClient(data as DatabasePet, env), 201);
-    }
-  } else {
-    const match = path.match(/^\/staff\/pets\/([0-9a-f-]{36})(\/image)?$/i);
-    if (!match) response = errorResponse('Not found.', 404);
-    else if (match[2] && request.method === 'POST') response = await uploadImage(request, env, client, match[1]);
-    else if (!match[2] && request.method === 'PUT') {
-      const input = parsePetInput(await jsonBody(request));
-      if (!input) response = errorResponse('Check the pet fields and try again.', 400);
-      else {
-        const { data, error } = await client.from('pets').update(databaseInput(input)).eq('id', match[1]).select('*').maybeSingle();
-        response = error ? databaseError('staff.pets.update', error) : data ? respond(petForClient(data as DatabasePet, env)) : errorResponse('Pet not found.', 404);
-      }
-    } else if (!match[2] && request.method === 'DELETE') {
-      const { data, error } = await client.from('pets').delete().eq('id', match[1]).select('image_path').maybeSingle();
-      if (error) response = databaseError('staff.pets.delete', error);
-      else if (!data) response = errorResponse('Pet not found.', 404);
-      else {
-        if (data.image_path) {
-          const removed = await client.storage.from('pet-images').remove([data.image_path]);
-          if (removed.error) console.error(JSON.stringify({ operation: 'staff.pets.image.remove', error: removed.error.message }));
-        }
-        response = respond({ ok: true });
-      }
-    } else response = errorResponse('Not found.', 404);
-  }
-  return current.refreshed ? withSession(response, request, current.refreshed) : response;
-}
-
-async function uploadImage(request: Request, env: Env, client: ReturnType<typeof supabase>, petId: string): Promise<ApiResponse> {
-  if (Number(request.headers.get('Content-Length') ?? 0) > MAX_IMAGE_SIZE + 16_384) return errorResponse('Images must be 5 MB or smaller.', 413);
-  const { data: existing, error: lookupError } = await client.from('pets').select('image_path').eq('id', petId).maybeSingle();
-  if (lookupError) return databaseError('staff.pets.image.lookup', lookupError);
-  if (!existing) return errorResponse('Pet not found.', 404);
-  const bytes = await readLimited(request, MAX_IMAGE_SIZE + 16_384);
-  if (!bytes) return errorResponse('Images must be 5 MB or smaller.', 413);
-  let form: FormData;
-  try {
-    const body = new ArrayBuffer(bytes.length);
-    new Uint8Array(body).set(bytes);
-    const uploadRequest = new Request(request.url, { method: 'POST', headers: { 'Content-Type': request.headers.get('Content-Type') ?? '' }, body });
-    form = await uploadRequest.formData();
-  } catch { return errorResponse('Upload one JPEG, PNG, or WebP image.', 400); }
-  const file = form.get('image');
-  if (!(file instanceof File) || file.size === 0 || file.size > MAX_IMAGE_SIZE || !IMAGE_TYPES.has(file.type) || !await imageIsValid(file)) return errorResponse('Upload one JPEG, PNG, or WebP image up to 5 MB.', 400);
-  const path = `${petId}/${crypto.randomUUID()}.${IMAGE_TYPES.get(file.type)}`;
-  const uploaded = await client.storage.from('pet-images').upload(path, file, { contentType: file.type, upsert: false });
-  if (uploaded.error) return databaseError('staff.pets.image.upload', uploaded.error);
-  const updated = await client.from('pets').update({ image_path: path }).eq('id', petId).select('*').single();
-  if (updated.error) {
-    await client.storage.from('pet-images').remove([path]);
-    return databaseError('staff.pets.image.update', updated.error);
-  }
-  if (existing.image_path) {
-    const removed = await client.storage.from('pet-images').remove([existing.image_path]);
-    if (removed.error) console.error(JSON.stringify({ operation: 'staff.pets.image.remove', error: removed.error.message }));
-  }
-  return respond(petForClient(updated.data as DatabasePet, env));
-}
-
 async function route(request: Request, env: Env): Promise<ApiResponse> {
   const path = new URL(request.url).pathname.replace(/^\/api/, '') || '/';
   if (path === '/health' && request.method === 'GET') return respond({ ok: true });
   if (path.startsWith('/auth/')) return authRoutes(request, env, path);
   if (path === '/pets' || path.startsWith('/pets/')) return publicPetRoutes(request, env, path);
-  if (path.startsWith('/staff/')) return staffPetRoutes(request, env, path);
   return errorResponse('Not found.', 404);
 }
 

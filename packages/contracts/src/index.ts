@@ -1,10 +1,7 @@
-export type Role = 'user' | 'staff' | 'admin';
-
 export type ApiUser = {
   id: string;
   name: string;
   email: string;
-  role: Role;
 };
 
 export type PetStatus = 'Available' | 'Pending' | 'Adopted';

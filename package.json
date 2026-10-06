@@ -9,9 +9,8 @@
   "devDependencies": { "@astrojs/check": "0.9.10", "supabase": "2.119.0", "typescript": "5.9.3" },
   "scripts": {
     "dev:web": "npm run dev -w @pawheaven/web",
-    "dev:staff": "npm run dev -w @pawheaven/staff",
     "dev:api": "npm run dev -w @pawheaven/api",
-    "build": "npm run build -w @pawheaven/web && npm run build -w @pawheaven/staff && npm run build -w @pawheaven/api",
-    "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run check:astro -w @pawheaven/staff && npm run workers:deploy:dry-run -w @pawheaven/api"
+    "build": "npm run build -w @pawheaven/web && npm run build -w @pawheaven/api",
+    "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run workers:deploy:dry-run -w @pawheaven/api"
   }
 }
