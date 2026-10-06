@@ -1,0 +1,42 @@
+:root {
+  font-family: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+  color: #292524;
+  background: #f7f3eb;
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .65; }
+:focus-visible { outline: 3px solid #c96e3d; outline-offset: 2px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; border-bottom: 1px solid #c8c2b8; padding-bottom: 1rem; }
+header p { margin: 0; font-size: .9rem; color: #57534e; }
+h1 { margin: .25rem 0 0; font-size: 1.75rem; }
+h2 { margin: 0 0 1rem; font-size: 1.2rem; }
+.panel { background: #fff; border: 1px solid #d6d3d1; padding: 1.5rem; margin-top: 1.5rem; }
+.login { max-width: 420px; margin: 3rem auto; }
+.field { display: flex; flex-direction: column; gap: .35rem; }
+.field label { font-size: .9rem; font-weight: 600; }
+.field input, .field select, .field textarea { width: 100%; border: 1px solid #a8a29e; background: #fff; color: #292524; padding: .65rem .7rem; }
+.field textarea { min-height: 7rem; resize: vertical; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.full { grid-column: 1 / -1; }
+.actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.25rem; }
+.primary, .secondary, .danger { border: 1px solid #426447; padding: .65rem 1rem; font-weight: 600; }
+.primary { color: #fff; background: #426447; }
+.primary:hover { background: #2f4b34; }
+.secondary { color: #2f4b34; background: #fff; }
+.danger { color: #991b1b; background: #fff; border-color: #991b1b; }
+.message { margin: 1rem 0; min-height: 1.5rem; color: #57534e; }
+.message.error { color: #991b1b; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th, td { padding: .8rem .6rem; border-bottom: 1px solid #e7e5e4; vertical-align: top; }
+th { font-size: .85rem; color: #57534e; }
+td button { margin-right: .4rem; border: 0; background: none; padding: .2rem; color: #2f4b34; text-decoration: underline; }
+td button[data-delete] { color: #991b1b; }
+.thumb { width: 48px; height: 48px; object-fit: cover; border: 1px solid #d6d3d1; }
+[hidden] { display: none !important; }
+@media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } .wrap { padding-top: 1rem; } }

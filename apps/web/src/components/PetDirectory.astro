@@ -53,11 +53,11 @@ const seedPets = [
 </main>
 
 <script>
-  type Pet = { id: string; name: string; type: string; breed: string; age: string; daysInShelter: number; tags: string[]; status: string };
+  import type { Pet } from '@pawheaven/contracts';
   const results = document.querySelector<HTMLElement>('[data-pet-results]');
   const form = document.querySelector<HTMLFormElement>('[data-pet-filters]');
   const status = document.querySelector<HTMLElement>('[data-results-status]');
-  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || '/api';
+  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api';
   const seedPets: Pet[] = JSON.parse(results?.dataset.pets || '[]');
 
   function matches(pet: Pet, search: string, tag: string) {
@@ -109,13 +109,19 @@ const seedPets = [
         tagElement.textContent = tag.replaceAll('-', ' ');
         tags.append(tagElement);
       });
-      card.append(top, title, summary, stay, tags);
+      if (pet.imageUrl) {
+        const image = document.createElement('img');
+        image.src = pet.imageUrl;
+        image.alt = `${pet.name} at PawHeaven`;
+        image.className = 'mt-4 aspect-[4/3] w-full object-cover';
+        card.append(top, image, title, summary, stay, tags);
+      } else card.append(top, title, summary, stay, tags);
       results.append(card);
     });
   }
 
-  form?.addEventListener('submit', async (event) => {
-    event.preventDefault();
+  async function loadPets() {
+    if (!form) return;
     const values = new FormData(form);
     const search = String(values.get('search') || '').trim();
     const tag = String(values.get('tag') || '');
@@ -127,8 +133,8 @@ const seedPets = [
     try {
       const response = await fetch(`${apiBase}/pets?${query}`, { credentials: 'include' });
       if (!response.ok) throw new Error('Pet search is unavailable.');
-      const payload = await response.json();
-      const pets: Pet[] = Array.isArray(payload) ? payload : payload.pets;
+      const payload = await response.json() as { pets: Pet[] };
+      const pets = payload.pets;
       displayPets(pets);
       if (status) status.textContent = `${pets.length} ${pets.length === 1 ? 'pet' : 'pets'} found.`;
     } catch {
@@ -136,5 +142,11 @@ const seedPets = [
       displayPets(pets);
       if (status) status.textContent = `Showing ${pets.length} sample ${pets.length === 1 ? 'listing' : 'listings'} while the shelter API is unavailable.`;
     }
+  }
+
+  form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void loadPets();
   });
+  void loadPets();
 </script>

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "pawheaven-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "vars": {
+    "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
+    "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
+    "ALLOWED_ORIGINS": "http://localhost:4321,http://localhost:4322"
+  }
+}

@@ -1,13 +1,14 @@
 {
-  "name": "pawheaven-web",
+  "name": "@pawheaven/web",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "engines": {
     "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "check:astro": "astro check",
     "preview": "astro preview",
     "workers:dev": "npm run build && wrangler dev",
     "workers:deploy": "npm run build && wrangler deploy",
@@ -18,10 +19,8 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.3.5",
-    "tailwindcss": "^4.3.3"
-  },
-  "allowScripts": {
-    "esbuild": true
+    "tailwindcss": "^4.3.3",
+    "@pawheaven/contracts": "0.1.0"
   },
   "devDependencies": {
     "wrangler": "^4.147.0"

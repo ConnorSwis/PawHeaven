@@ -1,40 +1,91 @@
 # PawHeaven project brain map
 
-Use this file as shared context for people and coding agents working on PawHeaven. It records the decisions made during Sprint 2 planning, the frontend currently in the repository, and the work still needed for a complete system.
+Read this before changing the project. Update it when the team states a new requirement, makes an architecture decision, or completes a meaningful feature. Keep historical report requirements distinct from the current implementation.
 
-## 1. Product in one paragraph
+## Product and near-term path
 
-PawHeaven is a web application that connects an animal shelter with its community. People can discover animals, find a suitable match, apply to adopt or foster, schedule visits, volunteer, and receive updates. Shelter staff and administrators manage animals, applications, appointments, users, capacity, and eventually shelter inventory.
+PawHeaven connects a shelter with its community. The first full path is: browse available pets, inspect a pet, sign up or log in, apply to adopt, staff review, schedule a visit, and update pet status. Adoption applications and scheduling are future work; this repository currently covers accounts and pet management.
 
-The immediate goal is a believable, working adoption path:
+Public users may eventually save favorites, take a matching quiz, apply to adopt or foster, schedule visits, post lost-and-found reports, donate, and volunteer. Staff manage animals, applications, appointments, capacity, inventory, and operations. Administrators also manage staff and users.
 
-```text
-Browse available pets -> inspect a pet -> create an account or log in -> submit an adoption application -> staff review -> schedule visit -> update pet status
-```
+## Requirements captured from the team
 
-## 2. Users and roles
+- There must be a public user-facing website, a separate staff website, and a backend API. The public and staff sites should deploy as distinct Cloudflare Workers on distinct subdomains. The API should also deploy as its own Worker.
+- The public site may have an adoption service later, but adoption flows are not part of this architecture setup.
+- The public and staff sites use Astro, TypeScript, basic HTML/CSS/JavaScript, and mostly static pages. This keeps the code approachable for the team and coding agents.
+- Both client apps call the API. The API communicates with Supabase for Postgres data, Auth, and image Storage. Clients do not receive a service-role or secret key.
+- Similar code should be shared when there is a real repeated responsibility. Start with shared API types in `packages/contracts`; extract shared UI or client helpers when both apps actually need the same implementation.
+- The project is small and team-maintained. Prefer clear app ownership, few dependencies, and one root install and lockfile.
+- Keep this brain map current as new requirements appear in conversation.
 
-| Role | Intended access |
+## Current architecture (decided 2026-10-05)
+
+| Path | Responsibility | Cloudflare Worker |
+| --- | --- | --- |
+| `apps/web` | Public Astro site; accounts and pet browsing | `pawheaven-frontend` |
+| `apps/staff` | Staff Astro site; sign-in and pet CRUD/photo upload | `pawheaven-staff` |
+| `apps/api` | TypeScript API; Supabase Auth, Postgres, and Storage | `pawheaven-api` |
+| `packages/contracts` | Shared TypeScript API shapes | Not deployed |
+| `supabase/migrations` | Versioned schema and access policies | Applied to Supabase |
+
+npm workspaces and the root `package-lock.json` are the single dependency boundary. The public and staff Workers serve static Astro output. The API Worker uses `@supabase/supabase-js` with the supplied Supabase URL and publishable key. It makes authenticated queries with the user's access token, so Row Level Security still applies. No privileged Supabase key is used in the deployed API.
+
+Use same-site custom domains in production, such as `www.example.com`, `staff.example.com`, and `api.example.com`. The API sets host-only `HttpOnly`, `SameSite=Lax`, secure cookies on its own hostname. Browser requests use `credentials: 'include'`; the API allows only configured origins and checks the Origin on writes. Worker `workers.dev` preview hostnames may not share this cookie behavior, so test production auth on the planned custom domains. Exact domains have not yet been provided.
+
+## Accounts and access
+
+- Supabase Auth owns passwords, password hashes, and user sessions. The API handles registration, login, session refresh, current-user lookup, and logout, and sets the cookies.
+- Public sign-up can only create an ordinary user. The sign-up request accepts a display name, email, and password; it does not accept a role. If Supabase email confirmation is enabled, the page tells the user to confirm and then log in.
+- Roles are `user`, `staff`, and `admin`. Authorization reads Supabase `app_metadata.role`, which users cannot edit. Never authorize from `user_metadata` or a frontend control.
+- Staff endpoints check the authenticated user's current role, and the database and Storage policies enforce staff access again. A public account receives `403` on staff endpoints.
+- A trusted administrator assigns staff/admin roles through Supabase's Admin API. The local `apps/api/scripts/set-role.mjs` script requires a secret key supplied only in the local environment; the secret must never go in the repo or a client app.
+- A Supabase access token may remain valid until its expiry after logout or role revocation. Keep JWT expiry short enough for the shelter's security needs; the current local Supabase config uses one hour.
+
+## API contract now implemented
+
+The API base path is `/api`. Local URL: `http://localhost:8787/api`.
+
+| Request | Response or behavior |
 | --- | --- |
-| Community user / adopter | Browse pets, save favorites, take the matching quiz, apply to adopt or foster, schedule visits, post lost-and-found reports, donate, and volunteer. |
-| Shelter staff | Manage animal records, applications, appointments, supplies, and day-to-day shelter operations. |
-| Administrator | Staff access plus user and role management, high-level shelter management, and reporting. |
+| `GET /health` | API process health; does not test database connectivity |
+| `POST /auth/register` | Creates an ordinary user; returns `{ user }` or `202` with an email-confirmation message |
+| `POST /auth/login` | Sets session cookies and returns `{ user }` |
+| `GET /auth/me` | Returns `{ user }`, refreshes cookies when needed, or `401` |
+| `POST /auth/logout` | Revokes the current refresh token and clears cookies |
+| `GET /pets?search=&tag=` | Available pets in name order; currently limited to 200 rows before text filtering |
+| `GET /pets/:id` | One available pet or `404`; IDs are UUIDs |
+| `GET /staff/pets` | All pets for staff/admin, limited to 200 rows |
+| `POST /staff/pets` | Add pet record |
+| `PUT /staff/pets/:id` | Replace editable pet fields |
+| `DELETE /staff/pets/:id` | Delete pet and its photo |
+| `POST /staff/pets/:id/image` | Upload/replace JPEG, PNG, or WebP image, up to 5 MB |
 
-### Authentication decisions
+The pet API returns `id`, `name`, `type`, `breed`, `age`, `intakeDate`, `daysInShelter`, `tags`, `status`, `summary`, and `imageUrl`. `daysInShelter` is calculated from the stored `intake_date`. Uploaded pet images live in a public `pet-images` Storage bucket; upload/delete policies require staff or admin. The bucket is only for public animal photos, never sensitive documents.
 
-- Public sign-up creates only the ordinary `user` role. A visitor must never choose `admin` or `staff` during registration.
-- The backend is the source of truth for roles and protected access. Hiding a frontend control does not secure a staff action.
-- Use server-managed sessions. The browser should receive a secure, `HttpOnly` session cookie; it should not store an auth token in `localStorage`.
-- The frontend restores the signed-in state with `GET /auth/me` after a refresh and sends requests with `credentials: 'include'`.
-- Store passwords only as a modern one-way password hash, never as plaintext.
+The public site still has clearly labeled sample pet listings when the API or database is unavailable. Remove that fallback after real pet data, migration, and end-to-end testing are in place.
 
-## 3. Requirements already gathered
+## Database model for the report
 
-### Group feature inventory
+The implemented DBMS is Supabase-hosted PostgreSQL. The only PawHeaven-owned table currently deployed is `public.pets`; `auth.users`, `storage.buckets`, and `storage.objects` are managed by Supabase. Do not describe the following proposed tables as already deployed.
 
-1. User management: account creation, login, profiles, and role-based services.
+| Table | Key columns and types | Relationships |
+| --- | --- | --- |
+| `public.pets` (implemented) | `id uuid` PK; `name`, `species`, `breed`, `age_label`, `status`, `summary`, `image_path` as `text`; `intake_date date`; `tags text[]`; `created_at timestamptz` | `image_path` is a Storage object path, not a SQL foreign key. |
+| `auth.users` (Supabase-managed) | `id uuid` PK; `email varchar`; `encrypted_password varchar`; `raw_user_meta_data jsonb` for display name; `raw_app_meta_data jsonb` for trusted role; `created_at timestamptz` | Future user-owned rows reference `auth.users.id`. |
+| `public.adoption_applications` (proposed) | `id uuid` PK; `applicant_id uuid` FK; `pet_id uuid` FK; `status text`; `answers jsonb`; `submitted_at timestamptz`; `reviewed_by uuid` nullable FK; `reviewed_at timestamptz` nullable | Many applications per user and per pet; reviewer points to a staff user. |
+| `public.appointments` (proposed) | `id uuid` PK; `application_id uuid` FK; `scheduled_at timestamptz`; `status text`; `notes text` nullable | One application may have multiple proposed/rescheduled visits. |
+| `public.quiz_responses` (proposed) | `id uuid` PK; `user_id uuid` FK; `answers jsonb`; `completed_at timestamptz` | A user may submit multiple matching quizzes. |
+| `public.suppliers` (proposed inventory) | `id uuid` PK; `name text`; `email text` nullable; `phone text` nullable | One supplier may provide many inventory items. |
+| `public.inventory_items` (proposed inventory) | `id uuid` PK; `supplier_id uuid` nullable FK; `name text`; `category text`; `unit text`; `quantity_on_hand numeric`; `expires_on date` nullable | Each item may have a supplier and many transactions. |
+| `public.inventory_transactions` (proposed inventory) | `id uuid` PK; `item_id uuid` FK; `staff_user_id uuid` FK; `quantity_change numeric`; `recorded_at timestamptz`; `note text` nullable | Records who changed an item's stock and by how much. |
+
+Proposed foreign keys point to `auth.users(id)`, `public.pets(id)`, `public.adoption_applications(id)`, `public.suppliers(id)`, or `public.inventory_items(id)` as appropriate. Adoption, appointment, quiz, and inventory fields are a draft to discuss with the team before creating migrations. The current pet tags are a `text[]` column, not a separate tags table. Days in shelter is calculated from `intake_date` rather than stored.
+
+## Product requirements inventory
+
+1. Accounts, login, profiles, and role-based services.
 2. Staff and administrator portal.
-3. Adoption and foster workflow, including favorites and availability notifications.
+3. Adoption and foster workflow, favorites, and availability notifications.
 4. AI pet-matching quiz.
 5. AI lost-pet image matching.
 6. Events and appointment scheduling.
@@ -45,218 +96,23 @@ Browse available pets -> inspect a pet -> create an account or log in -> submit 
 11. Live shelter capacity and animal availability.
 12. Volunteer management.
 
-### Client requirements captured in the project materials
+Client sticky notes request alphabetical pet names, days in shelter, and tags such as `big dog`; the public pet directory addresses these. The Sprint 1 report also requests supply inventory for food, medicine, cleaning products, quantities, suppliers and contacts, and expiration/spoilage tracking. Those inventory requirements remain planned. Both sources must be reconciled with the client or instructor in the report.
 
-There are two sets of client requirements in the supplied materials. The group needs to reconcile them in the Sprint 2 report with the client or instructor; neither should be silently discarded.
+## Historical Sprint 2 report commitments
 
-| Source | Requirement |
-| --- | --- |
-| Client sticky note | List pet names alphabetically. |
-| Client sticky note | Show how long each pet has been in the shelter. |
-| Client sticky note | Use search tags such as `big dog`. |
-| Sprint 1 report | Supply inventory management for incoming and outgoing food, medicine, cleaning products, and other supplies. |
-| Sprint 1 report | Supply database with quantities, suppliers, and contact details. |
-| Sprint 1 report | Expiration and spoilage tracking for food and medicine. |
+The earlier Sprint 2 draft selected MySQL and proposed `users`, `pets`, `adoption_applications`, `quiz_responses`, and `appointments`. The team has since chosen Supabase Postgres and Supabase Auth for the implementation. The report still needs an explicit explanation of that change; do not silently claim that MySQL remains the implementation. The supplied PDFs one directory above this repo are report context.
 
-The three sticky-note requirements are already represented in the frontend pet directory. The inventory requirements are planned but not implemented.
+The report also calls for ten use cases with one requirement each, a user-management diagram, database attributes/keys/relationships, registration/login/logout/session and roles, two major use cases with frontend and logic, command-line instructions, screenshots, and task-board status. Proposed use cases: register, log in/out, browse/filter pets, view details, apply to adopt, staff review, schedule visit, matching quiz, lost-and-found, and inventory tracking.
 
-## 4. Sprint 2 scope and report commitments
+## Next work
 
-Sprint 2 requires:
+- The first migration was applied to Supabase project `zzcbjfgyibhuhlylsvhs` on 2026-10-05. Remote checks confirmed the `pets` table has RLS and five policies, the `pet-images` bucket is public, the API returns an empty pet list, and Supabase security advisors report no warnings. The project currently has no Auth users, so verify ordinary-user and staff policies with real accounts when the team creates them.
+- Configure the team's actual three custom domains, exact API allowed origins, Astro build-time API URLs, and Supabase Auth redirect URL. Deploy each Worker independently.
+- Create a staff user and assign `app_metadata.role` through the trusted local script or another Admin API flow.
+- Add adoption applications and appointment tables/API/UI after the team confirms the data fields and workflow.
+- Add pagination beyond 200 pets, image optimization, request rate limiting, and a stronger session strategy if traffic or security needs grow.
+- Complete the report's database and screenshot requirements with the updated Postgres decision.
 
-- Ten complete use cases and one requirement per use case.
-- At least one user-management use case and corresponding diagram.
-- Database design using MySQL, including table attributes, primary keys, foreign keys, and relationships.
-- User registration, login, logout, session handling, and user/admin roles integrated with the database.
-- Frontend and logic for two major use cases.
-- Command-line run instructions, not instructions to use an IDE.
-- Screenshots of the implemented pages and project-management task cards.
+## Team commands
 
-The Sprint 2 draft already selected MySQL and proposed these core tables: `users`, `pets`, `adoption_applications`, `quiz_responses`, and `appointments`.
-
-### Recommended first ten use cases
-
-1. Register a user account.
-2. Log in and end a session.
-3. Browse and filter available pets.
-4. View a pet's details and time in shelter.
-5. Submit an adoption application.
-6. Staff reviews an adoption application.
-7. Schedule an adoption visit.
-8. Take the pet-matching quiz.
-9. Record and search a lost-or-found report.
-10. Staff manages shelter inventory and expiration dates.
-
-## 5. Technology choices
-
-| Area | Decision |
-| --- | --- |
-| Frontend | Astro 7, Vite, TypeScript, Tailwind CSS 4. |
-| Database | MySQL. |
-| Backend | Still to be chosen or implemented; it must expose the REST contract below. Node.js + Express is compatible with the selected frontend and team skills. |
-| Session model | Server-managed session with cookie credentials. |
-| Frontend hosting | Cloudflare Workers static assets. `frontend/wrangler.jsonc` deploys Astro's `dist/` directory as the `pawheaven-frontend` Worker. |
-
-## 6. Current frontend
-
-The frontend is in [`frontend/`](./frontend), which is intentionally separate from the repository root documentation and future backend.
-
-### Routes
-
-| Route | Current behavior |
-| --- | --- |
-| `/` | Small page linking to the available first-sprint screens. |
-| `/login` | Email/password form that calls the login endpoint. |
-| `/sign-up` | Name, email, password, and password confirmation form that calls the registration endpoint. |
-| `/account` | Calls the current-session endpoint, shows the role, and logs out. |
-| `/pets` | Alphabetical pet directory with text search, tag filter, status, and days in shelter. |
-| `/pets/details?id=maple` | Pet information, tags, and days in shelter. |
-
-### Component boundaries
-
-Each screen-specific behavior is self-contained on purpose. Do not introduce a site-wide navigation bar or footer unless the group later decides it is needed.
-
-| File | Responsibility |
-| --- | --- |
-| `frontend/src/layouts/PageShell.astro` | HTML document shell and global stylesheet import only. |
-| `frontend/src/components/LoginForm.astro` | Login form, validation, request, errors, and redirect. |
-| `frontend/src/components/SignUpForm.astro` | Registration form, password match check, request, errors, and redirect. |
-| `frontend/src/components/AccountPanel.astro` | Session lookup, role display, and logout. |
-| `frontend/src/components/PetDirectory.astro` | Pet directory layout, tag filtering, API request, local visual fallback. |
-| `frontend/src/components/PetDetails.astro` | Detail view, API request, local visual fallback, and not-found state. |
-| `frontend/src/styles/global.css` | Global typeface, color tokens, and focus styling. |
-
-### Design decisions
-
-- Pages use a warm paper background, dark text, white content surfaces, moss-green primary actions, and orange keyboard-focus outlines.
-- Keep forms and content panels simple: clear labels above inputs, 1px borders, restrained rounding, no gradients, no decorative dashboards, no global sidebars, and no floating visual effects.
-- Retain the small, focused page pattern. A login page should contain the login form; it does not need a navigation bar, footer, or unrelated product content.
-- The shared design tokens live in `frontend/src/styles/global.css`. Change those tokens before scattering custom colors through components.
-
-## 7. Frontend-to-backend API contract
-
-Set `PUBLIC_API_BASE_URL` in `frontend/.env`. It defaults locally to `http://localhost:3000/api`; use the production API URL as a build-time environment variable when deploying, or `/api` when the API shares the deployed hostname.
-
-| Request | Required behavior |
-| --- | --- |
-| `POST /auth/register` | Accept `{ name, email, password }`; create a `user` account; start a session; return `{ user }`. Return useful validation or duplicate-email errors. |
-| `POST /auth/login` | Accept `{ email, password }`; start a session; return `{ user }`; respond with `401` for bad credentials. |
-| `GET /auth/me` | Return `{ user }` for the current session or `401` when no session exists. |
-| `POST /auth/logout` | Destroy the current session and clear its cookie. |
-| `GET /pets?sort=name_asc&search=&tag=` | Return `{ pets }` or an array of pets. Support alphabetical sorting, text search, and a tag filter. |
-| `GET /pets/:id` | Return a pet or `404`. |
-
-The pet directory currently expects each pet to include:
-
-```ts
-type Pet = {
-  id: string;
-  name: string;
-  type: string;
-  breed: string;
-  age: string;
-  daysInShelter: number;
-  tags: string[];
-  status: string;
-  summary: string; // required by the detail view
-};
-```
-
-Prefer storing `intake_date` in the database and calculating `daysInShelter` in the backend response. A value stored permanently as a number becomes stale every day.
-
-The frontend intentionally includes sample pet data only when the pet API cannot be reached. Remove that fallback after the database-backed API is available and tested.
-
-## 8. Database direction
-
-### Core Sprint 2 tables
-
-| Table | Purpose | Important fields / relationships |
-| --- | --- | --- |
-| `users` | Accounts and roles. | `user_id` PK, `name`, unique `email`, `password_hash`, `role`, timestamps. |
-| `pets` | Animals and adoption availability. | `pet_id` PK, `name`, species/type, breed, age or birth date, `intake_date`, `status`, description. |
-| `adoption_applications` | Adoption requests. | PK, `user_id` FK, `pet_id` FK, application status, submitted/reviewed timestamps. |
-| `quiz_responses` | Pet-matching quiz answers. | PK, `user_id` FK, response data, completed timestamp. |
-| `appointments` | Scheduled shelter visits. | PK, `user_id` FK, `pet_id` FK, date/time, status. |
-
-### Required additions for current client-facing browse features
-
-| Table | Purpose |
-| --- | --- |
-| `tags` | Canonical tags such as `big-dog`, `good-with-kids`, and `indoor`. |
-| `pet_tags` | Many-to-many relationship between pets and tags. |
-
-### Planned inventory tables
-
-| Table | Purpose |
-| --- | --- |
-| `suppliers` | Supplier names and contact details. |
-| `inventory_items` | Item name, category, quantity, unit, supplier, received date, and expiration date. |
-| `inventory_transactions` | Incoming, outgoing, and adjustment history. |
-
-Use migration or SQL setup scripts that create tables in dependency order. Seed an administrator account through a controlled script, never through public registration.
-
-## 9. What remains to be implemented
-
-### Backend and database
-
-- Create the MySQL schema and portable SQL setup/seed scripts.
-- Implement all endpoints in the API contract.
-- Add password hashing, validation, error handling, session storage, CORS, cookie configuration, and role middleware.
-- Write database-backed pet sorting, text search, tag filtering, and length-of-stay calculation.
-- Add role-protected staff endpoints and verify that ordinary users receive `403`.
-- Implement adoption applications and appointment scheduling as the next connected workflow.
-
-### Frontend
-
-- Replace sample pet fallbacks with live API data after the API is complete.
-- Add adoption application and appointment screens after their endpoints exist.
-- Add client-side loading, empty, and error states to each future data screen.
-- Add a staff/admin screen only when corresponding protected endpoints are ready.
-- Add form-level validation that mirrors backend validation without relying on it for security.
-- Add image handling for pets when image storage and API fields are agreed upon.
-
-### Project and report work
-
-- Complete the ten use cases, requirements, and diagrams in the Sprint 2 report.
-- Reconcile the sticky-note pet-listing requirements with the supply-inventory requirements in writing.
-- Add screenshots of each implemented page and GitHub task-board status.
-- Add the repository URL and exact build/run instructions to the report.
-- Decide deployment host and document non-secret setup steps.
-
-## 10. Verification checklist
-
-Run these checks before calling the user-management feature complete:
-
-1. Register a new user and confirm the database contains only a password hash.
-2. Log out, then verify protected API routes reject the user.
-3. Log in, refresh `/account`, and verify the session and role remain available.
-4. Confirm a standard user cannot reach a staff endpoint even by entering its URL directly.
-5. Confirm sign-up cannot create an administrator or staff account.
-6. Add several pets and verify `/pets` sorts them A-Z by name.
-7. Confirm tag filtering returns the expected pets, including `big-dog`.
-8. Confirm days in shelter changes correctly from `intake_date`.
-9. Run `npm run build` inside `frontend/`.
-
-## 11. Commands for contributors
-
-```sh
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
-npm run build
-```
-
-### Cloudflare Workers
-
-```sh
-cd frontend
-npm run workers:dev
-npm run workers:deploy:dry-run
-npm run workers:types
-npm run workers:deploy
-```
-
-The static frontend is ready for Cloudflare Workers. A team member must authenticate Wrangler with the group's Cloudflare account before the first actual deployment. If the future backend runs on Workers and connects to the planned MySQL database, use Cloudflare Hyperdrive rather than a direct database connection. Keep secrets in Cloudflare's secret store and local development values in `.dev.vars`.
-
-The frontend needs Node.js 22.12 or newer. Keep credentials and database passwords out of the repository; use `.env` files and provide only `.env.example` as a template.
+From the Git repository root: `npm install`, then run `npm run dev:api`, `npm run dev:web`, and `npm run dev:staff` in separate terminals. Open the public app on `http://localhost:4321` and the staff app on `http://localhost:4322`. Run `npm run check` before merging. See `README.md` for Supabase migration and deployment steps.

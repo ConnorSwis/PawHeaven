@@ -1,0 +1,23 @@
+{
+  "name": "@pawheaven/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "check": "tsc --noEmit",
+    "workers:types": "wrangler types",
+    "workers:deploy:dry-run": "wrangler deploy --dry-run",
+    "workers:deploy": "wrangler deploy",
+    "staff:role": "node scripts/set-role.mjs"
+  },
+  "dependencies": {
+    "@pawheaven/contracts": "0.1.0",
+    "@supabase/supabase-js": "2.117.2"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "typescript": "5.9.3",
+    "wrangler": "4.147.0"
+  }
+}

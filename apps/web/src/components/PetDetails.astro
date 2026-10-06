@@ -14,9 +14,9 @@ const seedPets = [
 </main>
 
 <script>
-  type Pet = { id: string; name: string; type: string; breed: string; age: string; daysInShelter: number; tags: string[]; status: string; summary: string };
+  import type { Pet } from '@pawheaven/contracts';
   const container = document.querySelector<HTMLElement>('[data-pet-detail]');
-  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || '/api';
+  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api';
   const seedPets: Pet[] = JSON.parse(container?.dataset.pets || '[]');
   const id = new URLSearchParams(window.location.search).get('id') || 'maple';
 
@@ -49,7 +49,15 @@ const seedPets = [
     back.href = '/pets';
     back.className = 'mt-8 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4';
     back.textContent = 'Back to available pets';
-    container.append(category, name, description, details, tagHeading, tags, back);
+    container.append(category, name);
+    if (pet.imageUrl) {
+      const image = document.createElement('img');
+      image.src = pet.imageUrl;
+      image.alt = `${pet.name} at PawHeaven`;
+      image.className = 'mt-6 aspect-[4/3] w-full object-cover';
+      container.append(image);
+    }
+    container.append(description, details, tagHeading, tags, back);
     if (note) container.append(element('p', 'mt-5 text-sm text-stone-600', note));
   }
 
@@ -69,7 +77,10 @@ const seedPets = [
   async function loadPet() {
     try {
       const response = await fetch(`${apiBase}/pets/${encodeURIComponent(id)}`, { credentials: 'include' });
-      if (response.status === 404) return displayNotFound();
+      if (response.status === 404) {
+        const fallback = seedPets.find((pet) => pet.id === id);
+        return fallback ? displayPet(fallback, 'Sample pet information is shown while the shelter API is unavailable.') : displayNotFound();
+      }
       if (!response.ok) throw new Error('Pet details are unavailable.');
       displayPet(await response.json());
     } catch {
