@@ -1,11 +1,13 @@
 -- Adoption applications and visit appointments: the next steps after browsing a pet.
--- Applicants submit and read their own applications; staff review them and schedule visits.
+-- Signed-in users submit applications and read their own applications and appointments.
+-- The app has no staff roles, so the shelter reviews applications and schedules visits in the
+-- Supabase dashboard, which is not limited by these row-level security policies.
 -- No API routes or pages use these tables yet. Status values and fields are a draft for the team.
 
 create table public.adoption_applications (
   id uuid primary key default gen_random_uuid(),
   applicant_id uuid not null references auth.users (id) on delete cascade,
-  -- Deleting a pet removes its applications so the staff pet delete endpoint keeps working.
+  -- Deleting a pet removes its applications.
   pet_id uuid not null references public.pets (id) on delete cascade,
   status text not null default 'Submitted' check (status in ('Submitted', 'Under review', 'Approved', 'Rejected', 'Withdrawn')),
   answers jsonb not null default '{}' check (jsonb_typeof(answers) = 'object'),
@@ -37,8 +39,8 @@ create index appointments_scheduled_at_idx on public.appointments (scheduled_at)
 alter table public.adoption_applications enable row level security;
 alter table public.appointments enable row level security;
 revoke all on public.adoption_applications, public.appointments from anon, authenticated;
-grant select, insert, update on public.adoption_applications to authenticated;
-grant select, insert, update, delete on public.appointments to authenticated;
+grant select, insert on public.adoption_applications to authenticated;
+grant select on public.appointments to authenticated;
 
 create policy "Applicants can read their applications"
 on public.adoption_applications for select to authenticated
@@ -55,35 +57,9 @@ with check (
   and exists (select 1 from public.pets where pets.id = pet_id and pets.status = 'Available')
 );
 
-create policy "Staff can read all applications"
-on public.adoption_applications for select to authenticated
-using ((select auth.jwt() -> 'app_metadata' ->> 'role') in ('staff', 'admin'));
-
-create policy "Staff can review applications"
-on public.adoption_applications for update to authenticated
-using ((select auth.jwt() -> 'app_metadata' ->> 'role') in ('staff', 'admin'))
-with check ((select auth.jwt() -> 'app_metadata' ->> 'role') in ('staff', 'admin'));
-
 create policy "Applicants can read their appointments"
 on public.appointments for select to authenticated
 using (exists (
   select 1 from public.adoption_applications
   where adoption_applications.id = application_id and adoption_applications.applicant_id = (select auth.uid())
 ));
-
-create policy "Staff can read all appointments"
-on public.appointments for select to authenticated
-using ((select auth.jwt() -> 'app_metadata' ->> 'role') in ('staff', 'admin'));
-
-create policy "Staff can schedule appointments"
-on public.appointments for insert to authenticated
-with check ((select auth.jwt() -> 'app_metadata' ->> 'role') in ('staff', 'admin'));
-
-create policy "Staff can update appointments"
-on public.appointments for update to authenticated
-using ((select auth.jwt() -> 'app_metadata' ->> 'role') in ('staff', 'admin'))
-with check ((select auth.jwt() -> 'app_metadata' ->> 'role') in ('staff', 'admin'));
-
-create policy "Staff can delete appointments"
-on public.appointments for delete to authenticated
-using ((select auth.jwt() -> 'app_metadata' ->> 'role') in ('staff', 'admin'));
