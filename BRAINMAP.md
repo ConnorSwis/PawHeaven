@@ -115,7 +115,7 @@ The report also calls for ten use cases with one requirement each, a user-manage
 
 ## Next work
 
-- The first migration was applied to Supabase project `zzcbjfgyibhuhlylsvhs` on 2026-10-05. Remote checks confirmed the `pets` table has RLS and five policies, the `pet-images` bucket is public, the API returns an empty pet list, and Supabase security advisors report no warnings. The project currently has no Auth users, so verify ordinary-user and staff policies with real accounts when the team creates them.
+- The first migration was applied to Supabase project `zzcbjfgyibhuhlylsvhs` on 2026-10-05. Remote checks confirmed the `pets` table has RLS and five policies, the `pet-images` bucket is public, and Supabase security advisors report no warnings. On 2026-10-06, four available dog listings (Maple, Milo, Nala, and Pepper) were seeded and paired with public `pet-images/seed/` JPEGs; the browser fallback data mirrors those listings. The project currently has no Auth users, so verify ordinary-user and staff policies with real accounts when the team creates them.
 - Configure the team's actual three custom domains, exact API allowed origins, Astro build-time API URLs, and Supabase Auth redirect URL. Deploy each Worker independently.
 - Use the verified demo staff account for the initial portal walkthrough; create individual staff accounts for ongoing use.
 - Add adoption applications and appointment tables/API/UI after the team confirms the data fields and workflow.

@@ -1,9 +1,9 @@
 ---
 const seedPets = [
-  { id: 'maple', name: 'Maple', type: 'Dog', breed: 'Labrador mix', age: '3 years', daysInShelter: 18, tags: ['big-dog', 'good-with-kids'], status: 'Available' },
-  { id: 'milo', name: 'Milo', type: 'Cat', breed: 'Domestic shorthair', age: '2 years', daysInShelter: 42, tags: ['calm', 'indoor'], status: 'Available' },
-  { id: 'nala', name: 'Nala', type: 'Dog', breed: 'Hound mix', age: '5 years', daysInShelter: 76, tags: ['big-dog', 'gentle'], status: 'Available' },
-  { id: 'pepper', name: 'Pepper', type: 'Cat', breed: 'Tortoiseshell', age: '1 year', daysInShelter: 9, tags: ['playful', 'indoor'], status: 'Available' },
+  { id: 'maple', name: 'Maple', type: 'Dog', breed: 'Golden Retriever mix', age: '3 years', daysInShelter: 18, tags: ['big-dog', 'good-with-kids'], status: 'Available', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/maple.jpg' },
+  { id: 'milo', name: 'Milo', type: 'Dog', breed: 'Welsh Springer Spaniel', age: '2 years', daysInShelter: 42, tags: ['active', 'friendly'], status: 'Available', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/milo.jpg' },
+  { id: 'nala', name: 'Nala', type: 'Dog', breed: 'White German Shepherd mix', age: '5 years', daysInShelter: 76, tags: ['big-dog', 'gentle'], status: 'Available', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/nala.jpg' },
+  { id: 'pepper', name: 'Pepper', type: 'Dog', breed: 'Cavalier King Charles Spaniel', age: '1 year', daysInShelter: 9, tags: ['playful', 'small-dog'], status: 'Available', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/pepper.jpg' },
 ];
 const initialSearch = Astro.url.searchParams.get('search') ?? '';
 const initialTag = Astro.url.searchParams.get('tag') ?? '';
