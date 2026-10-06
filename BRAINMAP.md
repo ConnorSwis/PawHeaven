@@ -45,6 +45,7 @@ Use same-site custom domains in production: `pawheaven.online` or `www.pawheaven
 - The hosted Supabase Auth Site URL was changed from `http://localhost:3000` to `https://pawheaven.online` on 2026-10-05 so new confirmation emails return to the deployed public site. Previously sent links keep their embedded redirect. Local `supabase/config.toml` retains its localhost Site URL for local development.
 - The public account response contains only a member's identity and does not expose an authorization role.
 - A Supabase access token may remain valid until its expiry after logout. Keep JWT expiry short enough for the shelter's security needs; the current local Supabase config uses one hour.
+- The shared header checks the current session on page load: its action is “Log in” when signed out and becomes “Log out” when signed in. Logging out from either the header or account page synchronizes that action without requiring a page refresh.
 
 ## API contract now implemented
 
