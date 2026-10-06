@@ -8,5 +8,6 @@
   },
   "observability": {
     "enabled": false
-  }
+  },
+  "previews": {}
 }
