@@ -65,7 +65,7 @@ npm run workers:deploy:dry-run -w @pawheaven/web
 npm run workers:deploy:dry-run -w @pawheaven/staff
 ```
 
-Before production deployment, choose three custom domains on the same parent domain, for example `www.example.com`, `staff.example.com`, and `api.example.com`. Set `ALLOWED_ORIGINS` in `apps/api/wrangler.jsonc` to the exact public and staff origins. Set `PUBLIC_API_BASE_URL=https://api.example.com/api` in each Astro app's build environment, then build and deploy each Worker:
+The API allowlist in `apps/api/wrangler.jsonc` includes `https://staff.pawheaven.online`, `https://pawheaven.online`, and `https://www.pawheaven.online`. Keep it aligned with the exact deployed public and staff origins. Set `PUBLIC_API_BASE_URL=https://api.pawheaven.online/api` in each Astro app's build environment, then build and deploy each Worker:
 
 ```sh
 npm run workers:deploy -w @pawheaven/api
@@ -73,7 +73,7 @@ npm run workers:deploy -w @pawheaven/web
 npm run workers:deploy -w @pawheaven/staff
 ```
 
-Attach each Worker to its custom domain in Cloudflare. The API's host-only `SameSite=Lax` cookies depend on the sites sharing a parent domain. Test login and staff access on those real domains; separate `workers.dev` preview hostnames can behave differently. Set the Supabase Auth site URL to the public domain and allow its confirmation redirects.
+Attach each Worker to its custom domain in Cloudflare. The API's host-only `SameSite=Lax` cookies depend on the sites sharing a parent domain. Test login and staff access on those real domains; separate `workers.dev` preview hostnames can behave differently. Set the Supabase Auth site URL to the public domain and allow its confirmation redirects. After changing the API allowlist, redeploy `apps/api`; rebuilding either Astro site alone will not change its CORS response.
 
 For Cloudflare Workers Builds, set each Worker's **root directory** to its app folder (`apps/web`, `apps/staff`, or `apps/api`). Use `npm run build` as the build command and `npx wrangler deploy` as the deploy command. The API's build script generates Cloudflare binding types and checks TypeScript; Wrangler bundles the Worker during deployment.
 
@@ -83,5 +83,6 @@ For Cloudflare Workers Builds, set each Worker's **root directory** to its app f
 - Keep Supabase queries, Auth, and Storage operations in `apps/api`; use shared types from `packages/contracts` in both client apps.
 - Protect staff actions in both the API and Supabase RLS. A hidden button is never authorization.
 - Run `npm run check` before a merge. The root lockfile is the only lockfile to commit.
+- If regenerating `package-lock.json`, do it from a clean checkout without `node_modules` so npm records native optional packages for both macOS and Linux. Cloudflare's Linux build needs the Linux entries.
 
 The previous Sprint 2 draft names MySQL, while this implementation uses Supabase Postgres. The report needs to explain that decision. The PDFs one directory above this Git repository are historical project context.

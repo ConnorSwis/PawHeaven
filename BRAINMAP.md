@@ -30,9 +30,11 @@ Public users may eventually save favorites, take a matching quiz, apply to adopt
 
 npm workspaces and the root `package-lock.json` are the single dependency boundary. The public and staff Workers serve static Astro output. The API Worker uses `@supabase/supabase-js` with the supplied Supabase URL and publishable key. It makes authenticated queries with the user's access token, so Row Level Security still applies. No privileged Supabase key is used in the deployed API.
 
+The root lockfile is generated from a clean checkout so native optional dependencies for both macOS and Linux are present. This fixed the public Cloudflare build failure on 2026-10-05 where the Tailwind Linux binding was missing from a macOS-generated lockfile.
+
 For Cloudflare Workers Builds, each app uses its own folder as the root directory. All three apps expose `npm run build`; the API build generates Cloudflare binding types and type-checks, while its deploy command `npx wrangler deploy` performs bundling. This resolves the API build failure reported on 2026-10-05 when Cloudflare ran `npm run build` in `apps/api` before that script existed.
 
-Use same-site custom domains in production, such as `www.example.com`, `staff.example.com`, and `api.example.com`. The API sets host-only `HttpOnly`, `SameSite=Lax`, secure cookies on its own hostname. Browser requests use `credentials: 'include'`; the API allows only configured origins and checks the Origin on writes. Worker `workers.dev` preview hostnames may not share this cookie behavior, so test production auth on the planned custom domains. Exact domains have not yet been provided.
+Use same-site custom domains in production: `pawheaven.online` or `www.pawheaven.online` for the public site, `staff.pawheaven.online` for staff, and `api.pawheaven.online` for the API. The API sets host-only `HttpOnly`, `SameSite=Lax`, secure cookies on its own hostname. Browser requests use `credentials: 'include'`; the API allows only configured origins and checks the Origin on writes. Worker `workers.dev` preview hostnames may not share this cookie behavior. The API allowlist was updated on 2026-10-05 after the deployed staff site received a CORS error; the API Worker must be redeployed for the fix to take effect.
 
 ## Accounts and access
 

@@ -8,6 +8,6 @@
   "vars": {
     "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
     "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
-    "ALLOWED_ORIGINS": "http://localhost:4321,http://localhost:4322"
+    "ALLOWED_ORIGINS": "http://localhost:4321,http://localhost:4322,https://staff.pawheaven.online,https://pawheaven.online,https://www.pawheaven.online"
   }
 }
