@@ -57,7 +57,7 @@ The API base path is `/api`. Local URL: `http://localhost:8787/api`.
 | Request | Response or behavior |
 | --- | --- |
 | `GET /health` | API process health; does not test database connectivity |
-| `POST /auth/register` | Creates an ordinary user; returns `{ user }` or `202` with an email-confirmation message |
+| `POST /auth/register` | Creates an ordinary user; returns `201 { user }`, or `202` with a neutral email-confirmation message |
 | `POST /auth/login` | Sets session cookies and returns `{ user }` |
 | `GET /auth/me` | Returns `{ user }`, refreshes cookies when needed, or `401` |
 | `POST /auth/logout` | Revokes the current refresh token and clears cookies |
@@ -77,12 +77,14 @@ The public site still has clearly labeled sample pet listings when the API or da
 
 The implemented DBMS is Supabase-hosted PostgreSQL. The only PawHeaven-owned table currently deployed is `public.pets`; `auth.users`, `storage.buckets`, and `storage.objects` are managed by Supabase. Do not describe the following proposed tables as already deployed.
 
+As of 2026-10-05, migration `20261005235950_adoption_applications_and_appointments.sql` defines `public.adoption_applications` and `public.appointments` with row-level security, but it has not been applied to the hosted project and no API routes or pages use the tables. Applicants may insert an unreviewed application for an available pet and read their own applications and appointments; staff/admin may read and update all applications and manage appointments. A partial unique index allows one open (`Submitted` or `Under review`) application per person per pet. Deleting a pet or user cascades to their applications and appointments. Status values are a draft: applications use `Submitted`, `Under review`, `Approved`, `Rejected`, and `Withdrawn`; appointments use `Scheduled`, `Completed`, and `Cancelled`.
+
 | Table | Key columns and types | Relationships |
 | --- | --- | --- |
 | `public.pets` (implemented) | `id uuid` PK; `name`, `species`, `breed`, `age_label`, `status`, `summary`, `image_path` as `text`; `intake_date date`; `tags text[]`; `created_at timestamptz` | `image_path` is a Storage object path, not a SQL foreign key. |
 | `auth.users` (Supabase-managed) | `id uuid` PK; `email varchar`; `encrypted_password varchar`; `raw_user_meta_data jsonb` for display name; `raw_app_meta_data jsonb` for trusted role; `created_at timestamptz` | Future user-owned rows reference `auth.users.id`. |
-| `public.adoption_applications` (proposed) | `id uuid` PK; `applicant_id uuid` FK; `pet_id uuid` FK; `status text`; `answers jsonb`; `submitted_at timestamptz`; `reviewed_by uuid` nullable FK; `reviewed_at timestamptz` nullable | Many applications per user and per pet; reviewer points to a staff user. |
-| `public.appointments` (proposed) | `id uuid` PK; `application_id uuid` FK; `scheduled_at timestamptz`; `status text`; `notes text` nullable | One application may have multiple proposed/rescheduled visits. |
+| `public.adoption_applications` (migration written, not applied) | `id uuid` PK; `applicant_id uuid` FK; `pet_id uuid` FK; `status text`; `answers jsonb`; `submitted_at timestamptz`; `reviewed_by uuid` nullable FK; `reviewed_at timestamptz` nullable | Many applications per user and per pet; reviewer points to a staff user. |
+| `public.appointments` (migration written, not applied) | `id uuid` PK; `application_id uuid` FK; `scheduled_at timestamptz`; `status text`; `notes text` nullable; `created_at timestamptz` | One application may have multiple proposed/rescheduled visits. |
 | `public.quiz_responses` (proposed) | `id uuid` PK; `user_id uuid` FK; `answers jsonb`; `completed_at timestamptz` | A user may submit multiple matching quizzes. |
 | `public.suppliers` (proposed inventory) | `id uuid` PK; `name text`; `email text` nullable; `phone text` nullable | One supplier may provide many inventory items. |
 | `public.inventory_items` (proposed inventory) | `id uuid` PK; `supplier_id uuid` nullable FK; `name text`; `category text`; `unit text`; `quantity_on_hand numeric`; `expires_on date` nullable | Each item may have a supplier and many transactions. |
@@ -115,10 +117,11 @@ The report also calls for ten use cases with one requirement each, a user-manage
 
 ## Next work
 
-- The first migration was applied to Supabase project `zzcbjfgyibhuhlylsvhs` on 2026-10-05. Remote checks confirmed the `pets` table has RLS and five policies, the `pet-images` bucket is public, the API returns an empty pet list, and Supabase security advisors report no warnings. The project currently has no Auth users, so verify ordinary-user and staff policies with real accounts when the team creates them.
+- The first migration was applied to Supabase project `zzcbjfgyibhuhlylsvhs` on 2026-10-05. Remote checks confirmed the `pets` table has RLS and five policies, the `pet-images` bucket is public, the API returns an empty pet list, and Supabase security advisors report no warnings. A demo staff account now exists (see Accounts and access); verify the ordinary-user and staff policies with real accounts.
+- Two migrations written on 2026-10-05 still need a team member with project access to review and run `npx supabase db push`: `20261005235900_seed_demo_pets.sql` adds six fictional pets (five `Available`, one `Pending`) whose summaries end in `[demo]` for later deletion, and `20261005235950_adoption_applications_and_appointments.sql` adds the application and appointment tables. Run the Supabase security advisors after pushing.
 - Configure the team's actual three custom domains, exact API allowed origins, Astro build-time API URLs, and Supabase Auth redirect URL. Deploy each Worker independently.
 - Use the verified demo staff account for the initial portal walkthrough; create individual staff accounts for ongoing use.
-- Add adoption applications and appointment tables/API/UI after the team confirms the data fields and workflow.
+- Confirm the drafted adoption application and appointment fields and statuses with the team, then add their API routes and UI.
 - Add pagination beyond 200 pets, image optimization, request rate limiting, and a stronger session strategy if traffic or security needs grow.
 - Complete the report's database and screenshot requirements with the updated Postgres decision.
 
