@@ -53,7 +53,7 @@ npm run staff:role -w @pawheaven/api -- USER_UUID staff
 
 The script reads the secret from the environment, preserves other app metadata, and never writes it to a file. Use `admin` instead of `staff` only for a trusted administrator. Have the user log in again so their JWT contains the new role. Public registration never accepts a role.
 
-If **Confirm Email** is enabled in Supabase Auth, new users receive a confirmation email and then log in; configure the project's Auth site URL/redirect URL to the public site. If it is disabled, registration starts a session immediately.
+If **Confirm Email** is enabled in Supabase Auth, new users receive a confirmation email and then log in. The hosted project's Auth **Site URL** is `https://pawheaven.online` (set on 2026-10-05); this controls the default destination in new confirmation emails. Keep it set under Authentication → URL Configuration when changing domains. The local `supabase/config.toml` uses a localhost URL for local Supabase development and does not set the hosted project's URL. If confirmation is disabled, registration starts a session immediately.
 
 ## Deploying the three Workers
 

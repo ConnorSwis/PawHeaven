@@ -6,6 +6,8 @@ Read this before changing the project. Update it when the team states a new requ
 
 PawHeaven connects a shelter with its community. The first full path is: browse available pets, inspect a pet, sign up or log in, apply to adopt, staff review, schedule a visit, and update pet status. Adoption applications and scheduling are future work; this repository currently covers accounts and pet management.
 
+The public site uses a shared default page shell with navigation and a footer. The root route is its public landing page. The pet directory uses the live API when it contains listings; an empty or unavailable development database leaves clearly labeled sample listings usable for browsing and filtering.
+
 Public users may eventually save favorites, take a matching quiz, apply to adopt or foster, schedule visits, post lost-and-found reports, donate, and volunteer. Staff manage animals, applications, appointments, capacity, inventory, and operations. Administrators also manage staff and users.
 
 ## Requirements captured from the team
@@ -40,9 +42,11 @@ Use same-site custom domains in production: `pawheaven.online` or `www.pawheaven
 
 - Supabase Auth owns passwords, password hashes, and user sessions. The API handles registration, login, session refresh, current-user lookup, and logout, and sets the cookies.
 - Public sign-up can only create an ordinary user. The sign-up request accepts a display name, email, and password; it does not accept a role. If Supabase email confirmation is enabled, the page tells the user to confirm and then log in.
+- The hosted Supabase Auth Site URL was changed from `http://localhost:3000` to `https://pawheaven.online` on 2026-10-05 so new confirmation emails return to the deployed public site. Previously sent links keep their embedded redirect. Local `supabase/config.toml` retains its localhost Site URL for local development.
 - Roles are `user`, `staff`, and `admin`. Authorization reads Supabase `app_metadata.role`, which users cannot edit. Never authorize from `user_metadata` or a frontend control.
 - Staff endpoints check the authenticated user's current role, and the database and Storage policies enforce staff access again. A public account receives `403` on staff endpoints.
 - A trusted administrator assigns staff/admin roles through Supabase's Admin API. The local `apps/api/scripts/set-role.mjs` script requires a secret key supplied only in the local environment; the secret must never go in the repo or a client app.
+- A confirmed demo staff account exists in the hosted Supabase project as of 2026-10-05. Its trusted `app_metadata.role` is `staff`, and password sign-in was verified. The password is not stored in this repo; remove or rotate the account after the demo.
 - A Supabase access token may remain valid until its expiry after logout or role revocation. Keep JWT expiry short enough for the shelter's security needs; the current local Supabase config uses one hour.
 
 ## API contract now implemented
@@ -112,7 +116,7 @@ The report also calls for ten use cases with one requirement each, a user-manage
 
 - The first migration was applied to Supabase project `zzcbjfgyibhuhlylsvhs` on 2026-10-05. Remote checks confirmed the `pets` table has RLS and five policies, the `pet-images` bucket is public, the API returns an empty pet list, and Supabase security advisors report no warnings. The project currently has no Auth users, so verify ordinary-user and staff policies with real accounts when the team creates them.
 - Configure the team's actual three custom domains, exact API allowed origins, Astro build-time API URLs, and Supabase Auth redirect URL. Deploy each Worker independently.
-- Create a staff user and assign `app_metadata.role` through the trusted local script or another Admin API flow.
+- Use the verified demo staff account for the initial portal walkthrough; create individual staff accounts for ongoing use.
 - Add adoption applications and appointment tables/API/UI after the team confirms the data fields and workflow.
 - Add pagination beyond 200 pets, image optimization, request rate limiting, and a stronger session strategy if traffic or security needs grow.
 - Complete the report's database and screenshot requirements with the updated Postgres decision.

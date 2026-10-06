@@ -3,17 +3,39 @@ import PageShell from '../layouts/PageShell.astro';
 ---
 
 <PageShell title="PawHeaven">
-  <main class="mx-auto grid min-h-dvh max-w-5xl place-items-center px-6 py-12">
-    <section class="w-full max-w-xl border border-stone-300 bg-white p-8 sm:p-10">
-      <p class="text-sm font-medium text-stone-600">PawHeaven</p>
-      <h1 class="mt-3 text-3xl font-semibold tracking-tight text-stone-950">Animal shelter portal</h1>
-      <p class="mt-3 leading-7 text-stone-700">Choose a page to review the first frontend pieces.</p>
-      <div class="mt-7 grid gap-3 sm:grid-cols-2">
-        <a class="border border-stone-400 px-4 py-3 font-medium text-stone-900 transition-colors hover:bg-stone-100" href="/login">Log in</a>
-        <a class="border border-stone-400 px-4 py-3 font-medium text-stone-900 transition-colors hover:bg-stone-100" href="/sign-up">Create account</a>
-        <a class="border border-stone-400 px-4 py-3 font-medium text-stone-900 transition-colors hover:bg-stone-100" href="/pets">Browse pets</a>
-        <a class="border border-stone-400 px-4 py-3 font-medium text-stone-900 transition-colors hover:bg-stone-100" href="/account">Account</a>
+  <section class="border-b border-stone-300 bg-white">
+    <div class="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1.2fr)_minmax(17rem,.8fr)] lg:items-end lg:py-24">
+      <div>
+        <p class="text-sm font-medium text-[var(--color-moss-dark)]">PawHeaven animal shelter</p>
+        <h1 class="mt-4 max-w-2xl text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">Meet a pet who could make your home theirs.</h1>
+        <p class="mt-6 max-w-xl text-lg leading-8 text-stone-700">Browse animals currently looking for a home, learn what makes each one special, and start your PawHeaven account when you are ready.</p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a class="bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]" href="/pets">Browse available pets</a>
+          <a class="border border-stone-400 px-5 py-3 font-semibold text-stone-900 transition-colors hover:bg-stone-100" href="/sign-up">Create an account</a>
+        </div>
       </div>
-    </section>
-  </main>
+      <aside class="border-l-4 border-[var(--color-warm)] bg-[var(--color-page)] p-6" aria-label="How PawHeaven works">
+        <h2 class="text-lg font-semibold text-stone-950">Start with a visit</h2>
+        <p class="mt-3 leading-7 text-stone-700">A pet profile is a good first introduction. When one feels like a fit, create an account to stay connected as adoption services become available.</p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-6 py-14 sm:py-18" aria-labelledby="next-steps-title">
+    <h2 id="next-steps-title" class="text-2xl font-semibold tracking-tight text-stone-950">A clear path to meeting your match</h2>
+    <div class="mt-7 grid border-y border-stone-300 md:grid-cols-3">
+      <article class="py-6 md:border-r md:border-stone-300 md:pr-7">
+        <p class="font-semibold text-stone-950">Browse available pets</p>
+        <p class="mt-2 leading-7 text-stone-700">Filter by name or shelter tag to find pets that suit your home.</p>
+      </article>
+      <article class="py-6 md:border-r md:border-stone-300 md:px-7">
+        <p class="font-semibold text-stone-950">Get to know each animal</p>
+        <p class="mt-2 leading-7 text-stone-700">See their age, breed, time in the shelter, and the details staff have shared.</p>
+      </article>
+      <article class="py-6 md:pl-7">
+        <p class="font-semibold text-stone-950">Keep your place with PawHeaven</p>
+        <p class="mt-2 leading-7 text-stone-700">Create an account now so you are ready for upcoming adoption services.</p>
+      </article>
+    </div>
+  </section>
 </PageShell>

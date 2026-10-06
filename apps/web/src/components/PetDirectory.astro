@@ -5,9 +5,11 @@ const seedPets = [
   { id: 'nala', name: 'Nala', type: 'Dog', breed: 'Hound mix', age: '5 years', daysInShelter: 76, tags: ['big-dog', 'gentle'], status: 'Available' },
   { id: 'pepper', name: 'Pepper', type: 'Cat', breed: 'Tortoiseshell', age: '1 year', daysInShelter: 9, tags: ['playful', 'indoor'], status: 'Available' },
 ];
+const initialSearch = Astro.url.searchParams.get('search') ?? '';
+const initialTag = Astro.url.searchParams.get('tag') ?? '';
 ---
 
-<main class="mx-auto max-w-6xl px-6 py-10 sm:py-14">
+<div class="mx-auto max-w-6xl px-6 py-10 sm:py-14">
   <section aria-labelledby="pet-directory-title">
     <p class="text-sm font-medium text-stone-600">PawHeaven</p>
     <h1 id="pet-directory-title" class="mt-3 text-3xl font-semibold tracking-tight text-stone-950">Pets available for adoption</h1>
@@ -16,23 +18,23 @@ const seedPets = [
     <form class="mt-8 grid gap-4 border-y border-stone-300 py-5 md:grid-cols-[minmax(0,1fr)_15rem_auto] md:items-end" data-pet-filters>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-search">Search by name or tag</label>
-        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="pet-search" name="search" type="search" placeholder="Try Maple or big dog" />
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="pet-search" name="search" type="search" placeholder="Try Maple or big dog" value={initialSearch} />
       </div>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-tag">Shelter tag</label>
         <select class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="pet-tag" name="tag">
-          <option value="">All tags</option>
-          <option value="big-dog">Big dog</option>
-          <option value="good-with-kids">Good with kids</option>
-          <option value="calm">Calm</option>
-          <option value="indoor">Indoor</option>
-          <option value="playful">Playful</option>
+          <option value="" selected={!initialTag}>All tags</option>
+          <option value="big-dog" selected={initialTag === 'big-dog'}>Big dog</option>
+          <option value="good-with-kids" selected={initialTag === 'good-with-kids'}>Good with kids</option>
+          <option value="calm" selected={initialTag === 'calm'}>Calm</option>
+          <option value="indoor" selected={initialTag === 'indoor'}>Indoor</option>
+          <option value="playful" selected={initialTag === 'playful'}>Playful</option>
         </select>
       </div>
       <button class="bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]" type="submit">Search</button>
     </form>
 
-    <p class="mt-5 text-sm text-stone-600" data-results-status aria-live="polite">Showing all available pets.</p>
+    <p class="mt-5 text-sm text-stone-600" data-results-status aria-live="polite">Showing available pets.</p>
     <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-pet-results data-pets={JSON.stringify(seedPets)}>
       {seedPets.map((pet) => (
         <article class="flex min-h-56 flex-col border border-stone-300 bg-white p-5">
@@ -50,15 +52,17 @@ const seedPets = [
       ))}
     </div>
   </section>
-</main>
+</div>
 
 <script>
   import type { Pet } from '@pawheaven/contracts';
+
   const results = document.querySelector<HTMLElement>('[data-pet-results]');
   const form = document.querySelector<HTMLFormElement>('[data-pet-filters]');
   const status = document.querySelector<HTMLElement>('[data-results-status]');
   const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api';
   const seedPets: Pet[] = JSON.parse(results?.dataset.pets || '[]');
+  let source: 'pending' | 'live' | 'sample' = 'pending';
 
   function matches(pet: Pet, search: string, tag: string) {
     const haystack = `${pet.name} ${pet.tags.join(' ')}`.toLowerCase();
@@ -75,7 +79,7 @@ const seedPets = [
       results.append(message);
       return;
     }
-    pets.sort((first, second) => first.name.localeCompare(second.name)).forEach((pet) => {
+    [...pets].sort((first, second) => first.name.localeCompare(second.name)).forEach((pet) => {
       const card = document.createElement('article');
       card.className = 'flex min-h-56 flex-col border border-stone-300 bg-white p-5';
       const top = document.createElement('div');
@@ -120,27 +124,71 @@ const seedPets = [
     });
   }
 
-  async function loadPets() {
-    if (!form) return;
+  function filters() {
+    if (!form) return { search: '', tag: '' };
     const values = new FormData(form);
-    const search = String(values.get('search') || '').trim();
-    const tag = String(values.get('tag') || '');
+    return { search: String(values.get('search') || '').trim(), tag: String(values.get('tag') || '') };
+  }
+
+  function queryFor(search: string, tag: string) {
     const query = new URLSearchParams({ sort: 'name_asc' });
     if (search) query.set('search', search);
     if (tag) query.set('tag', tag);
+    return query;
+  }
 
-    if (status) status.textContent = 'Searching available pets…';
+  function syncUrl(search: string, tag: string) {
+    const url = new URL(window.location.href);
+    url.search = '';
+    if (search) url.searchParams.set('search', search);
+    if (tag) url.searchParams.set('tag', tag);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }
+
+  function restoreFiltersFromUrl() {
+    if (!form) return;
+    const params = new URLSearchParams(window.location.search);
+    const search = form.elements.namedItem('search');
+    const tag = form.elements.namedItem('tag');
+    if (search instanceof HTMLInputElement) search.value = params.get('search') ?? '';
+    if (tag instanceof HTMLSelectElement) tag.value = params.get('tag') ?? '';
+  }
+
+  function showSampleResults(search: string, tag: string) {
+    const pets = seedPets.filter((pet) => matches(pet, search, tag));
+    displayPets(pets);
+    if (status) status.textContent = pets.length === 0
+      ? 'No sample pets match those filters. Try a different name or shelter tag.'
+      : `Showing ${pets.length} sample ${pets.length === 1 ? 'listing' : 'listings'} while shelter listings are being added.`;
+  }
+
+  async function chooseSource() {
     try {
-      const response = await fetch(`${apiBase}/pets?${query}`, { credentials: 'include' });
+      const response = await fetch(`${apiBase}/pets?${queryFor('', '')}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('Pet directory is unavailable.');
+      const payload = await response.json() as { pets?: Pet[] };
+      source = payload.pets?.length ? 'live' : 'sample';
+    } catch {
+      source = 'sample';
+    }
+  }
+
+  async function loadPets() {
+    const { search, tag } = filters();
+    syncUrl(search, tag);
+    if (status) status.textContent = source === 'pending' ? 'Loading available pets…' : 'Searching available pets…';
+    if (source === 'pending') await chooseSource();
+    if (source === 'sample') return showSampleResults(search, tag);
+    try {
+      const response = await fetch(`${apiBase}/pets?${queryFor(search, tag)}`, { credentials: 'include' });
       if (!response.ok) throw new Error('Pet search is unavailable.');
-      const payload = await response.json() as { pets: Pet[] };
-      const pets = payload.pets;
+      const payload = await response.json() as { pets?: Pet[] };
+      const pets = payload.pets ?? [];
       displayPets(pets);
       if (status) status.textContent = `${pets.length} ${pets.length === 1 ? 'pet' : 'pets'} found.`;
     } catch {
-      const pets = seedPets.filter((pet) => matches(pet, search, tag));
-      displayPets(pets);
-      if (status) status.textContent = `Showing ${pets.length} sample ${pets.length === 1 ? 'listing' : 'listings'} while the shelter API is unavailable.`;
+      source = 'sample';
+      showSampleResults(search, tag);
     }
   }
 
@@ -148,5 +196,6 @@ const seedPets = [
     event.preventDefault();
     void loadPets();
   });
+  restoreFiltersFromUrl();
   void loadPets();
 </script>

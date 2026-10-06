@@ -4,9 +4,22 @@ import '../styles/global.css';
 interface Props {
   title: string;
   description?: string;
+  showNavigation?: boolean;
+  showFooter?: boolean;
 }
 
-const { title, description = 'PawHeaven animal shelter portal' } = Astro.props;
+const {
+  title,
+  description = 'PawHeaven animal shelter portal',
+  showNavigation = true,
+  showFooter = true,
+} = Astro.props;
+const pathname = Astro.url.pathname;
+const navItems = [
+  { href: '/', label: 'Home' },
+  { href: '/pets', label: 'Available pets' },
+  { href: '/account', label: 'Account' },
+];
 ---
 
 <!doctype html>
@@ -17,7 +30,41 @@ const { title, description = 'PawHeaven animal shelter portal' } = Astro.props;
     <meta name="description" content={description} />
     <title>{title} | PawHeaven</title>
   </head>
-  <body class="bg-[var(--color-page)] text-stone-900 antialiased">
-    <slot />
+  <body class="flex min-h-dvh flex-col bg-[var(--color-page)] text-stone-900 antialiased">
+    {showNavigation && (
+      <header class="border-b border-stone-300 bg-white">
+        <div class="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-6 py-3">
+          <a class="text-lg font-semibold tracking-tight text-stone-950" href="/">PawHeaven</a>
+          <nav aria-label="Primary navigation" class="flex items-center gap-5 text-sm font-medium">
+            {navItems.map((item) => (
+              <a
+                class:list={[
+                  'border-b-2 py-1 transition-colors',
+                  pathname === item.href ? 'border-[var(--color-moss)] text-stone-950' : 'border-transparent text-stone-700 hover:border-stone-400 hover:text-stone-950',
+                ]}
+                href={item.href}
+                aria-current={pathname === item.href ? 'page' : undefined}
+              >{item.label}</a>
+            ))}
+            <a class="border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white" href="/login">Log in</a>
+          </nav>
+        </div>
+      </header>
+    )}
+    <main id="main-content" class="flex-1">
+      <slot />
+    </main>
+    {showFooter && (
+      <footer class="border-t border-stone-300 bg-white">
+        <div class="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-7 text-sm text-stone-700 sm:flex-row sm:items-center sm:justify-between">
+          <p>Helping shelter pets find their next home.</p>
+          <nav aria-label="Footer navigation" class="flex flex-wrap gap-x-5 gap-y-2">
+            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/pets">Browse pets</a>
+            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/sign-up">Create an account</a>
+            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/account">Your account</a>
+          </nav>
+        </div>
+      </footer>
+    )}
   </body>
 </html>
