@@ -4,12 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --port 8787",
+    "dev": "node ../../scripts/configure-local-api-env.mjs && wrangler dev --local --port 8787",
     "build": "npm run check",
     "check": "npm run workers:types && tsc --noEmit",
     "workers:types": "wrangler types",
-    "workers:deploy:dry-run": "wrangler deploy --dry-run",
-    "workers:deploy": "wrangler deploy",
+    "workers:deploy:dry-run": "wrangler deploy --env production --dry-run",
+    "workers:deploy": "wrangler deploy --env production",
     "workers:preview": "wrangler preview"
   },
   "dependencies": {

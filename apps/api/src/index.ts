@@ -18,6 +18,20 @@ type Identity = { user: User; refreshed?: Session };
 type ApiResponse = Response;
 const ACCESS_COOKIE = 'ph_access';
 const REFRESH_COOKIE = 'ph_refresh';
+
+function localConfigurationError(env: Env): string | null {
+  if (env.DEPLOYMENT_TARGET !== 'local') return null;
+  try {
+    const url = new URL(env.SUPABASE_URL);
+    if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(url.hostname)) return 'Local API development must use the local Supabase URL.';
+  } catch {
+    return 'Local API development has an invalid Supabase URL.';
+  }
+  return env.SUPABASE_KEY === 'local-publishable-key-not-configured'
+    ? 'Run npm run db:start, then npm run db:configure-api before starting the local API.'
+    : null;
+}
+
 function supabase(env: Env) {
   return createClient(env.SUPABASE_URL, env.SUPABASE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
@@ -245,6 +259,8 @@ async function route(request: Request, env: Env): Promise<ApiResponse> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const configurationError = localConfigurationError(env);
+    if (configurationError) return errorResponse(configurationError, 503);
     const origin = request.headers.get('Origin');
     const allowed = isAllowedOrigin(origin, env);
     if (origin && !allowed) return errorResponse('Origin not allowed.', 403);

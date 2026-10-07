@@ -1,0 +1,38 @@
+name: Deploy Supabase migrations
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/deploy-supabase-migrations.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-supabase-migrations
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy reviewed migrations to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: npm
+      - run: npm ci
+      - name: Link the production project in this ephemeral runner
+        run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+      - name: Apply reviewed migrations
+        run: npx supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
