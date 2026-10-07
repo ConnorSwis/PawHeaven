@@ -8,6 +8,16 @@
   "vars": {
     "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
     "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
-    "ALLOWED_ORIGINS": "http://localhost:4321,https://pawheaven.online,https://www.pawheaven.online"
+    "ALLOWED_ORIGINS": "http://localhost:4321,https://pawheaven.online,https://www.pawheaven.online",
+    "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev"
+  },
+  "preview_urls": true,
+  "previews": {
+    "vars": {
+      "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
+      "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
+      "ALLOWED_ORIGINS": "http://localhost:4321,https://pawheaven.online,https://www.pawheaven.online",
+      "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev"
+    }
   }
 }

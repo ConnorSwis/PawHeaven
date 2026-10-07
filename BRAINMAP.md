@@ -35,7 +35,9 @@ The root lockfile is generated from a clean checkout so native optional dependen
 
 For Cloudflare Workers Builds, each app uses its own folder as the root directory. Both apps expose `npm run build`; the API build generates Cloudflare binding types and type-checks, while its deploy command `npx wrangler deploy` performs bundling. This resolves the API build failure reported on 2026-10-05 when Cloudflare ran `npm run build` in `apps/api` before that script existed.
 
-Use same-site custom domains in production: `pawheaven.online` or `www.pawheaven.online` for the public site and `api.pawheaven.online` for the API. The API sets host-only `HttpOnly`, `SameSite=Lax`, secure cookies on its own hostname. Browser requests use `credentials: 'include'`; the API allows only configured origins and checks the Origin on writes. Worker `workers.dev` preview hostnames may not share this cookie behavior.
+Use same-site custom domains in production: `pawheaven.online` or `www.pawheaven.online` for the public site and `api.pawheaven.online` for the API. In deployed environments, browser calls go to the frontend Worker's same-origin `/api` proxy, which forwards only API routes to the API Worker and keeps host-only `HttpOnly`, `SameSite=Lax`, secure cookies first-party. The API also accepts direct requests only from configured custom origins and from this Cloudflare account's production/Preview frontend `workers.dev` hosts.
+
+Branch and PR deployments use Cloudflare Worker Previews, not unpaired Version URLs. Both Workers are deployed with the same Preview name (the Git branch by default): the frontend proxy maps `<preview>-pawheaven-frontend.<account>.workers.dev` to `<preview>-pawheaven-api.<account>.workers.dev`. A generic Version URL cannot make this guarantee because its Worker-specific version prefix is unrelated to the API's prefix. Preview builds share the current Supabase project unless separate Preview bindings are configured.
 
 ## Accounts and access
 
@@ -58,10 +60,10 @@ The API base path is `/api`. Local URL: `http://localhost:8787/api`.
 | `POST /auth/login` | Sets session cookies and returns `{ user }` |
 | `GET /auth/me` | Returns `{ user }`, refreshes cookies when needed, or `401` |
 | `POST /auth/logout` | Revokes the current refresh token and clears cookies |
-| `GET /pets?search=&tag=` | Available pets in name order; currently limited to 200 rows before text filtering |
+| `GET /pets?search=&tag=` | Available pets in name order; universal text search across public pet details plus an optional exact shelter-tag filter; currently limited to 200 rows before text filtering |
 | `GET /pets/:id` | One available pet or `404`; IDs are UUIDs |
 
-The pet API returns `id`, `name`, `type`, `breed`, `age`, `intakeDate`, `daysInShelter`, `tags`, `status`, `summary`, and `imageUrl`. `daysInShelter` is calculated from the stored `intake_date`. Existing pet images live in a public `pet-images` Storage bucket. The bucket is only for public animal photos, never sensitive documents.
+The pet API returns `id`, `name`, `type`, `breed`, `age`, `intakeDate`, `daysInShelter`, `tags`, `status`, `summary`, and `imageUrl`. Its search matches normalized words in a pet's name, description, breed, type, age, tags, status, intake date, and days in shelter. `daysInShelter` is calculated from the stored `intake_date`. Existing pet images live in a public `pet-images` Storage bucket. The bucket is only for public animal photos, never sensitive documents.
 
 The public site still has clearly labeled sample pet listings when the API or database is unavailable. Remove that fallback after real pet data, migration, and end-to-end testing are in place.
 
@@ -107,7 +109,7 @@ The report also calls for ten use cases with one requirement each, a user-manage
 ## Next work
 
 - The retirement removes the application-side management paths only; it does not change the hosted Supabase project or migration history. On 2026-10-06, four available dog listings (Maple, Milo, Nala, and Pepper) were seeded and paired with public `pet-images/seed/` JPEGs; the browser fallback data mirrors those listings.
-- Configure the team's public and API custom domains, exact API allowed origins, Astro build-time API URL, and Supabase Auth redirect URL. Deploy each Worker independently.
+- Configure the team's public and API custom domains, exact API allowed origins, matching Worker Preview triggers, and Supabase Auth redirect URL. Deploy each Worker independently.
 - Add adoption applications and appointment tables/API/UI after the team confirms the data fields and workflow.
 - Add pagination beyond 200 pets, image optimization, request rate limiting, and a stronger session strategy if traffic or security needs grow.
 - Complete the report's database and screenshot requirements with the updated Postgres decision.

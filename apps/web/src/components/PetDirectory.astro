@@ -1,9 +1,9 @@
 ---
 const seedPets = [
-  { id: 'maple', name: 'Maple', type: 'Dog', breed: 'Golden Retriever mix', age: '3 years', daysInShelter: 18, tags: ['big-dog', 'good-with-kids'], status: 'Available', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/maple.jpg' },
-  { id: 'milo', name: 'Milo', type: 'Dog', breed: 'Welsh Springer Spaniel', age: '2 years', daysInShelter: 42, tags: ['active', 'friendly'], status: 'Available', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/milo.jpg' },
-  { id: 'nala', name: 'Nala', type: 'Dog', breed: 'White German Shepherd mix', age: '5 years', daysInShelter: 76, tags: ['big-dog', 'gentle'], status: 'Available', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/nala.jpg' },
-  { id: 'pepper', name: 'Pepper', type: 'Dog', breed: 'Cavalier King Charles Spaniel', age: '1 year', daysInShelter: 9, tags: ['playful', 'small-dog'], status: 'Available', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/pepper.jpg' },
+  { id: 'maple', name: 'Maple', type: 'Dog', breed: 'Golden Retriever mix', age: '3 years', intakeDate: '2026-09-18', daysInShelter: 18, tags: ['big-dog', 'good-with-kids'], status: 'Available', summary: 'Maple is an affectionate young dog who enjoys gentle walks, quiet afternoons, and meeting new people.', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/maple.jpg' },
+  { id: 'milo', name: 'Milo', type: 'Dog', breed: 'Welsh Springer Spaniel', age: '2 years', intakeDate: '2026-08-25', daysInShelter: 42, tags: ['active', 'friendly'], status: 'Available', summary: 'Milo is a bright, active spaniel who would love regular exercise and plenty of time with his people.', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/milo.jpg' },
+  { id: 'nala', name: 'Nala', type: 'Dog', breed: 'White German Shepherd mix', age: '5 years', intakeDate: '2026-07-22', daysInShelter: 76, tags: ['big-dog', 'gentle'], status: 'Available', summary: 'Nala is a gentle companion who is ready for patient people, peaceful walks, and lots of room to explore.', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/nala.jpg' },
+  { id: 'pepper', name: 'Pepper', type: 'Dog', breed: 'Cavalier King Charles Spaniel', age: '1 year', intakeDate: '2026-09-27', daysInShelter: 9, tags: ['playful', 'small-dog'], status: 'Available', summary: 'Pepper is a playful young dog who enjoys toys, close company, and a little attention each day.', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/pepper.jpg' },
 ];
 const initialSearch = Astro.url.searchParams.get('search') ?? '';
 const initialTag = Astro.url.searchParams.get('tag') ?? '';
@@ -13,12 +13,12 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
   <section aria-labelledby="pet-directory-title">
     <p class="text-sm font-medium text-stone-600">PawHeaven</p>
     <h1 id="pet-directory-title" class="mt-3 text-3xl font-semibold tracking-tight text-stone-950">Pets available for adoption</h1>
-    <p class="mt-3 max-w-2xl leading-7 text-stone-700">Listings are kept in alphabetical order. Filter by a shelter tag to find a pet that fits your home.</p>
+    <p class="mt-3 max-w-2xl leading-7 text-stone-700">Listings are kept in alphabetical order. Search by name, description, breed, age, type, or shelter tag to find a pet that fits your home.</p>
 
     <form class="mt-8 grid gap-4 border-y border-stone-300 py-5 md:grid-cols-[minmax(0,1fr)_15rem_auto] md:items-end" data-pet-filters>
       <div>
-        <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-search">Search by name or tag</label>
-        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="pet-search" name="search" type="search" placeholder="Try Maple or big dog" value={initialSearch} />
+        <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-search">Search pets</label>
+        <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="pet-search" name="search" type="search" placeholder="Try gentle, retriever, or good with kids" value={initialSearch} />
       </div>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-tag">Shelter tag</label>
@@ -44,6 +44,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
           </div>
           <h2 class="mt-7 text-xl font-semibold text-stone-950"><a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href={`/pets/details?id=${pet.id}`}>{pet.name}</a></h2>
           <p class="mt-2 text-stone-700">{pet.breed} · {pet.age}</p>
+          <p class="mt-3 leading-6 text-stone-700">{pet.summary}</p>
           <p class="mt-3 text-sm text-stone-700"><span class="font-medium text-stone-900">In shelter:</span> {pet.daysInShelter} days</p>
           <div class="mt-5 flex flex-wrap gap-2" aria-label={`${pet.name} tags`}>
             {pet.tags.map((tag) => <span class="border border-stone-300 px-2 py-1 text-xs text-stone-700">{tag.replaceAll('-', ' ')}</span>)}
@@ -55,18 +56,19 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
 </div>
 
 <script>
-  import type { Pet } from '@pawheaven/contracts';
+  import { matchesPetSearch, type Pet } from '@pawheaven/contracts';
+  import { apiBase } from '../lib/api';
 
   const results = document.querySelector<HTMLElement>('[data-pet-results]');
   const form = document.querySelector<HTMLFormElement>('[data-pet-filters]');
   const status = document.querySelector<HTMLElement>('[data-results-status]');
-  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api';
   const seedPets: Pet[] = JSON.parse(results?.dataset.pets || '[]');
   let source: 'pending' | 'live' | 'sample' = 'pending';
+  let searchTimer: number | undefined;
+  let latestSearch = 0;
 
   function matches(pet: Pet, search: string, tag: string) {
-    const haystack = `${pet.name} ${pet.tags.join(' ')}`.toLowerCase();
-    return (!search || haystack.includes(search.toLowerCase())) && (!tag || pet.tags.includes(tag));
+    return matchesPetSearch(pet, search) && (!tag || pet.tags.includes(tag));
   }
 
   function displayPets(pets: Pet[]) {
@@ -75,7 +77,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
     if (pets.length === 0) {
       const message = document.createElement('p');
       message.className = 'sm:col-span-2 lg:col-span-3 border border-stone-300 bg-white p-5 text-stone-700';
-      message.textContent = 'No pets match those filters. Try a different name or shelter tag.';
+      message.textContent = 'No pets match that search. Try another word or shelter tag.';
       results.append(message);
       return;
     }
@@ -98,9 +100,12 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
       link.href = `/pets/details?id=${encodeURIComponent(pet.id)}`;
       link.textContent = pet.name;
       title.append(link);
-      const summary = document.createElement('p');
-      summary.className = 'mt-2 text-stone-700';
-      summary.textContent = `${pet.breed} · ${pet.age}`;
+      const details = document.createElement('p');
+      details.className = 'mt-2 text-stone-700';
+      details.textContent = `${pet.breed} · ${pet.age}`;
+      const description = document.createElement('p');
+      description.className = 'mt-3 leading-6 text-stone-700';
+      description.textContent = pet.summary;
       const stay = document.createElement('p');
       stay.className = 'mt-3 text-sm text-stone-700';
       stay.textContent = `In shelter: ${pet.daysInShelter} days`;
@@ -118,8 +123,8 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
         image.src = pet.imageUrl;
         image.alt = `${pet.name} at PawHeaven`;
         image.className = 'mt-4 aspect-[4/3] w-full object-cover';
-        card.append(top, image, title, summary, stay, tags);
-      } else card.append(top, title, summary, stay, tags);
+        card.append(top, image, title, details, description, stay, tags);
+      } else card.append(top, title, details, description, stay, tags);
       results.append(card);
     });
   }
@@ -158,7 +163,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
     const pets = seedPets.filter((pet) => matches(pet, search, tag));
     displayPets(pets);
     if (status) status.textContent = pets.length === 0
-      ? 'No sample pets match those filters. Try a different name or shelter tag.'
+      ? 'No sample pets match that search. Try another word or shelter tag.'
       : `Showing ${pets.length} sample ${pets.length === 1 ? 'listing' : 'listings'} while shelter listings are being added.`;
   }
 
@@ -174,19 +179,23 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
   }
 
   async function loadPets() {
+    const searchNumber = ++latestSearch;
     const { search, tag } = filters();
     syncUrl(search, tag);
     if (status) status.textContent = source === 'pending' ? 'Loading available pets…' : 'Searching available pets…';
     if (source === 'pending') await chooseSource();
+    if (searchNumber !== latestSearch) return;
     if (source === 'sample') return showSampleResults(search, tag);
     try {
       const response = await fetch(`${apiBase}/pets?${queryFor(search, tag)}`, { credentials: 'include' });
       if (!response.ok) throw new Error('Pet search is unavailable.');
       const payload = await response.json() as { pets?: Pet[] };
+      if (searchNumber !== latestSearch) return;
       const pets = payload.pets ?? [];
       displayPets(pets);
       if (status) status.textContent = `${pets.length} ${pets.length === 1 ? 'pet' : 'pets'} found.`;
     } catch {
+      if (searchNumber !== latestSearch) return;
       source = 'sample';
       showSampleResults(search, tag);
     }
@@ -194,8 +203,23 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
 
   form?.addEventListener('submit', (event) => {
     event.preventDefault();
+    window.clearTimeout(searchTimer);
     void loadPets();
   });
+  const searchInput = form?.elements.namedItem('search');
+  if (searchInput instanceof HTMLInputElement) {
+    searchInput.addEventListener('input', () => {
+      window.clearTimeout(searchTimer);
+      searchTimer = window.setTimeout(() => void loadPets(), 250);
+    });
+  }
+  const tagSelect = form?.elements.namedItem('tag');
+  if (tagSelect instanceof HTMLSelectElement) {
+    tagSelect.addEventListener('change', () => {
+      window.clearTimeout(searchTimer);
+      void loadPets();
+    });
+  }
   restoreFiltersFromUrl();
   void loadPets();
 </script>

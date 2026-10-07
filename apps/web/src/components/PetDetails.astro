@@ -15,8 +15,8 @@ const seedPets = [
 
 <script>
   import type { Pet } from '@pawheaven/contracts';
+  import { apiBase } from '../lib/api';
   const container = document.querySelector<HTMLElement>('[data-pet-detail]');
-  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api';
   const seedPets: Pet[] = JSON.parse(container?.dataset.pets || '[]');
   const id = new URLSearchParams(window.location.search).get('id') || 'maple';
 

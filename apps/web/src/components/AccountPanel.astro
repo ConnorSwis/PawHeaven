@@ -6,8 +6,8 @@
 
 <script>
   import type { ApiUser } from '@pawheaven/contracts';
+  import { apiBase } from '../lib/api';
   const panel = document.querySelector<HTMLElement>('[data-account-panel]');
-  const apiBase = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api';
 
   function textElement(tag: string, className: string, content: string) {
     const node = document.createElement(tag);

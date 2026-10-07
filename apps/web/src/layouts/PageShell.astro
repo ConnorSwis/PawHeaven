@@ -72,8 +72,8 @@ const navItems = [
 </html>
 
 <script>
+  import { apiBase } from '../lib/api';
   const authAction = document.querySelector<HTMLElement>('[data-auth-action]');
-  const apiBase = (import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api').replace(/\/$/, '');
 
   function showLoginAction() {
     if (!authAction) return;

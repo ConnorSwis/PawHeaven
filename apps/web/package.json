@@ -10,9 +10,10 @@
     "build": "astro build",
     "check:astro": "astro check",
     "preview": "astro preview",
-    "workers:dev": "npm run build && wrangler dev",
+    "workers:dev": "npm run build && wrangler dev --var API_ORIGIN:http://localhost:8787",
     "workers:deploy": "npm run build && wrangler deploy",
     "workers:deploy:dry-run": "npm run build && wrangler deploy --dry-run",
+    "workers:preview": "npm run build && wrangler preview",
     "workers:types": "wrangler types",
     "astro": "astro"
   },

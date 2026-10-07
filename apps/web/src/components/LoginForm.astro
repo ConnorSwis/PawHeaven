@@ -26,12 +26,12 @@
 </div>
 
 <script>
+  import { apiBase } from '../lib/api';
   const form = document.querySelector<HTMLFormElement>('[data-login-form]');
   const error = document.querySelector<HTMLParagraphElement>('[data-form-error]');
   const submit = document.querySelector<HTMLButtonElement>('[data-submit]');
   const email = form?.elements.namedItem('email') as HTMLInputElement | null;
   const password = form?.elements.namedItem('password') as HTMLInputElement | null;
-  const apiBase = (import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api').replace(/\/$/, '');
   let submitting = false;
 
   function showError(message: string, focus = true) {

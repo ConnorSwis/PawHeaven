@@ -51,16 +51,31 @@ npm run check
 npm run workers:deploy:dry-run -w @pawheaven/web
 ```
 
-The API allowlist in `apps/api/wrangler.jsonc` includes `https://pawheaven.online` and `https://www.pawheaven.online`. Keep it aligned with the deployed public origin. Set `PUBLIC_API_BASE_URL=https://api.pawheaven.online/api` in the Astro build environment, then build and deploy each Worker:
+The deployed public site calls its own `/api` route. The frontend Worker proxies only that path to the API Worker, which keeps authentication cookies first-party and avoids browser-specific third-party-cookie behavior on `workers.dev`. In production, the frontend's `API_ORIGIN` is `https://api.pawheaven.online`; update it if the API custom domain changes. Astro's local development server does not run the proxy, so it continues to use `PUBLIC_API_BASE_URL` from `apps/web/.env`.
+
+The API allowlist includes the two public custom-domain origins and the production/Preview `pawheaven-frontend` hosts under the configured `WORKERS_DEV_SUBDOMAIN`. Keep the custom origins and Workers subdomain in `apps/api/wrangler.jsonc` aligned with the domains in the Cloudflare dashboard. Then build and deploy each Worker:
 
 ```sh
 npm run workers:deploy -w @pawheaven/api
 npm run workers:deploy -w @pawheaven/web
 ```
 
-Attach each Worker to its custom domain in Cloudflare. The API's host-only `SameSite=Lax` cookies depend on the sites sharing a parent domain. Test login on the real domain; a `workers.dev` preview hostname can behave differently. Set the Supabase Auth site URL to the public domain and allow its confirmation redirects. After changing the API allowlist, redeploy `apps/api`; rebuilding the public site alone will not change its CORS response.
+Attach each Worker to its custom domain in Cloudflare. The proxy means `pawheaven.online` and `workers.dev` requests are both same-origin from the browser's perspective, while the API remains available directly to its allowlisted origins for diagnostics and non-proxied local development. Set the Supabase Auth site URL to the public domain and allow its confirmation redirects. After changing the API allowlist, redeploy `apps/api`; after changing `API_ORIGIN` or the proxy, redeploy `apps/web`.
 
-For Cloudflare Workers Builds, set each Worker's **root directory** to its app folder (`apps/web` or `apps/api`). Use `npm run build` as the build command and `npx wrangler deploy` as the deploy command. The API's build script generates Cloudflare binding types and checks TypeScript; Wrangler bundles the Worker during deployment.
+## Branch and pull-request previews
+
+Use **Worker Previews**, not generic Version URLs, for a branch or pull request. A generic URL such as `abc123-pawheaven-frontend...workers.dev` cannot be paired with an API Version URL because each Worker gets its own unrelated version prefix.
+
+For both Workers Builds projects, set the **root directory** to its app folder (`apps/web` or `apps/api`). The production trigger should use `npm run build` and `npx wrangler deploy`. The non-production branch/PR trigger should use `npm run build` and `npx wrangler preview`. Cloudflare uses the Git branch as the default Preview name, so builds of the same branch create matching stable URLs:
+
+```text
+feature-login-pawheaven-frontend.group-3-paw-heaven.workers.dev
+feature-login-pawheaven-api.group-3-paw-heaven.workers.dev
+```
+
+The frontend proxy derives the API hostname from that shared Preview name. It therefore always forwards `/api/*` to the API Preview from the same branch, with no preview-specific `PUBLIC_API_BASE_URL` to maintain. The API Preview currently uses the configured Supabase project; create Preview-specific Supabase resources before testing data-changing work that must be isolated.
+
+For a manual Preview, run `npm run workers:preview -w @pawheaven/api` and `npm run workers:preview -w @pawheaven/web` from the same Git branch. Pass the same `--name` to both commands when overriding the default branch name.
 
 ## Working agreements
 

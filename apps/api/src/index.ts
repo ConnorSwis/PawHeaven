@@ -1,5 +1,5 @@
 import { createClient, type Session, type User } from '@supabase/supabase-js';
-import type { ApiUser, Pet, PetStatus } from '@pawheaven/contracts';
+import { matchesPetSearch, type ApiUser, type Pet, type PetStatus } from '@pawheaven/contracts';
 
 type DatabasePet = {
   id: string;
@@ -33,6 +33,27 @@ function respond(body: unknown, status = 200): ApiResponse {
 
 function errorResponse(message: string, status: number): ApiResponse {
   return respond({ message }, status);
+}
+
+function isAllowedWorkersDevFrontend(origin: string, env: Env): boolean {
+  try {
+    const url = new URL(origin);
+    // This admits this account's production frontend and its Cloudflare-issued
+    // Preview hosts, but not arbitrary workers.dev origins.
+    const workersDevSubdomain = env.WORKERS_DEV_SUBDOMAIN.toLowerCase();
+    const frontendHost = `pawheaven-frontend.${workersDevSubdomain}`;
+    return url.protocol === 'https:'
+      && !url.port
+      && (url.hostname === frontendHost || url.hostname.endsWith(`-${frontendHost}`));
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedOrigin(origin: string | null, env: Env): origin is string {
+  if (!origin) return false;
+  return env.ALLOWED_ORIGINS.split(',').map((entry) => entry.trim()).includes(origin)
+    || isAllowedWorkersDevFrontend(origin, env);
 }
 
 function validEmail(value: string): boolean {
@@ -202,8 +223,8 @@ async function publicPetRoutes(request: Request, env: Env, path: string): Promis
     if (tag) query = query.contains('tags', [tag]);
     const { data, error } = await query;
     if (error) return databaseError('pets.list', error);
-    const matching = (data as DatabasePet[]).filter((row) => !search || `${row.name} ${row.tags.join(' ')}`.toLowerCase().includes(search));
-    return respond({ pets: matching.map((row) => petForClient(row, env)) });
+    const pets = (data as DatabasePet[]).map((row) => petForClient(row, env));
+    return respond({ pets: pets.filter((pet) => matchesPetSearch(pet, search)) });
   }
   const match = path.match(/^\/pets\/([0-9a-f-]{36})$/i);
   if (match && request.method === 'GET') {
@@ -225,7 +246,7 @@ async function route(request: Request, env: Env): Promise<ApiResponse> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get('Origin');
-    const allowed = origin && env.ALLOWED_ORIGINS.split(',').map((entry) => entry.trim()).includes(origin);
+    const allowed = isAllowedOrigin(origin, env);
     if (origin && !allowed) return errorResponse('Origin not allowed.', 403);
     if (request.method === 'OPTIONS') {
       if (!allowed) return errorResponse('Origin not allowed.', 403);
