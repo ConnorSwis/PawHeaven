@@ -6,10 +6,23 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "vars": {
-    "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
-    "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
-    "ALLOWED_ORIGINS": "http://localhost:4321,https://pawheaven.online,https://www.pawheaven.online",
-    "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev"
+    "SUPABASE_URL": "http://127.0.0.1:54321",
+    "SUPABASE_KEY": "local-publishable-key-not-configured",
+    "ALLOWED_ORIGINS": "http://localhost:4321",
+    "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev",
+    "DEPLOYMENT_TARGET": "local"
+  },
+  "env": {
+    "production": {
+      "name": "pawheaven-api",
+      "vars": {
+        "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
+        "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
+        "ALLOWED_ORIGINS": "http://localhost:4321,https://pawheaven.online,https://www.pawheaven.online",
+        "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev",
+        "DEPLOYMENT_TARGET": "production"
+      }
+    }
   },
   "preview_urls": true,
   "previews": {
@@ -17,7 +30,8 @@
       "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
       "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
       "ALLOWED_ORIGINS": "http://localhost:4321,https://pawheaven.online,https://www.pawheaven.online",
-      "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev"
+      "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev",
+      "DEPLOYMENT_TARGET": "production"
     }
   }
 }

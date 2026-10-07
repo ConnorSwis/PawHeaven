@@ -19,15 +19,15 @@ Use Node.js 22.12 or newer. From this repository root:
 npm install
 ```
 
-The first migration was applied to project `zzcbjfgyibhuhlylsvhs` on 2026-10-05. For a fresh project or later migrations, a team member with access should run:
+The application database is local by default. Start it before the API when working on database-backed features:
 
 ```sh
-npx supabase login
-npx supabase link --project-ref zzcbjfgyibhuhlylsvhs
-npx supabase db push
+npm run db:start
+npm run db:reset
+npm run db:configure-api
 ```
 
-Review `supabase/migrations/` before pushing. The initial schema creates `public.pets` and a public `pet-images` Storage bucket. This retirement does not change the hosted Supabase project or its migration history. If another Supabase project's Data API does not expose the `public` schema, enable it in the Supabase dashboard. Public photo URLs are intentionally viewable by anyone who has the URL; do not use this bucket for private documents.
+The `db:reset` command explicitly targets the local database and replays every committed migration. Do not run `supabase link`, `supabase db push`, `supabase db reset --linked`, or use the hosted SQL/Table Editor for schema changes on a contributor checkout. The initial schema creates `public.pets` and a public `pet-images` Storage bucket. Public photo URLs are intentionally viewable by anyone who has the URL; do not use this bucket for private documents.
 
 Start these in separate terminals:
 
@@ -83,5 +83,19 @@ For a manual Preview, run `npm run workers:preview -w @pawheaven/api` and `npm r
 - Keep Supabase queries and Auth operations in `apps/api`; use shared types from `packages/contracts` in the public app.
 - Run `npm run check` before a merge. The root lockfile is the only lockfile to commit.
 - If regenerating `package-lock.json`, do it from a clean checkout without `node_modules` so npm records native optional packages for both macOS and Linux. Cloudflare's Linux build needs the Linux entries.
+
+## Database change workflow
+
+Schema changes are reviewed code, never ad-hoc edits to the hosted database.
+
+1. Create a branch and run `npm run db:start`, `npm run db:reset`, and `npm run db:configure-api`.
+2. Generate a migration with `npx supabase migration new short_change_description`, then edit the generated file in `supabase/migrations/`.
+3. Run `npm run db:reset` to prove the whole migration history works on a local database.
+4. Commit the migration with the application changes and open a pull request. The `Verify Supabase migrations` workflow repeats the local reset in CI.
+5. After review and merge to `main`, the production workflow awaits the protected GitHub `production` environment's approval, then applies migrations. Contributors never receive its credentials.
+
+Do not put a Supabase personal access token, database password, secret key, or a linked-project file in the repository. The CLI's local link metadata is already ignored at `supabase/.temp/`.
+
+Repository administrators must complete the one-time setup in [supabase/README.md](supabase/README.md) before relying on production deployments. In particular, remove contributor access that can modify the production database; code and CI cannot prevent a person with direct dashboard or database credentials from bypassing this workflow.
 
 The previous Sprint 2 draft names MySQL, while this implementation uses Supabase Postgres. The report needs to explain that decision. The PDFs one directory above this Git repository are historical project context.

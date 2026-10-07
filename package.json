@@ -10,6 +10,11 @@
   "scripts": {
     "dev:web": "npm run dev -w @pawheaven/web",
     "dev:api": "npm run dev -w @pawheaven/api",
+    "db:start": "npx supabase start",
+    "db:reset": "npx supabase db reset --local",
+    "db:configure-api": "node scripts/configure-local-api-env.mjs",
+    "db:verify": "npm run db:start && npm run db:reset",
+    "db:stop": "npx supabase stop",
     "build": "npm run build -w @pawheaven/web && npm run build -w @pawheaven/api",
     "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run workers:deploy:dry-run -w @pawheaven/api"
   }
