@@ -66,14 +66,21 @@ Attach each Worker to its custom domain in Cloudflare. The API remains available
 
 Use **Worker Previews**, not generic Version URLs, for a branch or pull request. A generic URL such as `abc123-pawheaven-frontend...workers.dev` cannot be paired with an API Version URL because each Worker gets its own unrelated version prefix.
 
-For both Workers Builds projects, set the **root directory** to its app folder (`apps/web` or `apps/api`). The production trigger should use `npm run build` and `npx wrangler deploy`. The non-production branch/PR trigger should use `npm run build` and `npx wrangler preview`. Cloudflare uses the Git branch as the default Preview name, so builds of the same branch create matching stable URLs:
+For both Workers Builds projects, set the **root directory** to its app folder (`apps/web` or `apps/api`). This is required: otherwise `npx wrangler preview` runs from the repository root, does not find either `wrangler.jsonc`, and fails with a missing `previews` block error.
+
+| Worker | Root directory | Build command | Production deploy command | Preview command |
+| --- | --- | --- | --- | --- |
+| API | `apps/api` | `npm run build` | `npx wrangler deploy --env production` | `npx wrangler preview` |
+| Public site | `apps/web` | `npm run build` | `npx wrangler deploy` | `npx wrangler preview` |
+
+Cloudflare uses the Git branch as the default Preview name, so builds of the same branch create matching stable URLs:
 
 ```text
 feature-login-pawheaven-frontend.group-3-paw-heaven.workers.dev
 feature-login-pawheaven-api.group-3-paw-heaven.workers.dev
 ```
 
-The public site derives the API hostname from that shared Preview name, so it always calls the API Preview from the same branch with no preview-specific `PUBLIC_API_BASE_URL` to maintain. The API Preview currently uses the configured Supabase project; create Preview-specific Supabase resources before testing data-changing work that must be isolated.
+The public site derives the API hostname from that shared Preview name, so it always calls the API Preview from the same branch with no preview-specific `PUBLIC_API_BASE_URL` to maintain. The API Preview deliberately returns `503` until a separate preview Supabase project is configured; it never falls back to the production project. To enable a functional API Preview, replace the two placeholder values in `apps/api/wrangler.jsonc` under `previews.vars` with that preview project's URL and **publishable** key. Never use production values there.
 
 For a manual Preview, run `npm run workers:preview -w @pawheaven/api` and `npm run workers:preview -w @pawheaven/web` from the same Git branch. Pass the same `--name` to both commands when overriding the default branch name.
 
