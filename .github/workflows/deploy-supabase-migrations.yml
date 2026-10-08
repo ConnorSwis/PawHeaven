@@ -22,9 +22,7 @@ jobs:
     timeout-minutes: 15
     environment: production
     env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,7 +30,15 @@ jobs:
           node-version: 22.12.0
           cache: npm
       - run: npm ci
-      - name: Link the production project in this ephemeral runner
-        run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
-      - name: Apply reviewed migrations
-        run: npx supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
+      - name: Verify the IPv4 Session Pooler connection
+        run: |
+          test -n "$SUPABASE_DB_URL"
+          case "$SUPABASE_DB_URL" in
+            postgresql://*pooler.supabase.com:5432/*|postgres://*pooler.supabase.com:5432/*) ;;
+            *)
+              echo "SUPABASE_DB_URL must be the production Session Pooler connection string on port 5432."
+              exit 1
+              ;;
+          esac
+      - name: Apply reviewed migrations through the Session Pooler
+        run: npx supabase db push --db-url "$SUPABASE_DB_URL"
