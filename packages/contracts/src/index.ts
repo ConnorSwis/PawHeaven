@@ -28,6 +28,10 @@ export type Pet = {
 
 export type PetInput = Pick<Pet, 'name' | 'type' | 'breed' | 'age' | 'intakeDate' | 'tags' | 'status' | 'summary'>;
 
+export type AdminPetListResponse = {
+  pets: Pet[];
+};
+
 function searchableWords(value: string): string[] {
   return value
     .toLocaleLowerCase()

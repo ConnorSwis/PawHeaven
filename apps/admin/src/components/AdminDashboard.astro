@@ -1,131 +1,287 @@
-<section class="max-w-3xl" data-admin-dashboard aria-live="polite">
-  <p class="text-sm text-stone-700">Checking administrator access…</p>
+<section data-admin-dashboard aria-live="polite">
+  <p data-loading class="text-sm text-stone-700">Checking administrator access…</p>
+
+  <section data-denied hidden>
+    <h1 class="text-2xl font-semibold tracking-tight text-stone-950">Administrator access required</h1>
+    <p class="mt-3 max-w-xl leading-7 text-stone-700">This account is signed in but does not have access to the administrator portal.</p>
+    <button data-logout type="button" class="mt-7 border border-stone-400 px-4 py-2 text-sm font-semibold text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-wait disabled:opacity-70">Log out</button>
+  </section>
+
+  <div data-admin-content hidden>
+    <header class="flex flex-wrap items-start justify-between gap-6 border-b border-stone-300 pb-8">
+      <div>
+        <h1 class="text-2xl font-semibold tracking-tight text-stone-950">Pet records</h1>
+        <p data-user-detail class="mt-3 leading-7 text-stone-700"></p>
+      </div>
+      <button data-logout type="button" class="border border-stone-400 px-4 py-2 text-sm font-semibold text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-wait disabled:opacity-70">Log out</button>
+    </header>
+
+    <p data-page-message class="mt-6 hidden text-sm" role="status"></p>
+
+    <div class="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <section>
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 data-form-title class="text-lg font-semibold text-stone-950">Add a pet</h2>
+          <button data-cancel-edit type="button" class="hidden text-sm font-medium text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950">Cancel editing</button>
+        </div>
+        <p class="mt-2 max-w-2xl leading-6 text-stone-700">Available pets appear on the public shelter site. Upload a public-facing photo only.</p>
+
+        <form data-pet-form class="mt-6 grid gap-5 border-y border-stone-300 py-6" novalidate>
+          <div class="grid gap-5 sm:grid-cols-2">
+            <label class="block text-sm font-medium text-stone-900">Name
+              <input data-field="name" name="name" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="100" required />
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Status
+              <select data-field="status" name="status" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
+                <option value="Available">Available</option>
+                <option value="Pending">Pending</option>
+                <option value="Adopted">Adopted</option>
+              </select>
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Species
+              <input data-field="type" name="type" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="60" placeholder="Dog" required />
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Breed
+              <input data-field="breed" name="breed" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="100" placeholder="Mixed" required />
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Age
+              <input data-field="age" name="age" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="60" placeholder="2 years" required />
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Intake date
+              <input data-field="intakeDate" name="intakeDate" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" type="date" required />
+            </label>
+          </div>
+
+          <label class="block text-sm font-medium text-stone-900">Tags
+            <input data-field="tags" name="tags" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="819" placeholder="big dog, gentle, family-friendly" />
+            <span class="mt-2 block text-sm font-normal text-stone-600">Separate up to 20 tags with commas.</span>
+          </label>
+
+          <label class="block text-sm font-medium text-stone-900">Description
+            <textarea data-field="summary" name="summary" class="mt-2 block min-h-32 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="2000" required></textarea>
+          </label>
+
+          <label class="block text-sm font-medium text-stone-900">Photo
+            <input data-field="image" name="image" class="mt-2 block w-full text-sm text-stone-700 file:mr-4 file:border-0 file:bg-stone-200 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-stone-900 hover:file:bg-stone-300" type="file" accept="image/jpeg,image/png,image/webp" />
+            <span class="mt-2 block text-sm font-normal text-stone-600">JPEG, PNG, or WebP; 5 MB maximum.</span>
+          </label>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <button data-save type="submit" class="bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70">Save pet</button>
+            <p data-form-message class="hidden text-sm" role="status"></p>
+          </div>
+        </form>
+      </section>
+
+      <section class="border-t border-stone-300 pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+        <h2 class="text-lg font-semibold text-stone-950">Existing pets</h2>
+        <p class="mt-2 text-sm leading-6 text-stone-700">Select a record to edit it.</p>
+        <div data-pet-list class="mt-5 grid gap-2"></div>
+      </section>
+    </div>
+
+    <section data-invitations hidden class="mt-10 border-t border-stone-300 pt-8">
+      <h2 class="text-lg font-semibold text-stone-950">Invite an administrator</h2>
+      <p class="mt-2 leading-6 text-stone-700">They will receive a Supabase email invitation and choose a password before their first sign-in.</p>
+      <form data-invite-form class="mt-5 flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end" novalidate>
+        <label class="min-w-0 flex-1 text-sm font-medium text-stone-900">Email address
+          <input data-invite-email name="email" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" type="email" autocomplete="email" maxlength="254" required placeholder="admin@example.com" />
+        </label>
+        <button data-invite-submit type="submit" class="bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70">Send invitation</button>
+      </form>
+      <p data-invite-message class="mt-3 hidden text-sm" role="status"></p>
+    </section>
+  </div>
 </section>
 
 <script>
-  import type { AdminUser } from '@pawheaven/contracts';
+  import type { AdminPetListResponse, AdminUser, Pet, PetInput } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
-  const dashboard = document.querySelector<HTMLElement>('[data-admin-dashboard]');
 
-  function node(tag: string, className: string, content: string) {
-    const element = document.createElement(tag);
-    element.className = className;
-    element.textContent = content;
-    return element;
+  const dashboard = document.querySelector<HTMLElement>('[data-admin-dashboard]');
+  const loading = dashboard?.querySelector<HTMLElement>('[data-loading]');
+  const deniedPanel = dashboard?.querySelector<HTMLElement>('[data-denied]');
+  const content = dashboard?.querySelector<HTMLElement>('[data-admin-content]');
+  const userDetail = dashboard?.querySelector<HTMLElement>('[data-user-detail]');
+  const form = dashboard?.querySelector<HTMLFormElement>('[data-pet-form]');
+  const formTitle = dashboard?.querySelector<HTMLElement>('[data-form-title]');
+  const formMessage = dashboard?.querySelector<HTMLElement>('[data-form-message]');
+  const saveButton = dashboard?.querySelector<HTMLButtonElement>('[data-save]');
+  const cancelEdit = dashboard?.querySelector<HTMLButtonElement>('[data-cancel-edit]');
+  const petList = dashboard?.querySelector<HTMLElement>('[data-pet-list]');
+  const invitations = dashboard?.querySelector<HTMLElement>('[data-invitations]');
+  const inviteForm = dashboard?.querySelector<HTMLFormElement>('[data-invite-form]');
+  const inviteEmail = dashboard?.querySelector<HTMLInputElement>('[data-invite-email]');
+  const inviteSubmit = dashboard?.querySelector<HTMLButtonElement>('[data-invite-submit]');
+  const inviteMessage = dashboard?.querySelector<HTMLElement>('[data-invite-message]');
+  let pets: Pet[] = [];
+  let selectedPetId: string | null = null;
+
+  function message(target: HTMLElement | null | undefined, text: string, success = false) {
+    if (!target) return;
+    target.textContent = text;
+    target.className = `text-sm ${success ? 'text-[var(--color-moss-dark)]' : 'text-red-800'}`;
   }
 
-  function logoutButton() {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'border border-stone-400 px-4 py-2 text-sm font-semibold text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-wait disabled:opacity-70';
-    button.textContent = 'Log out';
+  function field(name: string): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement {
+    const input = form?.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[data-field="${name}"]`);
+    if (!input) throw new Error(`Missing ${name} field.`);
+    return input;
+  }
+
+  function resetForm() {
+    selectedPetId = null;
+    form?.reset();
+    if (formTitle) formTitle.textContent = 'Add a pet';
+    if (saveButton) saveButton.textContent = 'Save pet';
+    cancelEdit?.classList.add('hidden');
+    if (formMessage) { formMessage.textContent = ''; formMessage.className = 'hidden text-sm'; }
+    renderPets();
+  }
+
+  function editPet(pet: Pet) {
+    selectedPetId = pet.id;
+    (field('name') as HTMLInputElement).value = pet.name;
+    (field('type') as HTMLInputElement).value = pet.type;
+    (field('breed') as HTMLInputElement).value = pet.breed;
+    (field('age') as HTMLInputElement).value = pet.age;
+    (field('intakeDate') as HTMLInputElement).value = pet.intakeDate;
+    (field('tags') as HTMLInputElement).value = pet.tags.join(', ');
+    (field('status') as HTMLSelectElement).value = pet.status;
+    (field('summary') as HTMLTextAreaElement).value = pet.summary;
+    if (formTitle) formTitle.textContent = `Edit ${pet.name}`;
+    if (saveButton) saveButton.textContent = 'Save changes';
+    cancelEdit?.classList.remove('hidden');
+    renderPets();
+    form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderPets() {
+    if (!petList) return;
+    petList.replaceChildren();
+    if (!pets.length) {
+      const empty = document.createElement('p');
+      empty.className = 'text-sm leading-6 text-stone-700';
+      empty.textContent = 'No pet records yet.';
+      petList.append(empty);
+      return;
+    }
+    for (const pet of pets) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `border px-3 py-3 text-left transition-colors ${selectedPetId === pet.id ? 'border-stone-950 bg-stone-100' : 'border-stone-300 bg-white hover:bg-stone-100'}`;
+      const name = document.createElement('span');
+      name.className = 'block font-semibold text-stone-950';
+      name.textContent = pet.name;
+      const details = document.createElement('span');
+      details.className = 'mt-1 block text-sm text-stone-700';
+      details.textContent = `${pet.type} · ${pet.status}`;
+      button.append(name, details);
+      button.addEventListener('click', () => editPet(pet));
+      petList.append(button);
+    }
+  }
+
+  async function responseJson<T>(path: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(`${apiBase}${path}`, { credentials: 'include', ...init });
+    if (response.status === 401) { window.location.assign('/login'); throw new Error('Your session has expired.'); }
+    const payload = await response.json().catch(() => null) as { message?: unknown } | T | null;
+    if (!response.ok) throw new Error(typeof (payload as { message?: unknown } | null)?.message === 'string' ? (payload as { message: string }).message : 'The request could not be completed.');
+    return payload as T;
+  }
+
+  function upsertPet(pet: Pet) {
+    pets = [...pets.filter((item) => item.id !== pet.id), pet].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async function loadPets() {
+    const payload = await responseJson<AdminPetListResponse>('/admin/pets');
+    pets = payload.pets;
+    renderPets();
+  }
+
+  async function uploadImage(id: string, image: File): Promise<Pet> {
+    const data = new FormData();
+    data.append('image', image);
+    return responseJson<Pet>(`/admin/pets/${encodeURIComponent(id)}/image`, { method: 'POST', body: data });
+  }
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const image = (field('image') as HTMLInputElement).files?.[0];
+    const payload: PetInput = {
+      name: (field('name') as HTMLInputElement).value.trim(),
+      type: (field('type') as HTMLInputElement).value.trim(),
+      breed: (field('breed') as HTMLInputElement).value.trim(),
+      age: (field('age') as HTMLInputElement).value.trim(),
+      intakeDate: (field('intakeDate') as HTMLInputElement).value,
+      tags: (field('tags') as HTMLInputElement).value.split(',').map((tag) => tag.trim()).filter(Boolean),
+      status: (field('status') as HTMLSelectElement).value as Pet['status'],
+      summary: (field('summary') as HTMLTextAreaElement).value.trim(),
+    };
+    if (image && (!['image/jpeg', 'image/png', 'image/webp'].includes(image.type) || image.size > 5 * 1024 * 1024)) {
+      message(formMessage, 'Choose a JPEG, PNG, or WebP image smaller than 5 MB.');
+      return;
+    }
+    if (saveButton) { saveButton.disabled = true; saveButton.textContent = selectedPetId ? 'Saving…' : 'Creating…'; }
+    try {
+      let saved = await responseJson<Pet>(selectedPetId ? `/admin/pets/${encodeURIComponent(selectedPetId)}` : '/admin/pets', {
+        method: selectedPetId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (image) saved = await uploadImage(saved.id, image);
+      upsertPet(saved);
+      editPet(saved);
+      message(formMessage, 'Pet record saved.', true);
+    } catch (exception) {
+      message(formMessage, exception instanceof Error ? exception.message : 'We could not save this pet.');
+    } finally {
+      if (saveButton) { saveButton.disabled = false; saveButton.textContent = selectedPetId ? 'Save changes' : 'Save pet'; }
+    }
+  });
+
+  cancelEdit?.addEventListener('click', resetForm);
+
+  for (const button of dashboard?.querySelectorAll<HTMLButtonElement>('[data-logout]') ?? []) {
     button.addEventListener('click', async () => {
       button.disabled = true;
       try { await fetch(`${apiBase}/auth/logout`, { method: 'POST', credentials: 'include' }); } finally { window.location.assign('/login'); }
     });
-    return button;
   }
 
-  function denied() {
-    if (!dashboard) return;
-    dashboard.replaceChildren(
-      node('h1', 'text-2xl font-semibold tracking-tight text-stone-950', 'Administrator access required'),
-      node('p', 'mt-3 max-w-xl leading-7 text-stone-700', 'This account is signed in but does not have access to the administrator portal.'),
-      logoutButton(),
-    );
-    dashboard.lastElementChild?.classList.add('mt-7');
-  }
-
-  function inviteForm() {
-    const section = document.createElement('section');
-    section.className = 'mt-10 border-t border-stone-300 pt-8';
-    section.append(
-      node('h2', 'text-lg font-semibold text-stone-950', 'Invite an administrator'),
-      node('p', 'mt-2 leading-6 text-stone-700', 'They will receive a Supabase email invitation and choose a password before their first sign-in.'),
-    );
-    const form = document.createElement('form');
-    form.className = 'mt-5 flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end';
-    form.noValidate = true;
-    const field = document.createElement('div');
-    field.className = 'min-w-0 flex-1';
-    const label = node('label', 'mb-2 block text-sm font-medium text-stone-900', 'Email address') as HTMLLabelElement;
-    label.htmlFor = 'invite-email';
-    const input = document.createElement('input');
-    input.id = 'invite-email';
-    input.name = 'email';
-    input.type = 'email';
-    input.autocomplete = 'email';
-    input.maxLength = 254;
-    input.required = true;
-    input.placeholder = 'admin@example.com';
-    input.className = 'block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500';
-    field.append(label, input);
-    const button = document.createElement('button');
-    button.type = 'submit';
-    button.className = 'bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
-    button.textContent = 'Send invitation';
-    const message = node('p', 'hidden text-sm', '');
-    message.setAttribute('role', 'status');
-    form.append(field, button);
-    section.append(form, message);
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      input.value = input.value.trim();
-      message.className = 'mt-3 text-sm text-red-800';
-      if (!input.validity.valid) { message.textContent = 'Enter a valid email address.'; return; }
-      button.disabled = true;
-      button.textContent = 'Sending…';
-      try {
-        const response = await fetch(`${apiBase}/admin/invitations`, {
-          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: input.value }),
-        });
-        const payload = await response.json().catch(() => null) as { message?: unknown } | null;
-        if (!response.ok) throw new Error(typeof payload?.message === 'string' ? payload.message : 'We could not send that invitation.');
-        input.value = '';
-        message.className = 'mt-3 text-sm text-[var(--color-moss-dark)]';
-        message.textContent = 'Invitation sent.';
-      } catch (exception) {
-        message.textContent = exception instanceof Error ? exception.message : 'We could not send that invitation.';
-      } finally {
-        button.disabled = false;
-        button.textContent = 'Send invitation';
-      }
-    });
-    return section;
-  }
-
-  function ready(user: AdminUser) {
-    if (!dashboard) return;
-    const header = document.createElement('div');
-    header.className = 'flex flex-wrap items-start justify-between gap-6 border-b border-stone-300 pb-8';
-    const introduction = document.createElement('div');
-    introduction.append(
-      node('h1', 'text-2xl font-semibold tracking-tight text-stone-950', 'Administrator portal'),
-      node('p', 'mt-3 leading-7 text-stone-700', `Signed in as ${user.email}.`),
-      node('p', 'mt-2 text-sm text-stone-600', user.role === 'superuser' ? 'Superuser access' : 'Administrator access'),
-    );
-    header.append(introduction, logoutButton());
-    dashboard.replaceChildren(header);
-    const notice = document.createElement('section');
-    notice.className = 'py-8';
-    notice.append(
-      node('h2', 'text-lg font-semibold text-stone-950', 'Welcome'),
-      node('p', 'mt-2 leading-7 text-stone-700', 'This first version establishes secure administrator access. Shelter records and management workflows will be added here in a later release.'),
-    );
-    dashboard.append(notice);
-    if (user.role === 'superuser') dashboard.append(inviteForm());
-  }
+  inviteForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!inviteEmail?.validity.valid) { message(inviteMessage, 'Enter a valid email address.'); return; }
+    if (!inviteSubmit) return;
+    inviteSubmit.disabled = true;
+    inviteSubmit.textContent = 'Sending…';
+    try {
+      await responseJson('/admin/invitations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: inviteEmail.value.trim() }) });
+      inviteEmail.value = '';
+      message(inviteMessage, 'Invitation sent.', true);
+    } catch (exception) {
+      message(inviteMessage, exception instanceof Error ? exception.message : 'We could not send that invitation.');
+    } finally {
+      inviteSubmit.disabled = false;
+      inviteSubmit.textContent = 'Send invitation';
+    }
+  });
 
   async function load() {
     try {
-      const response = await fetch(`${apiBase}/admin/me`, { credentials: 'include' });
-      if (response.status === 401) { window.location.assign('/login'); return; }
-      if (response.status === 403) return denied();
-      if (!response.ok) throw new Error('Administrator details are unavailable.');
-      const payload = await response.json() as { user: AdminUser };
-      ready(payload.user);
-    } catch { denied(); }
+      const identity = await responseJson<{ user: AdminUser }>('/admin/me');
+      if (userDetail) userDetail.textContent = `Signed in as ${identity.user.email} · ${identity.user.role === 'superuser' ? 'Superuser' : 'Administrator'}`;
+      if (identity.user.role === 'superuser') invitations?.removeAttribute('hidden');
+      await loadPets();
+      loading?.setAttribute('hidden', '');
+      content?.removeAttribute('hidden');
+    } catch (exception) {
+      loading?.setAttribute('hidden', '');
+      if (exception instanceof Error && exception.message === 'Your session has expired.') return;
+      deniedPanel?.removeAttribute('hidden');
+    }
   }
 
   load();

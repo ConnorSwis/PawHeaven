@@ -1,5 +1,5 @@
 import { createClient, type Session, type User } from '@supabase/supabase-js';
-import { matchesPetSearch, type AdminRole, type AdminUser, type ApiUser, type Pet, type PetStatus } from '@pawheaven/contracts';
+import { matchesPetSearch, type AdminPetListResponse, type AdminRole, type AdminUser, type ApiUser, type Pet, type PetInput, type PetStatus } from '@pawheaven/contracts';
 
 type DatabasePet = {
   id: string;
@@ -18,6 +18,12 @@ type Identity = { user: User; accessToken: string; refreshToken: string; refresh
 type ApiResponse = Response;
 const ACCESS_COOKIE = 'ph_access';
 const REFRESH_COOKIE = 'ph_refresh';
+const PET_IMAGE_TYPES = new Map<string, string>([
+  ['image/jpeg', 'jpg'],
+  ['image/png', 'png'],
+  ['image/webp', 'webp'],
+]);
+const MAX_PET_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function configurationError(env: Env): string | null {
   // Wrangler does not include values from the `previews` block in generated
@@ -53,7 +59,15 @@ function supabase(env: Env) {
   });
 }
 
-/** This client is only used for Supabase Auth's server-only admin methods. */
+/** Uses the caller's JWT, so every query remains subject to database and Storage RLS. */
+function userSupabase(env: Env, accessToken: string) {
+  return createClient(env.SUPABASE_URL, env.SUPABASE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+  });
+}
+
+/** This client is only used for server-only invitation administration and its audit record. */
 function supabaseAdmin(env: Env) {
   if (!env.ADMIN_SUPABASE_SERVICE_ROLE_KEY) return null;
   return createClient(env.SUPABASE_URL, env.ADMIN_SUPABASE_SERVICE_ROLE_KEY, {
@@ -185,6 +199,42 @@ function petForClient(row: DatabasePet, env: Env): Pet {
     status: row.status,
     summary: row.summary,
     imageUrl: row.image_path ? supabase(env).storage.from('pet-images').getPublicUrl(row.image_path).data.publicUrl : null,
+  };
+}
+
+function petInput(body: unknown): { value: PetInput } | { message: string } {
+  const input = body as Record<string, unknown> | null;
+  const text = (key: string) => typeof input?.[key] === 'string' ? input[key].trim() : '';
+  const name = text('name');
+  const type = text('type');
+  const breed = text('breed');
+  const age = text('age');
+  const intakeDate = text('intakeDate');
+  const summary = text('summary');
+  const status = input?.status;
+  const tags = Array.isArray(input?.tags)
+    ? [...new Set(input.tags.filter((tag): tag is string => typeof tag === 'string').map((tag) => tag.trim()).filter(Boolean))]
+    : [];
+  const intakeTime = /^\d{4}-\d{2}-\d{2}$/.test(intakeDate) ? Date.parse(`${intakeDate}T00:00:00Z`) : Number.NaN;
+
+  if (!name || !type || !breed || !age || !summary) return { message: 'Complete every pet detail before saving.' };
+  if (name.length > 100 || type.length > 60 || breed.length > 100 || age.length > 60 || summary.length > 2000) return { message: 'One or more pet details are too long.' };
+  if (!Number.isFinite(intakeTime) || new Date(intakeTime).toISOString().slice(0, 10) !== intakeDate || intakeDate > new Date().toISOString().slice(0, 10)) return { message: 'Enter an intake date that is today or earlier.' };
+  if (tags.length > 20 || tags.some((tag) => tag.length > 40)) return { message: 'Use no more than 20 tags, with 40 characters each.' };
+  if (status !== 'Available' && status !== 'Pending' && status !== 'Adopted') return { message: 'Choose a valid availability status.' };
+  return { value: { name, type, breed, age, intakeDate, tags, status, summary } };
+}
+
+function petRow(input: PetInput) {
+  return {
+    name: input.name,
+    species: input.type,
+    breed: input.breed,
+    age_label: input.age,
+    intake_date: input.intakeDate,
+    tags: input.tags,
+    status: input.status,
+    summary: input.summary,
   };
 }
 
@@ -327,27 +377,77 @@ async function adminRoutes(request: Request, env: Env, path: string): Promise<Ap
   }
   const { current, role } = authorized;
   if (path === '/admin/me' && request.method === 'GET') return sessionResponse(respond({ user: adminUser(current.user, role) }), request, current);
+  const client = userSupabase(env, current.accessToken);
+  if (path === '/admin/pets' && request.method === 'GET') {
+    const { data, error } = await client.from('pets').select('*').order('name', { ascending: true }).limit(500);
+    if (error) return sessionResponse(databaseError('admin.pets.list', error), request, current);
+    const payload: AdminPetListResponse = { pets: (data as DatabasePet[]).map((pet) => petForClient(pet, env)) };
+    return sessionResponse(respond(payload), request, current);
+  }
+  if (path === '/admin/pets' && request.method === 'POST') {
+    const body = await jsonBody(request);
+    const parsed = petInput(body);
+    if ('message' in parsed) return sessionResponse(errorResponse(parsed.message, 400), request, current);
+    const { data, error } = await client.from('pets').insert(petRow(parsed.value)).select('*').single();
+    if (error) return sessionResponse(databaseError('admin.pets.create', error), request, current);
+    return sessionResponse(respond(petForClient(data as DatabasePet, env), 201), request, current);
+  }
+  const petMatch = path.match(/^\/admin\/pets\/([0-9a-f-]{36})$/i);
+  if (petMatch && request.method === 'PUT') {
+    const body = await jsonBody(request);
+    const parsed = petInput(body);
+    if ('message' in parsed) return sessionResponse(errorResponse(parsed.message, 400), request, current);
+    const { data, error } = await client.from('pets').update(petRow(parsed.value)).eq('id', petMatch[1]).select('*').maybeSingle();
+    if (error) return sessionResponse(databaseError('admin.pets.update', error), request, current);
+    if (!data) return sessionResponse(errorResponse('Pet not found.', 404), request, current);
+    return sessionResponse(respond(petForClient(data as DatabasePet, env)), request, current);
+  }
+  const imageMatch = path.match(/^\/admin\/pets\/([0-9a-f-]{36})\/image$/i);
+  if (imageMatch && request.method === 'POST') {
+    if (!request.headers.get('Content-Type')?.includes('multipart/form-data') || Number(request.headers.get('Content-Length') ?? 0) > MAX_PET_IMAGE_BYTES + 16_384) return sessionResponse(errorResponse('Choose a JPEG, PNG, or WebP image smaller than 5 MB.', 400), request, current);
+    let form: FormData;
+    try { form = await request.formData(); } catch { return sessionResponse(errorResponse('Choose a valid image file.', 400), request, current); }
+    const image = form.get('image');
+    if (!(image instanceof File) || !PET_IMAGE_TYPES.has(image.type) || image.size === 0 || image.size > MAX_PET_IMAGE_BYTES) return sessionResponse(errorResponse('Choose a JPEG, PNG, or WebP image smaller than 5 MB.', 400), request, current);
+    const { data: existing, error: existingError } = await client.from('pets').select('id, image_path').eq('id', imageMatch[1]).maybeSingle();
+    if (existingError) return sessionResponse(databaseError('admin.pets.image_lookup', existingError), request, current);
+    if (!existing) return sessionResponse(errorResponse('Pet not found.', 404), request, current);
+    const imagePath = `pets/${existing.id}/${crypto.randomUUID()}.${PET_IMAGE_TYPES.get(image.type)}`;
+    const { error: uploadError } = await client.storage.from('pet-images').upload(imagePath, image, { cacheControl: '3600', contentType: image.type, upsert: false });
+    if (uploadError) return sessionResponse(databaseError('admin.pets.image_upload', uploadError), request, current);
+    const { data, error } = await client.from('pets').update({ image_path: imagePath }).eq('id', existing.id).select('*').maybeSingle();
+    if (error || !data) {
+      const { error: cleanupError } = await client.storage.from('pet-images').remove([imagePath]);
+      if (cleanupError) console.error(JSON.stringify({ operation: 'admin.pets.image_cleanup', error: cleanupError.message, imagePath }));
+      return sessionResponse(error ? databaseError('admin.pets.image_update', error) : errorResponse('Pet not found.', 404), request, current);
+    }
+    if (existing.image_path) {
+      const { error: cleanupError } = await client.storage.from('pet-images').remove([existing.image_path]);
+      if (cleanupError) console.error(JSON.stringify({ operation: 'admin.pets.old_image_cleanup', error: cleanupError.message, imagePath: existing.image_path }));
+    }
+    return sessionResponse(respond(petForClient(data as DatabasePet, env)), request, current);
+  }
   if (path === '/admin/invitations' && request.method === 'POST') {
     if (role !== 'superuser') return sessionResponse(errorResponse('Only superusers can invite administrators.', 403), request, current);
     const body = await jsonBody(request) as Record<string, unknown> | null;
     const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
     if (!validEmail(email)) return sessionResponse(errorResponse('Enter a valid email address.', 400), request, current);
-    const client = supabaseAdmin(env);
-    if (!client) return sessionResponse(errorResponse('Administrator invitations are not configured. Contact the deployment owner.', 503), request, current);
+    const adminClient = supabaseAdmin(env);
+    if (!adminClient) return sessionResponse(errorResponse('Administrator invitations are not configured. Contact the deployment owner.', 503), request, current);
     const redirectTo = env.ADMIN_INVITE_REDIRECT_URL ?? 'https://admin.pawheaven.online/accept-invite';
-    const { data: invited, error: inviteError } = await client.auth.admin.inviteUserByEmail(email, { redirectTo });
+    const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, { redirectTo });
     if (inviteError || !invited.user) {
       console.error(JSON.stringify({ operation: 'admin.invite', error: inviteError?.message ?? 'No invited user returned' }));
       return sessionResponse(errorResponse('We could not send that invitation. Check the address or try again later.', inviteError?.status === 429 ? 429 : 400), request, current);
     }
-    const { error: roleError } = await client.auth.admin.updateUserById(invited.user.id, {
+    const { error: roleError } = await adminClient.auth.admin.updateUserById(invited.user.id, {
       app_metadata: { ...invited.user.app_metadata, role: 'admin' },
     });
     if (roleError) {
       console.error(JSON.stringify({ operation: 'admin.invite_role', error: roleError.message, invitedUserId: invited.user.id }));
       return sessionResponse(errorResponse('The invitation was not completed. Contact the deployment owner before asking the person to sign in.', 503), request, current);
     }
-    const { error: auditError } = await client.from('admin_invitation_audit').insert({
+    const { error: auditError } = await adminClient.from('admin_invitation_audit').insert({
       invited_email: email,
       invited_user_id: invited.user.id,
       invited_by: current.user.id,
