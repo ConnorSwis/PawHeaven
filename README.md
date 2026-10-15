@@ -92,7 +92,7 @@ feature-login-pawheaven-admin.group-3-paw-heaven.workers.dev
 feature-login-pawheaven-api.group-3-paw-heaven.workers.dev
 ```
 
-The public site derives the API hostname from that shared Preview name, so it always calls the API Preview from the same branch with no preview-specific `PUBLIC_API_BASE_URL` to maintain. The API Preview currently uses the configured Supabase project; create Preview-specific Supabase resources before testing data-changing work that must be isolated.
+The public site derives the API hostname from that shared Preview name, so it always calls the API Preview from the same branch with no preview-specific `PUBLIC_API_BASE_URL` to maintain. The API Preview deliberately returns `503` until a separate preview Supabase project is configured; it never falls back to the production project. To enable a functional API Preview, replace the two placeholder values in `apps/api/wrangler.jsonc` under `previews.vars` with that preview project's URL and **publishable** key. Never use production values there.
 
 For a manual Preview, run `npm run workers:preview -w @pawheaven/api` and `npm run workers:preview -w @pawheaven/web` from the same Git branch. Pass the same `--name` to both commands when overriding the default branch name.
 
@@ -111,10 +111,10 @@ Schema changes are reviewed code, never ad-hoc edits to the hosted database.
 2. Generate a migration with `npx supabase migration new short_change_description`, then edit the generated file in `supabase/migrations/`.
 3. Run `npm run db:reset` to prove the whole migration history works on a local database.
 4. Commit the migration with the application changes and open a pull request. The `Verify Supabase migrations` workflow repeats the local reset in CI.
-5. After review and merge to `main`, the production workflow awaits the protected GitHub `production` environment's approval, then applies migrations. Contributors never receive its credentials.
+5. After review and merge, the project owner applies the migration to production. Contributors do not receive production Supabase access or database credentials.
 
 Do not put a Supabase personal access token, database password, secret key, or a linked-project file in the repository. The CLI's local link metadata is already ignored at `supabase/.temp/`.
 
-Repository administrators must complete the one-time setup in [supabase/README.md](supabase/README.md) before relying on production deployments. In particular, remove contributor access that can modify the production database; code and CI cannot prevent a person with direct dashboard or database credentials from bypassing this workflow.
+The project owner must not add contributors to the production Supabase project or share its database password, access token, or dashboard access. The repository's pull-request check uses only a disposable local database; it cannot access production.
 
 The previous Sprint 2 draft names MySQL, while this implementation uses Supabase Postgres. The report needs to explain that decision. The PDFs one directory above this Git repository are historical project context.
