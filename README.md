@@ -44,7 +44,7 @@ The public site retains clearly labeled sample pets if the API is unavailable. W
 
 ## Administrator access
 
-`apps/admin` is a separate deployable app in this monorepo. It has no shelter-data CRUD yet. A superuser can only send an administrator invitation by email; Supabase emails the recipient an invitation link, and the recipient sets a password on `/accept-invite` before logging in.
+`apps/admin` is a separate deployable app in this monorepo. Administrators can list, create, and update pet records, including a public JPEG, PNG, or WebP image up to 5 MB. A superuser can also send an administrator invitation by email; Supabase emails the recipient an invitation link, and the recipient sets a password on `/accept-invite` before logging in.
 
 One deployment owner must set these API Worker values outside source control before using invitations:
 
