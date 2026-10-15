@@ -1,0 +1,29 @@
+{
+  "name": "@pawheaven/admin",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev --port 4322",
+    "build": "astro build",
+    "check:astro": "astro check",
+    "preview": "astro preview",
+    "workers:dev": "npm run build && wrangler dev",
+    "workers:deploy": "npm run build && wrangler deploy",
+    "workers:deploy:dry-run": "npm run build && wrangler deploy --dry-run",
+    "workers:preview": "npm run build && wrangler preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@pawheaven/contracts": "0.1.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.3.5",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "wrangler": "^4.147.0"
+  }
+}

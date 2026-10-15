@@ -12,7 +12,7 @@ Public users may eventually save favorites, take a matching quiz, apply to adopt
 
 ## Requirements captured from the team
 
-- There must be a public user-facing website and a backend API. They deploy as distinct Cloudflare Workers.
+- There must be a public user-facing website, an internal administrator website, and a backend API. They deploy as distinct Cloudflare Workers but live in this monorepo under `apps/web`, `apps/admin`, and `apps/api`.
 - The public site may have an adoption service later, but adoption flows are not part of this architecture setup.
 - The public site uses Astro, TypeScript, basic HTML/CSS/JavaScript, and mostly static pages. This keeps the code approachable for the team and coding agents.
 - The public client calls the API. The API communicates with Supabase for Postgres data, Auth, and image Storage. Clients do not receive a service-role or secret key.
@@ -66,7 +66,7 @@ The web app is at `http://localhost:4321`; the API is at `http://localhost:8787/
 - This project uses imperative, timestamped SQL migrations. Create a schema migration with `npx supabase migration new descriptive_change`, edit the generated file, and run `npm run db:reset` before requesting review.
 - Schema changes include tables, indexes, grants, RLS policies, Storage policies, functions, and triggers. Do not hide schema changes in application code or dashboard-only changes.
 - Do **not** run `supabase link`, `supabase db push`, `supabase db reset --linked`, `supabase db pull`, or `supabase migration repair` against production from a contributor checkout. Do not use the hosted SQL Editor or Table Editor to change production schema.
-- Do not place Supabase access tokens, database passwords, service-role/secret keys, production `.env` files, or `supabase/.temp/` metadata in Git. The only key used by the public Worker is a publishable key; it does not bypass RLS.
+- Do not place Supabase access tokens, database passwords, service-role/secret keys, production `.env` files, or `supabase/.temp/` metadata in Git. The public and admin sites use no secret key. The only deliberate exception is the `ADMIN_SUPABASE_SERVICE_ROLE_KEY` Cloudflare secret on `apps/api`; it is used only to call Supabase Auth Admin methods for invitation and immutable `app_metadata` role assignment.
 - New or changed tables in `public` need deliberate grants, RLS enabled, and policies matching the actual actor and row ownership. Never use editable `user_metadata` for authorization. Treat `SECURITY DEFINER`, views, triggers, and Storage rules as security-sensitive and document/verify them.
 - Do not give contributors access to the production Supabase project, its dashboard, database password, access token, or production environment files. The project owner alone applies reviewed migrations to production outside this repository.
 
@@ -102,21 +102,22 @@ When completing a feature, update the relevant existing section of this brain ma
 | Path | Responsibility | Cloudflare Worker |
 | --- | --- | --- |
 | `apps/web` | Public Astro site; accounts and pet browsing | `pawheaven-frontend` |
+| `apps/admin` | Internal Astro admin portal; admin sign-in and invitation UI | `pawheaven-admin` |
 | `apps/api` | TypeScript API; Supabase Auth, Postgres, and Storage | `pawheaven-api` |
 | `packages/contracts` | Shared TypeScript API shapes | Not deployed |
 | `supabase/migrations` | Versioned schema and access policies | Applied to Supabase |
 
-npm workspaces and the root `package-lock.json` are the single dependency boundary. The public Worker serves static Astro output. The API Worker uses `@supabase/supabase-js` with the supplied Supabase URL and publishable key. No privileged Supabase key is used in the deployed API.
+npm workspaces and the root `package-lock.json` are the single dependency boundary. The public and admin Workers serve static Astro output. The API Worker normally uses `@supabase/supabase-js` with the supplied Supabase URL and publishable key. Administrator invitations are the narrow server-side exception: the API receives `ADMIN_SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare secret, never as a source-controlled binding, static Worker var, or browser value.
 
 The root lockfile is generated from a clean checkout so native optional dependencies for both macOS and Linux are present. This fixed the public Cloudflare build failure on 2026-10-05 where the Tailwind Linux binding was missing from a macOS-generated lockfile.
 
 Database development is local-only for contributors. Each schema change is a timestamped migration under `supabase/migrations`, tested by a local `supabase db reset --local` and by a pull-request CI workflow. The production project is not linked in source control and contributors have no production credentials or dashboard access. The project owner alone applies reviewed migrations to production outside this repository.
 
-For Cloudflare Workers Builds, each app uses its own folder as the root directory (`apps/api` or `apps/web`). Both apps expose `npm run build`; the API build generates Cloudflare binding types and type-checks, while its deploy command performs bundling. The API production command is `npx wrangler deploy --env production`; the public site's is `npx wrangler deploy`; both Preview commands are `npx wrangler preview`. Running a Preview command from the repository root cannot find either app's `wrangler.jsonc` and fails with a missing `previews` block error.
+For Cloudflare Workers Builds, each app uses its own folder as the root directory. Every app exposes `npm run build`; the API build generates Cloudflare binding types and type-checks, while its deploy command `npx wrangler deploy` performs bundling. This resolves the API build failure reported on 2026-10-05 when Cloudflare ran `npm run build` in `apps/api` before that script existed.
 
-Use same-site custom domains in production: `pawheaven.online` or `www.pawheaven.online` for the public site and `api.pawheaven.online` for the API. On `workers.dev`, browser code derives the matching API Worker hostname and makes direct CORS requests. The API accepts direct requests only from configured custom origins and from this Cloudflare account's production/Preview frontend `workers.dev` hosts. CORS allows public API calls there, but use custom domains for account flows because browser third-party-cookie policies can prevent reliable cross-host `workers.dev` sessions.
+Use same-site custom domains in production: `pawheaven.online` or `www.pawheaven.online` for the public site, `admin.pawheaven.online` for the administrator portal, and `api.pawheaven.online` for the API. On `workers.dev`, browser code derives the matching API Worker hostname and makes direct CORS requests. The API accepts direct requests only from configured custom origins and from this Cloudflare account's production/Preview frontend and admin `workers.dev` hosts. CORS allows public API calls there, but use custom domains for account flows because browser third-party-cookie policies can prevent reliable cross-host `workers.dev` sessions.
 
-Branch and PR deployments use Cloudflare Worker Previews, not unpaired Version URLs. Both Workers are deployed with the same Preview name (the Git branch by default): the public client maps `<preview>-pawheaven-frontend.<account>.workers.dev` to `<preview>-pawheaven-api.<account>.workers.dev`. A generic Version URL cannot make this guarantee because its Worker-specific version prefix is unrelated to the API's prefix. API Previews are intentionally disabled until their own Supabase project is configured under `previews.vars`; placeholders must never be replaced with production values.
+Branch and PR deployments use Cloudflare Worker Previews, not unpaired Version URLs. The public and admin clients map `<preview>-pawheaven-frontend.<account>.workers.dev` and `<preview>-pawheaven-admin.<account>.workers.dev` to `<preview>-pawheaven-api.<account>.workers.dev`. A generic Version URL cannot make this guarantee because its Worker-specific version prefix is unrelated to the API's prefix. Preview builds share the current Supabase project unless separate Preview bindings are configured. Use custom domains for all account flows because cross-host `workers.dev` cookies are not reliable.
 
 ## Accounts and access
 
@@ -127,6 +128,10 @@ Branch and PR deployments use Cloudflare Worker Previews, not unpaired Version U
 - The public account response contains only a member's identity and does not expose an authorization role.
 - A Supabase access token may remain valid until its expiry after logout. Keep JWT expiry short enough for the shelter's security needs; the current local Supabase config uses one hour.
 - The shared header checks the current session on page load: its action is “Log in” when signed out and becomes “Log out” when signed in. Logging out from either the header or account page synchronizes that action without requiring a page refresh.
+- The internal `apps/admin` portal is a separate app folder and Worker, not a separate repository. It currently contains no pet, user, or shelter-record CRUD.
+- Admin roles are only `admin` and `superuser`, stored in `auth.users.raw_app_meta_data.role`; public registration cannot create either. A `superuser` can invite an `admin` by email. The API sends the Supabase invitation, sets the invited user’s immutable app-metadata role before they can use the portal, and records an audit event.
+- Invitations use Supabase’s email invitation flow and password-based login. An invitee follows the email link to `apps/admin`’s `/accept-invite`, where the API exchanges the short-lived Supabase session into its secure API cookies and the invitee chooses their password. This deliberately reuses the existing password login path instead of introducing an OTP-only system.
+- The deployment owner configures one `BOOTSTRAP_SUPERUSER_EMAIL` outside source control. On that address’s first successful sign-in, the API assigns immutable `superuser` app metadata with its server-side secret. Remove the setting after bootstrap so it cannot be reused. Configure `ADMIN_SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare secret, production SMTP, and the exact `https://admin.pawheaven.online/accept-invite` Supabase redirect URL before enabling invitations in production.
 
 ## API contract now implemented
 
@@ -137,8 +142,12 @@ The API base path is `/api`. Local URL: `http://localhost:8787/api`.
 | `GET /health` | API process health; does not test database connectivity |
 | `POST /auth/register` | Creates an ordinary user; returns `{ user }` or `202` with an email-confirmation message |
 | `POST /auth/login` | Sets session cookies and returns `{ user }` |
+| `POST /auth/exchange` | Exchanges the Supabase invitation session returned to the admin app for API-host session cookies |
+| `POST /auth/password` | Authenticated invitee sets the password selected during invite acceptance |
 | `GET /auth/me` | Returns `{ user }`, refreshes cookies when needed, or `401` |
 | `POST /auth/logout` | Revokes the current refresh token and clears cookies |
+| `GET /admin/me` | Returns the signed-in administrator plus immutable `admin` or `superuser` role; ordinary users receive `403` |
+| `POST /admin/invitations` | Superuser-only. Sends a Supabase invitation, assigns the invited account the `admin` app-metadata role, and writes an audit record |
 | `GET /pets?search=&tag=` | Available pets in name order; universal text search across public pet details plus an optional exact shelter-tag filter; currently limited to 200 rows before text filtering |
 | `GET /pets/:id` | One available pet or `404`; IDs are UUIDs |
 
@@ -148,11 +157,12 @@ The public site still has clearly labeled sample pet listings when the API or da
 
 ## Database model for the report
 
-The implemented DBMS is Supabase-hosted PostgreSQL. The only PawHeaven-owned table currently deployed is `public.pets`; `auth.users`, `storage.buckets`, and `storage.objects` are managed by Supabase. Do not describe the following proposed tables as already deployed.
+The implemented DBMS is Supabase-hosted PostgreSQL. The PawHeaven-owned tables currently deployed are `public.pets` and `public.admin_invitation_audit`; `auth.users`, `storage.buckets`, and `storage.objects` are managed by Supabase. Do not describe the following proposed tables as already deployed.
 
 | Table | Key columns and types | Relationships |
 | --- | --- | --- |
 | `public.pets` (implemented) | `id uuid` PK; `name`, `species`, `breed`, `age_label`, `status`, `summary`, `image_path` as `text`; `intake_date date`; `tags text[]`; `created_at timestamptz` | `image_path` is a Storage object path, not a SQL foreign key. |
+| `public.admin_invitation_audit` (implemented) | `id uuid` PK; `invited_email text`; `invited_user_id uuid` nullable FK; `invited_by uuid` nullable FK; `invited_at timestamptz` | Server-side invitation audit only. RLS is enabled and neither `anon` nor `authenticated` receives table access. |
 | `auth.users` (Supabase-managed) | `id uuid` PK; `email varchar`; `encrypted_password varchar`; `raw_user_meta_data jsonb` for display name; `created_at timestamptz` | Future user-owned rows reference `auth.users.id`. |
 | `public.adoption_applications` (proposed) | `id uuid` PK; `applicant_id uuid` FK; `pet_id uuid` FK; `status text`; `answers jsonb`; `submitted_at timestamptz`; `reviewed_by uuid` nullable FK; `reviewed_at timestamptz` nullable | Many applications per user and per pet; reviewer points to the user who handled the request. |
 | `public.appointments` (proposed) | `id uuid` PK; `application_id uuid` FK; `scheduled_at timestamptz`; `status text`; `notes text` nullable | One application may have multiple proposed/rescheduled visits. |

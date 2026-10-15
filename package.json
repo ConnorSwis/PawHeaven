@@ -9,13 +9,14 @@
   "devDependencies": { "@astrojs/check": "0.9.10", "supabase": "2.119.0", "typescript": "5.9.3" },
   "scripts": {
     "dev:web": "npm run dev -w @pawheaven/web",
+    "dev:admin": "npm run dev -w @pawheaven/admin",
     "dev:api": "npm run dev -w @pawheaven/api",
     "db:start": "npx supabase start",
     "db:reset": "npx supabase db reset --local",
     "db:configure-api": "node scripts/configure-local-api-env.mjs",
     "db:verify": "npm run db:start && npm run db:reset",
     "db:stop": "npx supabase stop",
-    "build": "npm run build -w @pawheaven/web && npm run build -w @pawheaven/api",
-    "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run workers:deploy:dry-run -w @pawheaven/api"
+    "build": "npm run build -w @pawheaven/web && npm run build -w @pawheaven/admin && npm run build -w @pawheaven/api",
+    "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run check:astro -w @pawheaven/admin && npm run workers:deploy:dry-run -w @pawheaven/api && npm run workers:deploy:dry-run -w @pawheaven/admin"
   }
 }

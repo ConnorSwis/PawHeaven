@@ -1,5 +1,5 @@
 import { createClient, type Session, type User } from '@supabase/supabase-js';
-import { matchesPetSearch, type ApiUser, type Pet, type PetStatus } from '@pawheaven/contracts';
+import { matchesPetSearch, type AdminRole, type AdminUser, type ApiUser, type Pet, type PetStatus } from '@pawheaven/contracts';
 
 type DatabasePet = {
   id: string;
@@ -14,7 +14,7 @@ type DatabasePet = {
   image_path: string | null;
 };
 
-type Identity = { user: User; refreshed?: Session };
+type Identity = { user: User; accessToken: string; refreshToken: string; refreshed?: Session };
 type ApiResponse = Response;
 const ACCESS_COOKIE = 'ph_access';
 const REFRESH_COOKIE = 'ph_refresh';
@@ -53,6 +53,14 @@ function supabase(env: Env) {
   });
 }
 
+/** This client is only used for Supabase Auth's server-only admin methods. */
+function supabaseAdmin(env: Env) {
+  if (!env.ADMIN_SUPABASE_SERVICE_ROLE_KEY) return null;
+  return createClient(env.SUPABASE_URL, env.ADMIN_SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+  });
+}
+
 function respond(body: unknown, status = 200): ApiResponse {
   return new Response(JSON.stringify(body), {
     status,
@@ -64,16 +72,16 @@ function errorResponse(message: string, status: number): ApiResponse {
   return respond({ message }, status);
 }
 
-function isAllowedWorkersDevFrontend(origin: string, env: Env): boolean {
+function isAllowedWorkersDevApp(origin: string, env: Env): boolean {
   try {
     const url = new URL(origin);
     // This admits this account's production frontend and its Cloudflare-issued
     // Preview hosts, but not arbitrary workers.dev origins.
     const workersDevSubdomain = env.WORKERS_DEV_SUBDOMAIN.toLowerCase();
-    const frontendHost = `pawheaven-frontend.${workersDevSubdomain}`;
+    const appHost = 'pawheaven-(?:frontend|admin)';
     return url.protocol === 'https:'
       && !url.port
-      && (url.hostname === frontendHost || url.hostname.endsWith(`-${frontendHost}`));
+      && new RegExp(`^(?:[a-z0-9-]+-)?${appHost}\\.${workersDevSubdomain.replace('.', '\\.')}$`, 'i').test(url.hostname);
   } catch {
     return false;
   }
@@ -82,7 +90,7 @@ function isAllowedWorkersDevFrontend(origin: string, env: Env): boolean {
 function isAllowedOrigin(origin: string | null, env: Env): origin is string {
   if (!origin) return false;
   return env.ALLOWED_ORIGINS.split(',').map((entry) => entry.trim()).includes(origin)
-    || isAllowedWorkersDevFrontend(origin, env);
+    || isAllowedWorkersDevApp(origin, env);
 }
 
 function validEmail(value: string): boolean {
@@ -125,15 +133,20 @@ function clearSession(response: Response, request: Request): Response {
 async function identity(request: Request, env: Env): Promise<Identity | null> {
   const cookies = parseCookies(request);
   const access = cookies[ACCESS_COOKIE];
+  const refresh = cookies[REFRESH_COOKIE];
   if (access) {
     const { data, error } = await supabase(env).auth.getUser(access);
-    if (!error && data.user) return { user: data.user };
+    if (!error && data.user && refresh) return { user: data.user, accessToken: access, refreshToken: refresh };
   }
-  const refresh = cookies[REFRESH_COOKIE];
   if (!refresh) return null;
   const { data, error } = await supabase(env).auth.refreshSession({ refresh_token: refresh });
   if (error || !data.user || !data.session) return null;
-  return { user: data.user, refreshed: data.session };
+  return {
+    user: data.user,
+    accessToken: data.session.access_token,
+    refreshToken: data.session.refresh_token,
+    refreshed: data.session,
+  };
 }
 
 function apiUser(user: User): ApiUser {
@@ -142,6 +155,15 @@ function apiUser(user: User): ApiUser {
     email: user.email ?? '',
     name: typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : user.email ?? 'PawHeaven member',
   };
+}
+
+function adminRole(user: User): AdminRole | null {
+  const role = user.app_metadata?.role;
+  return role === 'admin' || role === 'superuser' ? role : null;
+}
+
+function adminUser(user: User, role: AdminRole): AdminUser {
+  return { ...apiUser(user), role };
 }
 
 function daysInShelter(date: string): number {
@@ -201,6 +223,34 @@ function databaseError(operation: string, error: { message: string }): ApiRespon
   return errorResponse('The shelter database is unavailable. Please try again.', 503);
 }
 
+function sessionResponse(response: Response, request: Request, current: Identity): Response {
+  return current.refreshed ? withSession(response, request, current.refreshed) : response;
+}
+
+async function bootstrapSuperuser(user: User, env: Env): Promise<User> {
+  const bootstrapEmail = env.BOOTSTRAP_SUPERUSER_EMAIL?.trim().toLowerCase();
+  if (!bootstrapEmail || user.email?.toLowerCase() !== bootstrapEmail || adminRole(user)) return user;
+  const client = supabaseAdmin(env);
+  if (!client) return user;
+  const { data, error } = await client.auth.admin.updateUserById(user.id, {
+    app_metadata: { ...user.app_metadata, role: 'superuser' },
+  });
+  if (error || !data.user) {
+    console.error(JSON.stringify({ operation: 'admin.bootstrap_superuser', error: error?.message ?? 'No user returned' }));
+    return user;
+  }
+  console.info(JSON.stringify({ operation: 'admin.bootstrap_superuser', userId: user.id }));
+  return data.user;
+}
+
+async function adminIdentity(request: Request, env: Env): Promise<{ current: Identity; role: AdminRole } | null> {
+  const current = await identity(request, env);
+  if (!current) return null;
+  current.user = await bootstrapSuperuser(current.user, env);
+  const role = adminRole(current.user);
+  return role ? { current, role } : null;
+}
+
 async function authRoutes(request: Request, env: Env, path: string): Promise<ApiResponse> {
   if (path === '/auth/register' && request.method === 'POST') {
     const body = await jsonBody(request) as Record<string, unknown> | null;
@@ -224,6 +274,31 @@ async function authRoutes(request: Request, env: Env, path: string): Promise<Api
     if (!data.session || !data.user) return errorResponse('The account service returned an unexpected response. Please try again in a few minutes.', 503);
     return withSession(respond({ user: apiUser(data.user) }), request, data.session);
   }
+  if (path === '/auth/exchange' && request.method === 'POST') {
+    const body = await jsonBody(request) as Record<string, unknown> | null;
+    const accessToken = typeof body?.accessToken === 'string' ? body.accessToken : '';
+    const refreshToken = typeof body?.refreshToken === 'string' ? body.refreshToken : '';
+    if (!accessToken || accessToken.length > 16_384 || !refreshToken || refreshToken.length > 16_384) return errorResponse('The invitation link is incomplete or expired. Request a new invitation.', 400);
+    const { data, error } = await supabase(env).auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    if (error || !data.user || !data.session) return errorResponse('The invitation link is invalid or expired. Request a new invitation.', 401);
+    return withSession(respond({ user: apiUser(data.user) }), request, data.session);
+  }
+  if (path === '/auth/password' && request.method === 'POST') {
+    const current = await identity(request, env);
+    if (!current) return clearSession(errorResponse('Your session has expired. Use your invitation link again.', 401), request);
+    const body = await jsonBody(request) as Record<string, unknown> | null;
+    const password = body?.password;
+    if (typeof password !== 'string' || password.length < 8 || password.length > 1024) return errorResponse('Choose a password between 8 and 1,024 characters.', 400);
+    const client = supabase(env);
+    const { error: sessionError } = await client.auth.setSession({ access_token: current.accessToken, refresh_token: current.refreshToken });
+    if (sessionError) return clearSession(errorResponse('Your session has expired. Use your invitation link again.', 401), request);
+    const { error } = await client.auth.updateUser({ password });
+    if (error) {
+      console.error(JSON.stringify({ operation: 'auth.password', error: error.message }));
+      return errorResponse('We could not save that password. Please try again.', 503);
+    }
+    return sessionResponse(respond({ ok: true }), request, current);
+  }
   if (path === '/auth/me' && request.method === 'GET') {
     const current = await identity(request, env);
     if (!current) return clearSession(errorResponse('Not signed in.', 401), request);
@@ -240,6 +315,48 @@ async function authRoutes(request: Request, env: Env, path: string): Promise<Api
     return clearSession(respond({ ok: true }), request);
   }
   return errorResponse('Not found.', 404);
+}
+
+async function adminRoutes(request: Request, env: Env, path: string): Promise<ApiResponse> {
+  const authorized = await adminIdentity(request, env);
+  if (!authorized) {
+    const signedIn = await identity(request, env);
+    return signedIn
+      ? sessionResponse(errorResponse('This account does not have administrator access.', 403), request, signedIn)
+      : clearSession(errorResponse('Not signed in.', 401), request);
+  }
+  const { current, role } = authorized;
+  if (path === '/admin/me' && request.method === 'GET') return sessionResponse(respond({ user: adminUser(current.user, role) }), request, current);
+  if (path === '/admin/invitations' && request.method === 'POST') {
+    if (role !== 'superuser') return sessionResponse(errorResponse('Only superusers can invite administrators.', 403), request, current);
+    const body = await jsonBody(request) as Record<string, unknown> | null;
+    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+    if (!validEmail(email)) return sessionResponse(errorResponse('Enter a valid email address.', 400), request, current);
+    const client = supabaseAdmin(env);
+    if (!client) return sessionResponse(errorResponse('Administrator invitations are not configured. Contact the deployment owner.', 503), request, current);
+    const redirectTo = env.ADMIN_INVITE_REDIRECT_URL ?? 'https://admin.pawheaven.online/accept-invite';
+    const { data: invited, error: inviteError } = await client.auth.admin.inviteUserByEmail(email, { redirectTo });
+    if (inviteError || !invited.user) {
+      console.error(JSON.stringify({ operation: 'admin.invite', error: inviteError?.message ?? 'No invited user returned' }));
+      return sessionResponse(errorResponse('We could not send that invitation. Check the address or try again later.', inviteError?.status === 429 ? 429 : 400), request, current);
+    }
+    const { error: roleError } = await client.auth.admin.updateUserById(invited.user.id, {
+      app_metadata: { ...invited.user.app_metadata, role: 'admin' },
+    });
+    if (roleError) {
+      console.error(JSON.stringify({ operation: 'admin.invite_role', error: roleError.message, invitedUserId: invited.user.id }));
+      return sessionResponse(errorResponse('The invitation was not completed. Contact the deployment owner before asking the person to sign in.', 503), request, current);
+    }
+    const { error: auditError } = await client.from('admin_invitation_audit').insert({
+      invited_email: email,
+      invited_user_id: invited.user.id,
+      invited_by: current.user.id,
+    });
+    if (auditError) console.error(JSON.stringify({ operation: 'admin.invite_audit', error: auditError.message, invitedUserId: invited.user.id }));
+    console.info(JSON.stringify({ operation: 'admin.invite', invitedUserId: invited.user.id, invitedBy: current.user.id }));
+    return sessionResponse(respond({ message: 'Invitation sent.' }, 201), request, current);
+  }
+  return sessionResponse(errorResponse('Not found.', 404), request, current);
 }
 
 async function publicPetRoutes(request: Request, env: Env, path: string): Promise<ApiResponse> {
@@ -268,6 +385,7 @@ async function route(request: Request, env: Env): Promise<ApiResponse> {
   const path = new URL(request.url).pathname.replace(/^\/api/, '') || '/';
   if (path === '/health' && request.method === 'GET') return respond({ ok: true });
   if (path.startsWith('/auth/')) return authRoutes(request, env, path);
+  if (path.startsWith('/admin/')) return adminRoutes(request, env, path);
   if (path === '/pets' || path.startsWith('/pets/')) return publicPetRoutes(request, env, path);
   return errorResponse('Not found.', 404);
 }

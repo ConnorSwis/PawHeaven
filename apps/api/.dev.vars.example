@@ -3,8 +3,11 @@
 #   npm run db:start
 #   npm run db:configure-api
 #
-# The local API dev command performs that setup automatically. This file documents
-# the only three local Worker bindings it needs.
+# The local API dev command performs that setup automatically. Add the bootstrap
+# email before testing an invitation flow; it becomes the first superuser on login.
 SUPABASE_URL="http://127.0.0.1:54321"
 SUPABASE_KEY="generated-by-npm-run-db-configure-api"
-ALLOWED_ORIGINS="http://localhost:4321"
+ADMIN_SUPABASE_SERVICE_ROLE_KEY="generated-by-npm-run-db-configure-api"
+ALLOWED_ORIGINS="http://localhost:4321,http://localhost:4322"
+BOOTSTRAP_SUPERUSER_EMAIL="you@example.com"
+ADMIN_INVITE_REDIRECT_URL="http://localhost:4322/accept-invite"

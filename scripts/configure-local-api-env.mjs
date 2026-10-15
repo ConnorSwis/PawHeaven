@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,9 +29,10 @@ const values = Object.fromEntries(output.split(/\r?\n/).flatMap((line) => {
 }));
 const url = values.API_URL;
 const key = values.PUBLISHABLE_KEY ?? values.ANON_KEY;
+const serviceRoleKey = values.SERVICE_ROLE_KEY;
 
-if (!url || !key) {
-  console.error('The local Supabase stack did not return an API URL and publishable key. Run npm run db:start, then try again.');
+if (!url || !key || !serviceRoleKey) {
+  console.error('The local Supabase stack did not return an API URL, publishable key, and service-role key. Run npm run db:start, then try again.');
   process.exit(1);
 }
 
@@ -44,12 +45,26 @@ try {
 }
 
 const destination = resolve(repositoryRoot, 'apps/api/.dev.vars');
+const existingValues = existsSync(destination)
+  ? Object.fromEntries(readFileSync(destination, 'utf8').split(/\r?\n/).flatMap((line) => {
+    const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (!match) return [];
+    const [, name, rawValue] = match;
+    try { return [[name, JSON.parse(rawValue)]]; } catch { return [[name, rawValue.replace(/^"|"$/g, '')]]; }
+  }))
+  : {};
+const bootstrapSuperuserEmail = process.env.BOOTSTRAP_SUPERUSER_EMAIL?.trim() || existingValues.BOOTSTRAP_SUPERUSER_EMAIL;
 mkdirSync(dirname(destination), { recursive: true });
 writeFileSync(destination, [
   '# Generated from this machine\'s local Supabase stack. Do not commit or share this file.',
   `SUPABASE_URL=${JSON.stringify(url)}`,
   `SUPABASE_KEY=${JSON.stringify(key)}`,
-  'ALLOWED_ORIGINS="http://localhost:4321"',
+  `ADMIN_SUPABASE_SERVICE_ROLE_KEY=${JSON.stringify(serviceRoleKey)}`,
+  'ALLOWED_ORIGINS="http://localhost:4321,http://localhost:4322"',
+  'ADMIN_INVITE_REDIRECT_URL="http://localhost:4322/accept-invite"',
+  ...(typeof bootstrapSuperuserEmail === 'string' && bootstrapSuperuserEmail
+    ? [`BOOTSTRAP_SUPERUSER_EMAIL=${JSON.stringify(bootstrapSuperuserEmail)}`]
+    : ['# Set BOOTSTRAP_SUPERUSER_EMAIL to your own address before first local admin login.']),
   '',
 ].join('\n'));
 

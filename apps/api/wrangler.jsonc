@@ -8,7 +8,8 @@
   "vars": {
     "SUPABASE_URL": "http://127.0.0.1:54321",
     "SUPABASE_KEY": "local-publishable-key-not-configured",
-    "ALLOWED_ORIGINS": "http://localhost:4321",
+    "ALLOWED_ORIGINS": "http://localhost:4321,http://localhost:4322",
+    "ADMIN_INVITE_REDIRECT_URL": "http://localhost:4322/accept-invite",
     "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev",
     "DEPLOYMENT_TARGET": "local"
   },
@@ -18,7 +19,8 @@
       "vars": {
         "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
         "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
-        "ALLOWED_ORIGINS": "http://localhost:4321,https://pawheaven.online,https://www.pawheaven.online",
+        "ALLOWED_ORIGINS": "http://localhost:4321,https://pawheaven.online,https://www.pawheaven.online,https://admin.pawheaven.online",
+        "ADMIN_INVITE_REDIRECT_URL": "https://admin.pawheaven.online/accept-invite",
         "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev",
         "DEPLOYMENT_TARGET": "production"
       }
@@ -29,9 +31,10 @@
     // A Preview must never use the production Supabase project. Replace these
     // two placeholders only after a separate preview project has been set up.
     "vars": {
-      "SUPABASE_URL": "https://preview-supabase-not-configured.invalid",
-      "SUPABASE_KEY": "preview-publishable-key-not-configured",
-      "ALLOWED_ORIGINS": "http://localhost:4321",
+      "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
+      "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
+      "ALLOWED_ORIGINS": "http://localhost:4321,https://pawheaven.online,https://www.pawheaven.online,https://admin.pawheaven.online",
+      "ADMIN_INVITE_REDIRECT_URL": "https://admin.pawheaven.online/accept-invite",
       "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev",
       "DEPLOYMENT_TARGET": "preview"
     }

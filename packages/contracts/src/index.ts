@@ -4,6 +4,12 @@ export type ApiUser = {
   email: string;
 };
 
+export type AdminRole = 'admin' | 'superuser';
+
+export type AdminUser = ApiUser & {
+  role: AdminRole;
+};
+
 export type PetStatus = 'Available' | 'Pending' | 'Adopted';
 
 export type Pet = {
