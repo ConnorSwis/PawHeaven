@@ -1,4 +1,4 @@
-# Supabase contributor and production workflow
+# Supabase contributor guide
 
 ## Contributor workflow: local database only
 
@@ -34,21 +34,12 @@ supabase db reset --linked
 
 Do not change schemas through the hosted Supabase SQL Editor or Table Editor. If a local experiment needs to become permanent, capture it in a new migration before opening the PR.
 
-## Production deployment: administrators only
+## The one rule that protects production
 
-The repository has two workflows:
+Contributors use the local database only. Do not give contributors access to the production Supabase project, its dashboard, database password, personal access token, or a production environment file.
 
-- `Verify Supabase migrations` runs for pull requests and starts an isolated local Supabase stack. It has no production credentials.
-- `Deploy Supabase migrations` runs only when a migration/configuration change reaches `main`. It references GitHub's `production` environment, so its credentials are unavailable until a designated reviewer approves that deployment.
+The repository's `Verify Supabase migrations` pull-request check starts an isolated local Supabase stack and resets it from the committed migrations. It has no production credentials and cannot contact production.
 
-One repository administrator must configure the `production` environment once:
+When a reviewed migration needs to reach production, the project owner handles it separately. It is deliberately not automated from this repository. Keep a backup and follow Supabase's production-change procedure before applying it.
 
-1. In GitHub **Settings → Environments**, create `production`.
-2. Restrict deployments to protected branches, add the project owner as a required reviewer, and enable **Prevent self-review** when an independent reviewer is available. Do not allow bypassing protection rules.
-3. Add the `SUPABASE_DB_URL` environment secret, never a repository-level secret. In the Supabase dashboard, select **Connect** and copy the production **Session Pooler** URL (the host ends in `pooler.supabase.com` and the port is `5432`). Insert the URL-encoded database password if the dashboard does not already include it. This IPv4-compatible URL lets GitHub-hosted runners apply migrations without the paid IPv4 add-on.
-4. Protect `main` in GitHub: require pull requests, at least one approval, the `Reset local database from migrations` status check, and no force pushes.
-5. In Supabase, remove contributor roles that can manage database content or retrieve database credentials. Keep the production project accessible only to the deployment owner (or use a read-only/no-access role where the plan supports it).
-
-Production changes now have two separate approvals: the normal pull-request review before code reaches `main`, and the protected-environment approval before the workflow receives the production connection string. The workflow is deliberately the only repository location that runs `supabase db push` against production, using the IPv4-compatible Session Pooler rather than linking contributors' checkouts to production.
-
-If a production migration fails, do not use the dashboard to patch around it. Stop, diagnose the migration history, and deliver the corrective change through a reviewed migration.
+If a production migration fails, stop and fix it through a new reviewed migration. Do not give contributors production access to patch it directly.
