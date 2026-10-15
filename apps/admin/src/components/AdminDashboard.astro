@@ -1,0 +1,132 @@
+<section class="max-w-3xl" data-admin-dashboard aria-live="polite">
+  <p class="text-sm text-stone-700">Checking administrator access…</p>
+</section>
+
+<script>
+  import type { AdminUser } from '@pawheaven/contracts';
+  import { apiBase } from '../lib/api';
+  const dashboard = document.querySelector<HTMLElement>('[data-admin-dashboard]');
+
+  function node(tag: string, className: string, content: string) {
+    const element = document.createElement(tag);
+    element.className = className;
+    element.textContent = content;
+    return element;
+  }
+
+  function logoutButton() {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'border border-stone-400 px-4 py-2 text-sm font-semibold text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-wait disabled:opacity-70';
+    button.textContent = 'Log out';
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try { await fetch(`${apiBase}/auth/logout`, { method: 'POST', credentials: 'include' }); } finally { window.location.assign('/login'); }
+    });
+    return button;
+  }
+
+  function denied() {
+    if (!dashboard) return;
+    dashboard.replaceChildren(
+      node('h1', 'text-2xl font-semibold tracking-tight text-stone-950', 'Administrator access required'),
+      node('p', 'mt-3 max-w-xl leading-7 text-stone-700', 'This account is signed in but does not have access to the administrator portal.'),
+      logoutButton(),
+    );
+    dashboard.lastElementChild?.classList.add('mt-7');
+  }
+
+  function inviteForm() {
+    const section = document.createElement('section');
+    section.className = 'mt-10 border-t border-stone-300 pt-8';
+    section.append(
+      node('h2', 'text-lg font-semibold text-stone-950', 'Invite an administrator'),
+      node('p', 'mt-2 leading-6 text-stone-700', 'They will receive a Supabase email invitation and choose a password before their first sign-in.'),
+    );
+    const form = document.createElement('form');
+    form.className = 'mt-5 flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end';
+    form.noValidate = true;
+    const field = document.createElement('div');
+    field.className = 'min-w-0 flex-1';
+    const label = node('label', 'mb-2 block text-sm font-medium text-stone-900', 'Email address') as HTMLLabelElement;
+    label.htmlFor = 'invite-email';
+    const input = document.createElement('input');
+    input.id = 'invite-email';
+    input.name = 'email';
+    input.type = 'email';
+    input.autocomplete = 'email';
+    input.maxLength = 254;
+    input.required = true;
+    input.placeholder = 'admin@example.com';
+    input.className = 'block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500';
+    field.append(label, input);
+    const button = document.createElement('button');
+    button.type = 'submit';
+    button.className = 'bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    button.textContent = 'Send invitation';
+    const message = node('p', 'hidden text-sm', '');
+    message.setAttribute('role', 'status');
+    form.append(field, button);
+    section.append(form, message);
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      input.value = input.value.trim();
+      message.className = 'mt-3 text-sm text-red-800';
+      if (!input.validity.valid) { message.textContent = 'Enter a valid email address.'; return; }
+      button.disabled = true;
+      button.textContent = 'Sending…';
+      try {
+        const response = await fetch(`${apiBase}/admin/invitations`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: input.value }),
+        });
+        const payload = await response.json().catch(() => null) as { message?: unknown } | null;
+        if (!response.ok) throw new Error(typeof payload?.message === 'string' ? payload.message : 'We could not send that invitation.');
+        input.value = '';
+        message.className = 'mt-3 text-sm text-[var(--color-moss-dark)]';
+        message.textContent = 'Invitation sent.';
+      } catch (exception) {
+        message.textContent = exception instanceof Error ? exception.message : 'We could not send that invitation.';
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Send invitation';
+      }
+    });
+    return section;
+  }
+
+  function ready(user: AdminUser) {
+    if (!dashboard) return;
+    const header = document.createElement('div');
+    header.className = 'flex flex-wrap items-start justify-between gap-6 border-b border-stone-300 pb-8';
+    const introduction = document.createElement('div');
+    introduction.append(
+      node('h1', 'text-2xl font-semibold tracking-tight text-stone-950', 'Administrator portal'),
+      node('p', 'mt-3 leading-7 text-stone-700', `Signed in as ${user.email}.`),
+      node('p', 'mt-2 text-sm text-stone-600', user.role === 'superuser' ? 'Superuser access' : 'Administrator access'),
+    );
+    header.append(introduction, logoutButton());
+    dashboard.replaceChildren(header);
+    const notice = document.createElement('section');
+    notice.className = 'py-8';
+    notice.append(
+      node('h2', 'text-lg font-semibold text-stone-950', 'Welcome'),
+      node('p', 'mt-2 leading-7 text-stone-700', 'This first version establishes secure administrator access. Shelter records and management workflows will be added here in a later release.'),
+    );
+    dashboard.append(notice);
+    if (user.role === 'superuser') dashboard.append(inviteForm());
+  }
+
+  async function load() {
+    try {
+      const response = await fetch(`${apiBase}/admin/me`, { credentials: 'include' });
+      if (response.status === 401) { window.location.assign('/login'); return; }
+      if (response.status === 403) return denied();
+      if (!response.ok) throw new Error('Administrator details are unavailable.');
+      const payload = await response.json() as { user: AdminUser };
+      ready(payload.user);
+    } catch { denied(); }
+  }
+
+  load();
+</script>
