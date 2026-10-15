@@ -19,17 +19,32 @@ type ApiResponse = Response;
 const ACCESS_COOKIE = 'ph_access';
 const REFRESH_COOKIE = 'ph_refresh';
 
-function localConfigurationError(env: Env): string | null {
-  if (env.DEPLOYMENT_TARGET !== 'local') return null;
-  try {
-    const url = new URL(env.SUPABASE_URL);
-    if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(url.hostname)) return 'Local API development must use the local Supabase URL.';
-  } catch {
-    return 'Local API development has an invalid Supabase URL.';
+function configurationError(env: Env): string | null {
+  // Wrangler does not include values from the `previews` block in generated
+  // types, so these must remain runtime values rather than literal unions.
+  const deploymentTarget = String(env.DEPLOYMENT_TARGET);
+  const supabaseUrl = String(env.SUPABASE_URL);
+  const supabaseKey = String(env.SUPABASE_KEY);
+
+  if (deploymentTarget === 'local') {
+    try {
+      const url = new URL(supabaseUrl);
+      if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(url.hostname)) return 'Local API development must use the local Supabase URL.';
+    } catch {
+      return 'Local API development has an invalid Supabase URL.';
+    }
+    return supabaseKey === 'local-publishable-key-not-configured'
+      ? 'Run npm run db:start, then npm run db:configure-api before starting the local API.'
+      : null;
   }
-  return env.SUPABASE_KEY === 'local-publishable-key-not-configured'
-    ? 'Run npm run db:start, then npm run db:configure-api before starting the local API.'
-    : null;
+
+  if (deploymentTarget === 'preview'
+    && (supabaseUrl === 'https://preview-supabase-not-configured.invalid'
+      || supabaseKey === 'preview-publishable-key-not-configured')) {
+    return 'This Preview has no separate Supabase project configured. It will not use production data.';
+  }
+
+  return null;
 }
 
 function supabase(env: Env) {
@@ -259,8 +274,8 @@ async function route(request: Request, env: Env): Promise<ApiResponse> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const configurationError = localConfigurationError(env);
-    if (configurationError) return errorResponse(configurationError, 503);
+    const invalidConfiguration = configurationError(env);
+    if (invalidConfiguration) return errorResponse(invalidConfiguration, 503);
     const origin = request.headers.get('Origin');
     const allowed = isAllowedOrigin(origin, env);
     if (origin && !allowed) return errorResponse('Origin not allowed.', 403);

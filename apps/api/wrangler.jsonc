@@ -26,12 +26,14 @@
   },
   "preview_urls": true,
   "previews": {
+    // A Preview must never use the production Supabase project. Replace these
+    // two placeholders only after a separate preview project has been set up.
     "vars": {
-      "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
-      "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
-      "ALLOWED_ORIGINS": "http://localhost:4321,https://pawheaven.online,https://www.pawheaven.online",
+      "SUPABASE_URL": "https://preview-supabase-not-configured.invalid",
+      "SUPABASE_KEY": "preview-publishable-key-not-configured",
+      "ALLOWED_ORIGINS": "http://localhost:4321",
       "WORKERS_DEV_SUBDOMAIN": "group-3-paw-heaven.workers.dev",
-      "DEPLOYMENT_TARGET": "production"
+      "DEPLOYMENT_TARGET": "preview"
     }
   }
 }
