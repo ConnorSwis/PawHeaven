@@ -99,6 +99,7 @@ For a manual Preview, run `npm run workers:preview -w @pawheaven/api` and `npm r
 ## Working agreements
 
 - Read `BRAINMAP.md` before implementing a feature and update it as requirements or decisions change.
+- The first end-to-end delivery boundary is documented in [the adoption demo scope](docs/adoption-demo-scope.md).
 - Keep Supabase queries and Auth operations in `apps/api`; use shared types from `packages/contracts` in the public app.
 - Run `npm run check` before a merge. The root lockfile is the only lockfile to commit.
 - If regenerating `package-lock.json`, do it from a clean checkout without `node_modules` so npm records native optional packages for both macOS and Linux. Cloudflare's Linux build needs the Linux entries.
@@ -109,7 +110,7 @@ Schema changes are reviewed code, never ad-hoc edits to the hosted database.
 
 1. Create a branch and run `npm run db:start`, `npm run db:reset`, and `npm run db:configure-api`.
 2. Generate a migration with `npx supabase migration new short_change_description`, then edit the generated file in `supabase/migrations/`.
-3. Run `npm run db:reset` to prove the whole migration history works on a local database.
+3. Run `npm run db:reset` to prove the whole migration history works on a local database. For a migration that changes RLS, run `npm run db:test` to exercise the allowed and denied paths.
 4. Commit the migration with the application changes and open a pull request. The `Verify Supabase migrations` workflow repeats the local reset in CI.
 5. After review and merge, the project owner applies the migration to production. Contributors do not receive production Supabase access or database credentials.
 
