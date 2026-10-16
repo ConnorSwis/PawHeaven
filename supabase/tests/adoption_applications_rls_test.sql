@@ -1,5 +1,5 @@
 begin;
-select plan(9);
+select plan(10);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values
@@ -16,8 +16,8 @@ set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","sub":"30000000-0000-0000-0000-000000000001","email":"member@example.com","app_metadata":{}}';
 
 select lives_ok(
-  $$insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary)
-    values ('30000000-0000-0000-0000-000000000001', 'Member', 'member@example.com', '20000000-0000-0000-0000-000000000001', 'Available pet', 'We have a calm home, a fenced yard, and time for daily walks together.')$$,
+  $$insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary, adoption_experience)
+    values ('30000000-0000-0000-0000-000000000001', 'Member', 'member@example.com', '20000000-0000-0000-0000-000000000001', 'Available pet', 'We have a calm home, a fenced yard, and time for daily walks together.', 'We have cared for dogs before and will work with the shelter on this pet’s routine.')$$,
   'a member can apply for an available pet'
 );
 
@@ -28,28 +28,40 @@ select results_eq(
 );
 
 select throws_ok(
-  $$insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary)
-    values ('30000000-0000-0000-0000-000000000001', 'Member', 'member@example.com', '20000000-0000-0000-0000-000000000002', 'Pending pet', 'We have a calm home, a fenced yard, and time for daily walks together.')$$,
+  $$insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary, adoption_experience)
+    values ('30000000-0000-0000-0000-000000000001', 'Member', 'member@example.com', '20000000-0000-0000-0000-000000000002', 'Pending pet', 'We have a calm home, a fenced yard, and time for daily walks together.', 'We have cared for dogs before and will work with the shelter on this pet’s routine.')$$,
   '42501', null,
   'a member cannot apply for a non-available pet'
 );
 
 select throws_ok(
-  $$insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary)
-    values ('30000000-0000-0000-0000-000000000001', 'Member', 'different@example.com', '20000000-0000-0000-0000-000000000001', 'Available pet', 'We have a calm home, a fenced yard, and time for daily walks together.')$$,
+  $$insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary, adoption_experience)
+    values ('30000000-0000-0000-0000-000000000001', 'Member', 'different@example.com', '20000000-0000-0000-0000-000000000001', 'Available pet', 'We have a calm home, a fenced yard, and time for daily walks together.', 'We have cared for dogs before and will work with the shelter on this pet’s routine.')$$,
   '42501', null,
   'a member cannot substitute a different contact email'
 );
 
-select throws_ok(
-  $$update public.adoption_applications set status = 'Approved'$$,
-  '42501', null,
+select results_eq(
+  $$with updated as (
+      update public.adoption_applications
+      set status = 'Approved'
+      returning id
+    )
+    select count(*)::integer from updated$$,
+  array[0],
   'a member cannot decide their own application'
 );
 
 set local role postgres;
-insert into public.adoption_applications (id, applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary)
-values ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002', 'Other member', 'other@example.com', '20000000-0000-0000-0000-000000000001', 'Available pet', 'Our household has discussed the responsibility and is ready for daily care.');
+insert into public.adoption_applications (id, applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary, adoption_experience)
+values ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002', 'Other member', 'other@example.com', '20000000-0000-0000-0000-000000000001', 'Available pet', 'Our household has discussed the responsibility and is ready for daily care.', 'We are first-time adopters and will use the shelter’s resources to prepare responsibly.');
+
+select throws_ok(
+  $$insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary, adoption_experience)
+    values ('30000000-0000-0000-0000-000000000002', 'Other member', 'other@example.com', '20000000-0000-0000-0000-000000000001', 'Available pet', 'Our household has discussed the responsibility and is ready for daily care.', 'Too short')$$,
+  '23514', null,
+  'an experience answer must meet the database minimum length'
+);
 
 set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","sub":"30000000-0000-0000-0000-000000000001","email":"member@example.com","app_metadata":{}}';

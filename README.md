@@ -46,7 +46,7 @@ The public site retains clearly labeled sample pets if the API is unavailable. W
 
 `apps/admin` is a separate deployable app in this monorepo. Administrators can list, create, and update pet records, including a public JPEG, PNG, or WebP image up to 5 MB. A superuser can also send an administrator invitation by email; Supabase emails the recipient an invitation link, and the recipient sets a password on `/accept-invite` before logging in.
 
-Signed-in visitors can apply for an available pet with a short household/care summary and optional note. PawHeaven uses the verified email attached to their account for follow-up; it does not collect identity documents or payment details. Staff can record an application outcome without changing the pet’s availability automatically.
+Signed-in visitors can apply for an available pet with a short household/care summary, a pet-care experience or preparedness answer, and an optional note. PawHeaven uses the verified email attached to their account for follow-up; it does not collect identity documents or payment details. Staff can record an application outcome without changing the pet’s availability automatically.
 
 One deployment owner must set these API Worker values outside source control before using invitations:
 
