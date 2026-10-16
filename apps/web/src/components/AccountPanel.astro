@@ -5,7 +5,7 @@
 </div>
 
 <script>
-  import type { ApiUser } from '@pawheaven/contracts';
+  import type { AdoptionApplicationListResponse, ApiUser } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
   const panel = document.querySelector<HTMLElement>('[data-account-panel]');
 
@@ -54,7 +54,42 @@
         logout.textContent = 'Log out';
       }
     });
-    panel.append(logout);
+    const applications = document.createElement('section');
+    applications.className = 'mt-8 border-t border-stone-300 pt-6';
+    applications.setAttribute('aria-live', 'polite');
+    panel.append(logout, applications);
+    void showApplications(applications);
+  }
+
+  async function showApplications(target: HTMLElement) {
+    target.replaceChildren(textElement('p', 'text-sm text-stone-600', 'Loading your adoption applications…'));
+    try {
+      const response = await fetch(`${apiBase}/applications`, { credentials: 'include' });
+      if (!response.ok) throw new Error();
+      const payload = await response.json() as AdoptionApplicationListResponse;
+      target.replaceChildren(textElement('h2', 'text-lg font-semibold text-stone-950', 'Your adoption applications'));
+      if (!payload.applications.length) {
+        target.append(textElement('p', 'mt-2 leading-7 text-stone-700', 'You have not submitted an adoption application yet.'));
+        return;
+      }
+      const list = document.createElement('ul');
+      list.className = 'mt-4 grid gap-3';
+      for (const application of payload.applications) {
+        const item = document.createElement('li');
+        item.className = 'border border-stone-300 bg-white px-4 py-3';
+        item.append(
+          textElement('p', 'font-medium text-stone-950', application.petName),
+          textElement('p', 'mt-1 text-sm text-stone-700', `Status: ${application.status}`),
+        );
+        list.append(item);
+      }
+      target.append(list);
+    } catch {
+      target.replaceChildren(
+        textElement('h2', 'text-lg font-semibold text-stone-950', 'Your adoption applications'),
+        textElement('p', 'mt-2 leading-7 text-stone-700', 'We could not load your applications right now. Please try again later.'),
+      );
+    }
   }
 
   async function loadAccount() {

@@ -14,7 +14,7 @@ const seedPets = [
 </div>
 
 <script>
-  import type { Pet } from '@pawheaven/contracts';
+  import type { AdoptionApplication, AdoptionApplicationInput, AdoptionApplicationListResponse, ApiUser, Pet } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
   const container = document.querySelector<HTMLElement>('[data-pet-detail]');
   const seedPets: Pet[] = JSON.parse(container?.dataset.pets || '[]');
@@ -57,8 +57,122 @@ const seedPets = [
       image.className = 'mt-6 aspect-[4/3] w-full object-cover';
       container.append(image);
     }
-    container.append(description, details, tagHeading, tags, back);
+    const application = document.createElement('section');
+    application.className = 'mt-9 border-t border-stone-300 pt-7';
+    application.setAttribute('aria-live', 'polite');
+    container.append(description, details, tagHeading, tags, application, back);
     if (note) container.append(element('p', 'mt-5 text-sm text-stone-600', note));
+    void displayApplicationForm(pet, application, Boolean(note));
+  }
+
+  function applicationMessage(target: HTMLElement, text: string, error = false) {
+    target.textContent = text;
+    target.className = `mt-3 text-sm ${error ? 'text-red-800' : 'text-stone-700'}`;
+  }
+
+  function existingApplication(target: HTMLElement, application: AdoptionApplication) {
+    target.replaceChildren(
+      element('h2', 'text-xl font-semibold tracking-tight text-stone-950', 'Application submitted'),
+      element('p', 'mt-3 leading-7 text-stone-700', `Your application for ${application.petName} is ${application.status.toLowerCase()}. The shelter will contact you at the email on your account.`),
+    );
+  }
+
+  function signedOutApplication(target: HTMLElement) {
+    target.replaceChildren(
+      element('h2', 'text-xl font-semibold tracking-tight text-stone-950', 'Interested in adopting?'),
+      element('p', 'mt-3 leading-7 text-stone-700', 'Log in or create an account to send the shelter a short adoption application.'),
+    );
+    const login = document.createElement('a');
+    login.href = '/login';
+    login.className = 'mt-5 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    login.textContent = 'Log in to apply';
+    target.append(login);
+  }
+
+  function applicationForm(target: HTMLElement, pet: Pet, user: ApiUser) {
+    target.replaceChildren(
+      element('h2', 'text-xl font-semibold tracking-tight text-stone-950', `Apply to adopt ${pet.name}`),
+      element('p', 'mt-3 max-w-xl leading-7 text-stone-700', `We’ll use the email on your PawHeaven account (${user.email}) to follow up. An application does not reserve ${pet.name}.`),
+    );
+    const form = document.createElement('form');
+    form.className = 'mt-6 space-y-5';
+    form.noValidate = true;
+    const householdLabel = document.createElement('label');
+    householdLabel.className = 'block text-sm font-medium text-stone-900';
+    householdLabel.textContent = 'Tell us about your household and the care you can provide';
+    const household = document.createElement('textarea');
+    household.name = 'householdSummary';
+    household.required = true;
+    household.minLength = 20;
+    household.maxLength = 2000;
+    household.className = 'mt-2 block min-h-36 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
+    household.placeholder = 'For example: who lives with you, your home routine, and how you plan to care for a pet.';
+    householdLabel.append(household);
+    const noteLabel = document.createElement('label');
+    noteLabel.className = 'block text-sm font-medium text-stone-900';
+    noteLabel.textContent = 'Anything else the shelter should know? (optional)';
+    const note = document.createElement('textarea');
+    note.name = 'note';
+    note.maxLength = 1000;
+    note.className = 'mt-2 block min-h-24 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
+    noteLabel.append(note);
+    const controls = document.createElement('div');
+    controls.className = 'flex flex-wrap items-center gap-3';
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.textContent = 'Submit application';
+    const message = document.createElement('p');
+    message.setAttribute('role', 'status');
+    controls.append(submit, message);
+    form.append(householdLabel, noteLabel, controls);
+    target.append(form);
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload: AdoptionApplicationInput = { householdSummary: household.value.trim(), note: note.value.trim() };
+      if (payload.householdSummary.length < 20) return applicationMessage(message, 'Tell us a little more about your household and the care you can provide.', true);
+      submit.disabled = true;
+      submit.textContent = 'Submitting…';
+      try {
+        const response = await fetch(`${apiBase}/applications/pets/${encodeURIComponent(pet.id)}`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+        });
+        const result = await response.json().catch(() => null) as AdoptionApplication | { message?: unknown } | null;
+        if (!response.ok) throw new Error(typeof (result as { message?: unknown } | null)?.message === 'string' ? (result as { message: string }).message : 'We could not submit your application.');
+        existingApplication(target, result as AdoptionApplication);
+      } catch (exception) {
+        applicationMessage(message, exception instanceof Error ? exception.message : 'We could not submit your application.', true);
+        submit.disabled = false;
+        submit.textContent = 'Submit application';
+      }
+    });
+  }
+
+  async function displayApplicationForm(pet: Pet, target: HTMLElement, samplePet: boolean) {
+    if (samplePet || !/^[0-9a-f-]{36}$/i.test(pet.id)) {
+      target.replaceChildren(
+        element('h2', 'text-xl font-semibold tracking-tight text-stone-950', 'Interested in adopting?'),
+        element('p', 'mt-3 leading-7 text-stone-700', 'Applications will be available when this shelter listing is connected to live records.'),
+      );
+      return;
+    }
+    try {
+      const identityResponse = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
+      if (identityResponse.status === 401) return signedOutApplication(target);
+      if (!identityResponse.ok) throw new Error();
+      const identity = await identityResponse.json() as { user: ApiUser };
+      const applicationsResponse = await fetch(`${apiBase}/applications`, { credentials: 'include' });
+      if (!applicationsResponse.ok) throw new Error();
+      const applications = await applicationsResponse.json() as AdoptionApplicationListResponse;
+      const existing = applications.applications.find((application) => application.petId === pet.id);
+      if (existing) return existingApplication(target, existing);
+      applicationForm(target, pet, identity.user);
+    } catch {
+      target.replaceChildren(
+        element('h2', 'text-xl font-semibold tracking-tight text-stone-950', 'Applications are unavailable right now'),
+        element('p', 'mt-3 leading-7 text-stone-700', 'Please try again shortly, or contact the shelter directly.'),
+      );
+    }
   }
 
   function displayNotFound() {

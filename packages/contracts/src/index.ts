@@ -32,6 +32,33 @@ export type AdminPetListResponse = {
   pets: Pet[];
 };
 
+export type AdoptionApplicationStatus = 'Pending' | 'In review' | 'Approved' | 'Declined';
+
+export type AdoptionApplicationInput = {
+  householdSummary: string;
+  note: string;
+};
+
+export type AdoptionApplication = {
+  id: string;
+  petId: string;
+  petName: string;
+  applicantName: string;
+  applicantEmail: string;
+  householdSummary: string;
+  note: string;
+  status: AdoptionApplicationStatus;
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+};
+
+export type AdoptionApplicationListResponse = {
+  applications: AdoptionApplication[];
+};
+
+export type AdminAdoptionApplicationListResponse = AdoptionApplicationListResponse;
+
 function searchableWords(value: string): string[] {
   return value
     .toLocaleLowerCase()

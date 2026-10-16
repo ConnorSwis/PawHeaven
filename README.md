@@ -1,6 +1,6 @@
 # PawHeaven
 
-PawHeaven is an Astro and Cloudflare Workers monorepo for a public shelter site, an internal admin site, and an API backed by Supabase. The current connected features are pet browsing and administrator invitations. Adoption applications are planned for a later phase.
+PawHeaven is an Astro and Cloudflare Workers monorepo for a public shelter site, an internal admin site, and an API backed by Supabase. The connected demo includes pet browsing, administrator pet management, and minimal adoption applications with administrator outcomes.
 
 | Workspace | Purpose | Local URL |
 | --- | --- | --- |
@@ -45,6 +45,8 @@ The public site retains clearly labeled sample pets if the API is unavailable. W
 ## Administrator access
 
 `apps/admin` is a separate deployable app in this monorepo. Administrators can list, create, and update pet records, including a public JPEG, PNG, or WebP image up to 5 MB. A superuser can also send an administrator invitation by email; Supabase emails the recipient an invitation link, and the recipient sets a password on `/accept-invite` before logging in.
+
+Signed-in visitors can apply for an available pet with a short household/care summary and optional note. PawHeaven uses the verified email attached to their account for follow-up; it does not collect identity documents or payment details. Staff can record an application outcome without changing the pet’s availability automatically.
 
 One deployment owner must set these API Worker values outside source control before using invitations:
 
