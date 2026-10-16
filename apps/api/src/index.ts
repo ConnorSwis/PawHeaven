@@ -36,6 +36,7 @@ type DatabaseAdoptionApplication = {
   pet_id: string;
   pet_name: string;
   household_summary: string;
+  adoption_experience: string;
   note: string;
   status: AdoptionApplicationStatus;
   submitted_at: string;
@@ -275,6 +276,7 @@ function applicationForClient(row: DatabaseAdoptionApplication): AdoptionApplica
     petId: row.pet_id,
     petName: row.pet_name,
     householdSummary: row.household_summary,
+    adoptionExperience: row.adoption_experience,
     note: row.note,
     status: row.status,
     submittedAt: row.submitted_at,
@@ -286,10 +288,12 @@ function applicationForClient(row: DatabaseAdoptionApplication): AdoptionApplica
 function adoptionApplicationInput(body: unknown): { value: AdoptionApplicationInput } | { message: string } {
   const input = body as Record<string, unknown> | null;
   const householdSummary = typeof input?.householdSummary === 'string' ? input.householdSummary.trim() : '';
+  const adoptionExperience = typeof input?.adoptionExperience === 'string' ? input.adoptionExperience.trim() : '';
   const note = typeof input?.note === 'string' ? input.note.trim() : '';
   if (householdSummary.length < 20) return { message: 'Tell us a little more about your household and the care you can provide.' };
-  if (householdSummary.length > 2000 || note.length > 1000) return { message: 'Keep the household summary under 2,000 characters and the note under 1,000 characters.' };
-  return { value: { householdSummary, note } };
+  if (adoptionExperience.length < 20) return { message: 'Tell us about your pet-care experience or how you will prepare for the responsibility.' };
+  if (householdSummary.length > 2000 || adoptionExperience.length > 1000 || note.length > 1000) return { message: 'Keep the household summary under 2,000 characters and the experience and note under 1,000 characters each.' };
+  return { value: { householdSummary, adoptionExperience, note } };
 }
 
 function applicationReviewStatus(body: unknown): AdoptionApplicationStatus | null {
@@ -597,6 +601,7 @@ async function adoptionApplicationRoutes(request: Request, env: Env, path: strin
       pet_id: pet.id,
       pet_name: pet.name,
       household_summary: parsed.value.householdSummary,
+      adoption_experience: parsed.value.adoptionExperience,
       note: parsed.value.note,
     }).select('*').single();
     if (error?.code === '23505') return sessionResponse(errorResponse('You already submitted an application for this pet.', 409), request, current);

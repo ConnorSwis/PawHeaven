@@ -16,6 +16,7 @@ const seedPets = [
 <script>
   import type { AdoptionApplication, AdoptionApplicationInput, AdoptionApplicationListResponse, ApiUser, Pet } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
+  import { canStartApplication, hasPetImage } from '../lib/pet-discovery';
   const container = document.querySelector<HTMLElement>('[data-pet-detail]');
   const seedPets: Pet[] = JSON.parse(container?.dataset.pets || '[]');
   const id = new URLSearchParams(window.location.search).get('id') || 'maple';
@@ -50,7 +51,7 @@ const seedPets = [
     back.className = 'mt-8 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4';
     back.textContent = 'Back to available pets';
     container.append(category, name);
-    if (pet.imageUrl) {
+    if (hasPetImage(pet)) {
       const image = document.createElement('img');
       image.src = pet.imageUrl;
       image.alt = `${pet.name} at PawHeaven`;
@@ -108,6 +109,17 @@ const seedPets = [
     household.className = 'mt-2 block min-h-36 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
     household.placeholder = 'For example: who lives with you, your home routine, and how you plan to care for a pet.';
     householdLabel.append(household);
+    const experienceLabel = document.createElement('label');
+    experienceLabel.className = 'block text-sm font-medium text-stone-900';
+    experienceLabel.textContent = 'Tell us about your pet-care experience or how you will prepare';
+    const experience = document.createElement('textarea');
+    experience.name = 'adoptionExperience';
+    experience.required = true;
+    experience.minLength = 20;
+    experience.maxLength = 1000;
+    experience.className = 'mt-2 block min-h-32 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
+    experience.placeholder = 'For example: pets you have cared for, support you have in place, and how you will learn what this pet needs.';
+    experienceLabel.append(experience);
     const noteLabel = document.createElement('label');
     noteLabel.className = 'block text-sm font-medium text-stone-900';
     noteLabel.textContent = 'Anything else the shelter should know? (optional)';
@@ -125,12 +137,17 @@ const seedPets = [
     const message = document.createElement('p');
     message.setAttribute('role', 'status');
     controls.append(submit, message);
-    form.append(householdLabel, noteLabel, controls);
+    form.append(householdLabel, experienceLabel, noteLabel, controls);
     target.append(form);
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const payload: AdoptionApplicationInput = { householdSummary: household.value.trim(), note: note.value.trim() };
+      const payload: AdoptionApplicationInput = {
+        householdSummary: household.value.trim(),
+        adoptionExperience: experience.value.trim(),
+        note: note.value.trim(),
+      };
       if (payload.householdSummary.length < 20) return applicationMessage(message, 'Tell us a little more about your household and the care you can provide.', true);
+      if (payload.adoptionExperience.length < 20) return applicationMessage(message, 'Tell us about your pet-care experience or how you will prepare for the responsibility.', true);
       submit.disabled = true;
       submit.textContent = 'Submitting…';
       try {
@@ -149,7 +166,7 @@ const seedPets = [
   }
 
   async function displayApplicationForm(pet: Pet, target: HTMLElement, samplePet: boolean) {
-    if (samplePet || !/^[0-9a-f-]{36}$/i.test(pet.id)) {
+    if (!canStartApplication(pet, samplePet)) {
       target.replaceChildren(
         element('h2', 'text-xl font-semibold tracking-tight text-stone-950', 'Interested in adopting?'),
         element('p', 'mt-3 leading-7 text-stone-700', 'Applications will be available when this shelter listing is connected to live records.'),

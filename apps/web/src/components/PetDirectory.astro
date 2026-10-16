@@ -58,6 +58,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
 <script>
   import { matchesPetSearch, type Pet } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
+  import { hasPetImage, publicPets } from '../lib/pet-discovery';
 
   const results = document.querySelector<HTMLElement>('[data-pet-results]');
   const form = document.querySelector<HTMLFormElement>('[data-pet-filters]');
@@ -81,7 +82,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
       results.append(message);
       return;
     }
-    [...pets].sort((first, second) => first.name.localeCompare(second.name)).forEach((pet) => {
+    publicPets(pets).forEach((pet) => {
       const card = document.createElement('article');
       card.className = 'flex min-h-56 flex-col border border-stone-300 bg-white p-5';
       const top = document.createElement('div');
@@ -118,7 +119,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
         tagElement.textContent = tag.replaceAll('-', ' ');
         tags.append(tagElement);
       });
-      if (pet.imageUrl) {
+      if (hasPetImage(pet)) {
         const image = document.createElement('img');
         image.src = pet.imageUrl;
         image.alt = `${pet.name} at PawHeaven`;
@@ -160,7 +161,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
   }
 
   function showSampleResults(search: string, tag: string) {
-    const pets = seedPets.filter((pet) => matches(pet, search, tag));
+    const pets = publicPets(seedPets.filter((pet) => matches(pet, search, tag)));
     displayPets(pets);
     if (status) status.textContent = pets.length === 0
       ? 'No sample pets match that search. Try another word or shelter tag.'
@@ -191,7 +192,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
       if (!response.ok) throw new Error('Pet search is unavailable.');
       const payload = await response.json() as { pets?: Pet[] };
       if (searchNumber !== latestSearch) return;
-      const pets = payload.pets ?? [];
+      const pets = publicPets(payload.pets ?? []);
       displayPets(pets);
       if (status) status.textContent = `${pets.length} ${pets.length === 1 ? 'pet' : 'pets'} found.`;
     } catch {

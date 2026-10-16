@@ -36,6 +36,7 @@ export type AdoptionApplicationStatus = 'Pending' | 'In review' | 'Approved' | '
 
 export type AdoptionApplicationInput = {
   householdSummary: string;
+  adoptionExperience: string;
   note: string;
 };
 
@@ -46,6 +47,7 @@ export type AdoptionApplication = {
   applicantName: string;
   applicantEmail: string;
   householdSummary: string;
+  adoptionExperience: string;
   note: string;
   status: AdoptionApplicationStatus;
   submittedAt: string;

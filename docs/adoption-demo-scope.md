@@ -35,10 +35,10 @@ every listed use case is already implemented.
 - Only `admin` and `superuser` may manage pet records and pet images.
 - An adoption application must not reserve a pet or approve an adoption when
   submitted; it begins in a pending state for administrator review.
-- The Phase 2 application is deliberately limited to the account’s verified
-  email, a household/care summary, and an optional note. Do not collect
-  identity documents or financial data. Retention and any additional fields
-  need a separate design decision.
+- The adoption application is deliberately limited to the account’s verified
+  email, a household/care summary, a pet-care experience/preparedness answer,
+  and an optional note. Do not collect identity documents or financial data.
+  Retention and any additional fields need a separate design decision.
 
 ## Phase 0 verification checklist
 
