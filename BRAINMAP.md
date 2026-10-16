@@ -217,6 +217,12 @@ The report's use-case narratives add the following future-work constraints. They
 
 The report's diagram shows `public.pets` linked to public `pet-images` Storage by `image_path`, with `auth.users`, `storage.buckets`, and `storage.objects` managed by Supabase. The current migration enforces a 5 MB upload limit and JPEG, PNG, or WebP MIME types for that public bucket. Its implemented pet status enum is `Available`, `Pending`, or `Adopted`; report references to “fostered” or “unavailable” are future-state proposals, not supported values.
 
+## Demo readiness
+
+- `supabase/seed.sql` creates six local-only varied pet records and two local-only demo accounts whenever `npm run db:reset` runs. Baxter is an available `big-dog` listing; Rosie (`Pending`) and Theo (`Adopted`) verify that public browse results exclude non-available animals. The accounts are intentionally documented only in `docs/demo-runbook.md` and must never be used outside the local Docker stack.
+- `npm run qa:demo` is an API-level local verification run. It creates a disposable local applicant and covers discovery, authorization boundaries, invalid/missing answers, duplicate and unavailable-pet rejection, expired-session rejection, staff review, outcome visibility, and logout. It refuses non-loopback API URLs.
+- `docs/demo-runbook.md` provides the two-to-three-minute presentation flow and a screenshot checklist. It explicitly calls out that a review outcome does not alter pet availability; staff make that separate decision.
+
 ## Next work
 
 - On 2026-10-06, four available dog listings (Maple, Milo, Nala, and Pepper) were seeded and paired with public `pet-images/seed/` JPEGs; the browser fallback data mirrors those listings.

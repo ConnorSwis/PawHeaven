@@ -42,6 +42,11 @@ The public app already has an ignored local `.env` pointing at port 8787. For a 
 
 The public site retains clearly labeled sample pets if the API is unavailable. With an empty real `pets` table, the API returns an empty list.
 
+For a repeatable local presentation, reset the database and follow the
+[demo runbook](docs/demo-runbook.md). It seeds varied pet listings plus
+local-only applicant and administrator accounts, and documents the end-to-end
+verification and screenshot flow.
+
 ## Administrator access
 
 `apps/admin` is a separate deployable app in this monorepo. Administrators can list, create, and update pet records, including a public JPEG, PNG, or WebP image up to 5 MB. A superuser can also send an administrator invitation by email; Supabase emails the recipient an invitation link, and the recipient sets a password on `/accept-invite` before logging in.
