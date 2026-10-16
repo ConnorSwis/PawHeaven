@@ -4,7 +4,7 @@ Read this before changing the project. Update it when the team states a new requ
 
 ## Product and near-term path
 
-PawHeaven connects a shelter with its community. The first full path is: administrators manage pet records, visitors browse available pets and inspect a pet, then create an account or log in. Adoption applications and scheduling are future work.
+PawHeaven connects a shelter with its community. The first full path is: administrators manage pet records, visitors browse available pets and inspect a pet, create an account or log in, submit a minimal adoption application, and receive an administrator-recorded outcome. Scheduling is future work.
 
 The public site uses a shared default page shell with navigation and a footer. The root route is its public landing page. The pet directory uses the live API when it contains listings; an empty or unavailable development database leaves clearly labeled sample listings usable for browsing and filtering.
 
@@ -128,10 +128,12 @@ Branch and PR deployments use Cloudflare Worker Previews, not unpaired Version U
 - The public account response contains only a member's identity and does not expose an authorization role.
 - A Supabase access token may remain valid until its expiry after logout. Keep JWT expiry short enough for the shelter's security needs; the current local Supabase config uses one hour.
 - The shared header checks the current session on page load: its action is “Log in” when signed out and becomes “Log out” when signed in. Logging out from either the header or account page synchronizes that action without requiring a page refresh.
-- The internal `apps/admin` portal is a separate app folder and Worker, not a separate repository. Administrators and superusers can list, create, and update pet records and upload public pet photos. User and adoption-management features remain future work.
+- The internal `apps/admin` portal is a separate app folder and Worker, not a separate repository. Administrators and superusers can list, create, and update pet records; upload public pet photos; and review adoption applications. User-management features remain future work.
+- A signed-in member can submit one application for an available pet. It stores the account email for shelter follow-up, a required household/care summary, and an optional note. No identity documents, payment data, or foster-specific responses are collected. The application starts `Pending`; an administrator may set `In review`, `Approved`, or `Declined`. This records a review outcome only and never changes pet availability automatically.
 - Admin roles are only `admin` and `superuser`, stored in `auth.users.raw_app_meta_data.role`; public registration cannot create either. A `superuser` can invite an `admin` by email. The API sends the Supabase invitation, sets the invited user’s immutable app-metadata role before they can use the portal, and records an audit event.
 - Invitations use Supabase’s email invitation flow and password-based login. An invitee follows the email link to `apps/admin`’s `/accept-invite`, where the API exchanges the short-lived Supabase session into its secure API cookies and the invitee chooses their password. This deliberately reuses the existing password login path instead of introducing an OTP-only system.
 - The deployment owner configures one `BOOTSTRAP_SUPERUSER_EMAIL` outside source control. On that address’s first successful sign-in, the API assigns immutable `superuser` app metadata with its server-side secret. Remove the setting after bootstrap so it cannot be reused. Configure `ADMIN_SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare secret, production SMTP, and the exact `https://admin.pawheaven.online/accept-invite` Supabase redirect URL before enabling invitations in production.
+- The first request after bootstrap refreshes the session before it uses the new superuser claim for a database operation. This keeps the API’s authorization check and RLS claim in sync.
 
 ## API contract now implemented
 
@@ -152,6 +154,10 @@ The API base path is `/api`. Local URL: `http://localhost:8787/api`.
 | `POST /admin/pets` | Administrator-only. Creates a validated pet record. |
 | `PUT /admin/pets/:id` | Administrator-only. Updates a validated pet record. |
 | `POST /admin/pets/:id/image` | Administrator-only. Uploads a JPEG, PNG, or WebP image up to 5 MB, updates the pet image path, and removes the replaced image. |
+| `GET /admin/applications` | Administrator-only. Returns all adoption applications, including the submitted contact email and review outcome. |
+| `PUT /admin/applications/:id` | Administrator-only. Records `In review`, `Approved`, or `Declined` with the reviewing administrator and time. |
+| `GET /applications` | Signed-in member only. Returns that member’s adoption applications. |
+| `POST /applications/pets/:id` | Signed-in member only. Submits one minimal application for an available pet; duplicate and unavailable-pet submissions are rejected. |
 | `GET /pets?search=&tag=` | Available pets in name order; universal text search across public pet details plus an optional exact shelter-tag filter; currently limited to 200 rows before text filtering |
 | `GET /pets/:id` | One available pet or `404`; IDs are UUIDs |
 
@@ -167,8 +173,8 @@ The implemented DBMS is Supabase-hosted PostgreSQL. The PawHeaven-owned tables c
 | --- | --- | --- |
 | `public.pets` (implemented) | `id uuid` PK; `name`, `species`, `breed`, `age_label`, `status`, `summary`, `image_path` as `text`; `intake_date date`; `tags text[]`; `created_at timestamptz` | `image_path` is a Storage object path, not a SQL foreign key. |
 | `public.admin_invitation_audit` (implemented) | `id uuid` PK; `invited_email text`; `invited_user_id uuid` nullable FK; `invited_by uuid` nullable FK; `invited_at timestamptz` | Server-side invitation audit only. RLS is enabled and neither `anon` nor `authenticated` receives table access. |
+| `public.adoption_applications` (implemented) | `id uuid` PK; `applicant_id uuid` FK; `applicant_name`, `applicant_email`, `pet_name`, `household_summary`, `note`, `status` as `text`; `pet_id uuid` FK; `submitted_at`, `reviewed_at` timestamptz; `reviewed_by uuid` nullable FK | A member can read and submit only their own application for an available pet. Administrators can read all applications and update only review fields. One member may submit one application per pet. |
 | `auth.users` (Supabase-managed) | `id uuid` PK; `email varchar`; `encrypted_password varchar`; `raw_user_meta_data jsonb` for display name; `created_at timestamptz` | Future user-owned rows reference `auth.users.id`. |
-| `public.adoption_applications` (proposed) | `id uuid` PK; `applicant_id uuid` FK; `pet_id uuid` FK; `status text`; `answers jsonb`; `submitted_at timestamptz`; `reviewed_by uuid` nullable FK; `reviewed_at timestamptz` nullable | Many applications per user and per pet; reviewer points to the user who handled the request. |
 | `public.appointments` (proposed) | `id uuid` PK; `application_id uuid` FK; `scheduled_at timestamptz`; `status text`; `notes text` nullable | One application may have multiple proposed/rescheduled visits. |
 | `public.quiz_responses` (proposed) | `id uuid` PK; `user_id uuid` FK; `answers jsonb`; `completed_at timestamptz` | A user may submit multiple matching quizzes. |
 | `public.suppliers` (proposed inventory) | `id uuid` PK; `name text`; `email text` nullable; `phone text` nullable | One supplier may provide many inventory items. |
@@ -204,7 +210,7 @@ The report also calls for ten use cases with one requirement each, a user-manage
 The report's use-case narratives add the following future-work constraints. They are useful input when the team turns a report feature into a product decision, but they do not authorize a migration or feature by themselves.
 
 - **Animal management:** administrators and superusers can now add and update pet records, including public availability status, descriptive tags, intake date, summaries, and photos. The implementation deliberately supports only `Available`, `Pending`, and `Adopted` statuses; foster state and medical history need a separate data-model decision. The report's generic “staff” actor maps to the implemented administrator roles; there is no third `staff` role.
-- **Adoption and foster applications:** a signed-in applicant selects an available pet, submits validated contact and household details, and receives a pending confirmation. A submission must not reserve a pet or approve a placement; staff review decides that later. The report also calls for draft auto-save, handling a pet that becomes unavailable during submission, and a distinct foster-care period/experience flow. Its mention of date of birth, driver's-license, and payment information is *not* an approved data model: the team must decide data minimization, retention, access controls, and whether payment processing is needed before collecting any of it.
+- **Adoption and foster applications:** a signed-in applicant can now select an available pet, submit a validated household/care summary and optional note, and see their pending confirmation. The account email is the only contact detail copied to the application. The database rejects applications for a pet that is not available or duplicates from the same member. A submission does not reserve a pet or approve a placement; an administrator may record an outcome later without changing pet availability. Draft auto-save, foster flows, date of birth, driver's-license, payment information, and additional retention/access rules remain out of scope pending a separate decision.
 - **Matching and lost-pet flows:** the matching quiz needs complete lifestyle/living-space/activity/preference/care-experience answers, recommendations with a short rationale, and refreshed results when answers change; recommendations do not reserve a pet. Lost-pet matching needs authenticated photo upload with explicit type/size limits, possible-match results, an inquiry path to shelter staff, and a clear statement that a visual match does not establish ownership. The image model, upload policy, and inquiry data/retention rules remain undecided.
 - **Appointments, donations, and volunteers:** scheduling requires published slots, an availability check at confirmation time, reschedule/cancel behavior, and staff visibility of the calendar. Donations require a third-party payment provider and may be recorded only after verified success, with receipt, declined, and pending outcomes. Volunteer shifts require published duties/requirements and capacity, eligibility and duplicate/conflicting-shift checks, staff participant visibility, and cancellation. None of these workflows, tables, integrations, or screens is implemented.
 - **Pet browsing:** the report's visitor-facing acceptance behavior is alphabetical available-pet listings; photos, basic details, length of stay, tag/broad text search, detail views; and an explicit no-results/retry state. The current public directory implements the core browse, alphabetical ordering, length-of-stay, tag/text search, detail, and no-results behavior. Species/age-specific filters and a real-time update guarantee remain future decisions.
@@ -215,7 +221,7 @@ The report's diagram shows `public.pets` linked to public `pet-images` Storage b
 
 - On 2026-10-06, four available dog listings (Maple, Milo, Nala, and Pepper) were seeded and paired with public `pet-images/seed/` JPEGs; the browser fallback data mirrors those listings.
 - Configure the team's public and API custom domains, exact API allowed origins, matching Worker Preview triggers, and Supabase Auth redirect URL. Deploy each Worker independently.
-- Add adoption applications and appointment tables/API/UI after the team confirms the data fields and workflow.
+- Add an administrator-facing applicant communication process, a retention decision for application records, and appointment tables/API/UI after the team confirms those workflows.
 - Add pagination beyond 200 pets, image optimization, request rate limiting, and a stronger session strategy if traffic or security needs grow.
 - Complete the report's database and screenshot requirements with the updated Postgres decision.
 

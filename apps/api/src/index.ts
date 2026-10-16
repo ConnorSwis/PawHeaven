@@ -1,5 +1,19 @@
 import { createClient, type Session, type User } from '@supabase/supabase-js';
-import { matchesPetSearch, type AdminPetListResponse, type AdminRole, type AdminUser, type ApiUser, type Pet, type PetInput, type PetStatus } from '@pawheaven/contracts';
+import {
+  matchesPetSearch,
+  type AdminAdoptionApplicationListResponse,
+  type AdminPetListResponse,
+  type AdminRole,
+  type AdminUser,
+  type AdoptionApplication,
+  type AdoptionApplicationInput,
+  type AdoptionApplicationListResponse,
+  type AdoptionApplicationStatus,
+  type ApiUser,
+  type Pet,
+  type PetInput,
+  type PetStatus,
+} from '@pawheaven/contracts';
 
 type DatabasePet = {
   id: string;
@@ -12,6 +26,21 @@ type DatabasePet = {
   status: PetStatus;
   summary: string;
   image_path: string | null;
+};
+
+type DatabaseAdoptionApplication = {
+  id: string;
+  applicant_id: string;
+  applicant_name: string;
+  applicant_email: string;
+  pet_id: string;
+  pet_name: string;
+  household_summary: string;
+  note: string;
+  status: AdoptionApplicationStatus;
+  submitted_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
 };
 
 type Identity = { user: User; accessToken: string; refreshToken: string; refreshed?: Session };
@@ -238,6 +267,36 @@ function petRow(input: PetInput) {
   };
 }
 
+function applicationForClient(row: DatabaseAdoptionApplication): AdoptionApplication {
+  return {
+    id: row.id,
+    applicantName: row.applicant_name,
+    applicantEmail: row.applicant_email,
+    petId: row.pet_id,
+    petName: row.pet_name,
+    householdSummary: row.household_summary,
+    note: row.note,
+    status: row.status,
+    submittedAt: row.submitted_at,
+    reviewedAt: row.reviewed_at,
+    reviewedBy: row.reviewed_by,
+  };
+}
+
+function adoptionApplicationInput(body: unknown): { value: AdoptionApplicationInput } | { message: string } {
+  const input = body as Record<string, unknown> | null;
+  const householdSummary = typeof input?.householdSummary === 'string' ? input.householdSummary.trim() : '';
+  const note = typeof input?.note === 'string' ? input.note.trim() : '';
+  if (householdSummary.length < 20) return { message: 'Tell us a little more about your household and the care you can provide.' };
+  if (householdSummary.length > 2000 || note.length > 1000) return { message: 'Keep the household summary under 2,000 characters and the note under 1,000 characters.' };
+  return { value: { householdSummary, note } };
+}
+
+function applicationReviewStatus(body: unknown): AdoptionApplicationStatus | null {
+  const status = (body as Record<string, unknown> | null)?.status;
+  return status === 'In review' || status === 'Approved' || status === 'Declined' ? status : null;
+}
+
 async function readLimited(request: Request, limit: number): Promise<Uint8Array | null> {
   if (Number(request.headers.get('Content-Length') ?? 0) > limit || !request.body) return null;
   const reader = request.body.getReader();
@@ -296,7 +355,20 @@ async function bootstrapSuperuser(user: User, env: Env): Promise<User> {
 async function adminIdentity(request: Request, env: Env): Promise<{ current: Identity; role: AdminRole } | null> {
   const current = await identity(request, env);
   if (!current) return null;
+  const originalUser = current.user;
   current.user = await bootstrapSuperuser(current.user, env);
+  // Updating app_metadata changes the user record, but the access token still
+  // carries the old claims. Refresh it now so this first superuser request is
+  // evaluated consistently by API code and database RLS.
+  if (current.user !== originalUser) {
+    const { data, error } = await supabase(env).auth.refreshSession({ refresh_token: current.refreshToken });
+    if (!error && data.user && data.session) {
+      current.user = data.user;
+      current.accessToken = data.session.access_token;
+      current.refreshToken = data.session.refresh_token;
+      current.refreshed = data.session;
+    }
+  }
   const role = adminRole(current.user);
   return role ? { current, role } : null;
 }
@@ -392,6 +464,25 @@ async function adminRoutes(request: Request, env: Env, path: string): Promise<Ap
     if (error) return sessionResponse(databaseError('admin.pets.create', error), request, current);
     return sessionResponse(respond(petForClient(data as DatabasePet, env), 201), request, current);
   }
+  if (path === '/admin/applications' && request.method === 'GET') {
+    const { data, error } = await client.from('adoption_applications').select('*').order('submitted_at', { ascending: true }).limit(500);
+    if (error) return sessionResponse(databaseError('admin.applications.list', error), request, current);
+    const payload: AdminAdoptionApplicationListResponse = { applications: (data as DatabaseAdoptionApplication[]).map(applicationForClient) };
+    return sessionResponse(respond(payload), request, current);
+  }
+  const applicationMatch = path.match(/^\/admin\/applications\/([0-9a-f-]{36})$/i);
+  if (applicationMatch && request.method === 'PUT') {
+    const status = applicationReviewStatus(await jsonBody(request));
+    if (!status) return sessionResponse(errorResponse('Choose In review, Approved, or Declined.', 400), request, current);
+    const { data, error } = await client.from('adoption_applications').update({
+      status,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: current.user.id,
+    }).eq('id', applicationMatch[1]).select('*').maybeSingle();
+    if (error) return sessionResponse(databaseError('admin.applications.review', error), request, current);
+    if (!data) return sessionResponse(errorResponse('Application not found.', 404), request, current);
+    return sessionResponse(respond(applicationForClient(data as DatabaseAdoptionApplication)), request, current);
+  }
   const petMatch = path.match(/^\/admin\/pets\/([0-9a-f-]{36})$/i);
   if (petMatch && request.method === 'PUT') {
     const body = await jsonBody(request);
@@ -481,11 +572,47 @@ async function publicPetRoutes(request: Request, env: Env, path: string): Promis
   return errorResponse('Not found.', 404);
 }
 
+async function adoptionApplicationRoutes(request: Request, env: Env, path: string): Promise<ApiResponse> {
+  const current = await identity(request, env);
+  if (!current) return clearSession(errorResponse('Log in before submitting an adoption application.', 401), request);
+  const client = userSupabase(env, current.accessToken);
+  if (path === '/applications' && request.method === 'GET') {
+    const { data, error } = await client.from('adoption_applications').select('*').eq('applicant_id', current.user.id).order('submitted_at', { ascending: false }).limit(100);
+    if (error) return sessionResponse(databaseError('applications.list', error), request, current);
+    const payload: AdoptionApplicationListResponse = { applications: (data as DatabaseAdoptionApplication[]).map(applicationForClient) };
+    return sessionResponse(respond(payload), request, current);
+  }
+  const petMatch = path.match(/^\/applications\/pets\/([0-9a-f-]{36})$/i);
+  if (petMatch && request.method === 'POST') {
+    const parsed = adoptionApplicationInput(await jsonBody(request));
+    if ('message' in parsed) return sessionResponse(errorResponse(parsed.message, 400), request, current);
+    const { data: pet, error: petError } = await client.from('pets').select('id, name').eq('id', petMatch[1]).eq('status', 'Available').maybeSingle();
+    if (petError) return sessionResponse(databaseError('applications.pet_lookup', petError), request, current);
+    if (!pet) return sessionResponse(errorResponse('This pet is no longer available for new applications.', 409), request, current);
+    const applicant = apiUser(current.user);
+    const { data, error } = await client.from('adoption_applications').insert({
+      applicant_id: applicant.id,
+      applicant_name: applicant.name,
+      applicant_email: applicant.email,
+      pet_id: pet.id,
+      pet_name: pet.name,
+      household_summary: parsed.value.householdSummary,
+      note: parsed.value.note,
+    }).select('*').single();
+    if (error?.code === '23505') return sessionResponse(errorResponse('You already submitted an application for this pet.', 409), request, current);
+    if (error?.code === '42501') return sessionResponse(errorResponse('This pet is no longer available for new applications.', 409), request, current);
+    if (error) return sessionResponse(databaseError('applications.create', error), request, current);
+    return sessionResponse(respond(applicationForClient(data as DatabaseAdoptionApplication), 201), request, current);
+  }
+  return sessionResponse(errorResponse('Not found.', 404), request, current);
+}
+
 async function route(request: Request, env: Env): Promise<ApiResponse> {
   const path = new URL(request.url).pathname.replace(/^\/api/, '') || '/';
   if (path === '/health' && request.method === 'GET') return respond({ ok: true });
   if (path.startsWith('/auth/')) return authRoutes(request, env, path);
   if (path.startsWith('/admin/')) return adminRoutes(request, env, path);
+  if (path === '/applications' || path.startsWith('/applications/')) return adoptionApplicationRoutes(request, env, path);
   if (path === '/pets' || path.startsWith('/pets/')) return publicPetRoutes(request, env, path);
   return errorResponse('Not found.', 404);
 }
