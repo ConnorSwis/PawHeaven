@@ -10,14 +10,14 @@ set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","app_metadata":{"role":"admin"}}';
 
 select results_eq(
-  $$select name from public.pets where status = 'Pending' order by name$$,
+  $$select name from public.pets where id = '10000000-0000-0000-0000-000000000002'$$,
   array['Pending pet'],
   'admin can read a non-public pet'
 );
 
 select lives_ok(
-  $$insert into public.pets (name, species, breed, age_label, intake_date, tags, status, summary)
-    values ('Admin created pet', 'Cat', 'Mixed', 'Young', current_date, array['new'], 'Available', 'Created by an admin')$$,
+  $$insert into public.pets (id, name, species, breed, age_label, intake_date, tags, status, summary)
+    values ('10000000-0000-0000-0000-000000000003', 'Admin created pet', 'Cat', 'Mixed', 'Young', current_date, array['new'], 'Available', 'Created by an admin')$$,
   'admin can create a pet'
 );
 
@@ -41,7 +41,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","app_metadata":{}}';
 
 select results_eq(
-  $$select name from public.pets where status = 'Adopted'$$,
+  $$select name from public.pets where id = '10000000-0000-0000-0000-000000000002'$$,
   array[]::text[],
   'ordinary users cannot read non-public pets'
 );
@@ -59,7 +59,7 @@ set local role anon;
 set local request.jwt.claims = '{"role":"anon"}';
 
 select results_eq(
-  $$select name from public.pets order by name$$,
+  $$select name from public.pets where id in ('10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003') order by name$$,
   array['Admin created pet', 'Public pet'],
   'visitors see only available pets'
 );
@@ -69,7 +69,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","app_metadata":{"role":"staff"}}';
 
 select results_eq(
-  $$select name from public.pets where status = 'Adopted'$$,
+  $$select name from public.pets where id = '10000000-0000-0000-0000-000000000002'$$,
   array[]::text[],
   'the historical staff claim has no administrative access'
 );

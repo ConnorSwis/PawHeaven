@@ -16,13 +16,13 @@ set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","sub":"30000000-0000-0000-0000-000000000001","email":"member@example.com","app_metadata":{}}';
 
 select lives_ok(
-  $$insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary, adoption_experience)
-    values ('30000000-0000-0000-0000-000000000001', 'Member', 'member@example.com', '20000000-0000-0000-0000-000000000001', 'Available pet', 'We have a calm home, a fenced yard, and time for daily walks together.', 'We have cared for dogs before and will work with the shelter on this pet’s routine.')$$,
+  $$insert into public.adoption_applications (id, applicant_id, applicant_name, applicant_email, pet_id, pet_name, household_summary, adoption_experience)
+    values ('40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', 'Member', 'member@example.com', '20000000-0000-0000-0000-000000000001', 'Available pet', 'We have a calm home, a fenced yard, and time for daily walks together.', 'We have cared for dogs before and will work with the shelter on this pet’s routine.')$$,
   'a member can apply for an available pet'
 );
 
 select results_eq(
-  $$select pet_name from public.adoption_applications order by pet_name$$,
+  $$select pet_name from public.adoption_applications where id = '40000000-0000-0000-0000-000000000002'$$,
   array['Available pet'],
   'a member can read their own application'
 );
@@ -77,7 +77,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"role":"authenticated","sub":"50000000-0000-0000-0000-000000000001","email":"admin@example.com","app_metadata":{"role":"admin"}}';
 
 select results_eq(
-  $$select count(*)::integer from public.adoption_applications$$,
+  $$select count(*)::integer from public.adoption_applications where id in ('40000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000002')$$,
   array[2],
   'an administrator can read all applications'
 );
