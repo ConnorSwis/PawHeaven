@@ -434,6 +434,14 @@ async function authRoutes(request: Request, env: Env, path: string): Promise<Api
     if (!data.session || !data.user) return errorResponse('The account service returned an unexpected response. Please try again in a few minutes.', 503);
     return withSession(respond({ user: apiUser(data.user) }), request, data.session);
   }
+  if (path === '/auth/verify-invitation' && request.method === 'POST') {
+    const body = await jsonBody(request) as Record<string, unknown> | null;
+    const tokenHash = typeof body?.tokenHash === 'string' ? body.tokenHash : '';
+    if (!/^[a-f0-9]{56}$/i.test(tokenHash)) return errorResponse('The invitation link is incomplete. Ask a superadmin for a new invitation.', 400);
+    const { data, error } = await supabase(env).auth.verifyOtp({ token_hash: tokenHash, type: 'invite' });
+    if (error || !data.user || !data.session) return errorResponse('This invitation is invalid, expired, or has already been used. Ask a superadmin for a new invitation.', 401);
+    return withSession(respond({ user: apiUser(data.user) }), request, data.session);
+  }
   if (path === '/auth/exchange' && request.method === 'POST') {
     const body = await jsonBody(request) as Record<string, unknown> | null;
     const accessToken = typeof body?.accessToken === 'string' ? body.accessToken : '';
