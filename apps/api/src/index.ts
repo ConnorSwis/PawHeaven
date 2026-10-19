@@ -4,12 +4,16 @@ import {
   type AdminAdoptionApplicationListResponse,
   type AdminPetListResponse,
   type AdminRole,
+  type AdminUserDetailResponse,
+  type AdminUserListResponse,
+  type AdminUserUpdateInput,
   type AdminUser,
   type AdoptionApplication,
   type AdoptionApplicationInput,
   type AdoptionApplicationListResponse,
   type AdoptionApplicationStatus,
   type ApiUser,
+  type ManagedUser,
   type Pet,
   type PetInput,
   type PetStatus,
@@ -97,7 +101,7 @@ function userSupabase(env: Env, accessToken: string) {
   });
 }
 
-/** This client is only used for server-only invitation administration and its audit record. */
+/** This client is only used for server-side Auth administration and privileged audit records. */
 function supabaseAdmin(env: Env) {
   if (!env.ADMIN_SUPABASE_SERVICE_ROLE_KEY) return null;
   return createClient(env.SUPABASE_URL, env.ADMIN_SUPABASE_SERVICE_ROLE_KEY, {
@@ -180,11 +184,11 @@ async function identity(request: Request, env: Env): Promise<Identity | null> {
   const refresh = cookies[REFRESH_COOKIE];
   if (access) {
     const { data, error } = await supabase(env).auth.getUser(access);
-    if (!error && data.user && refresh) return { user: data.user, accessToken: access, refreshToken: refresh };
+    if (!error && data.user && refresh && !isBlocked(data.user)) return { user: data.user, accessToken: access, refreshToken: refresh };
   }
   if (!refresh) return null;
   const { data, error } = await supabase(env).auth.refreshSession({ refresh_token: refresh });
-  if (error || !data.user || !data.session) return null;
+  if (error || !data.user || !data.session || isBlocked(data.user)) return null;
   return {
     user: data.user,
     accessToken: data.session.access_token,
@@ -204,6 +208,23 @@ function apiUser(user: User): ApiUser {
 function adminRole(user: User): AdminRole | null {
   const role = user.app_metadata?.role;
   return role === 'admin' || role === 'superuser' ? role : null;
+}
+
+function isBlocked(user: User): boolean {
+  const until = user.banned_until ? Date.parse(user.banned_until) : Number.NaN;
+  return Number.isFinite(until) && until > Date.now();
+}
+
+function managedUser(user: User): ManagedUser {
+  return {
+    ...apiUser(user),
+    role: adminRole(user) ?? 'member',
+    createdAt: user.created_at,
+    lastSignInAt: user.last_sign_in_at ?? null,
+    emailConfirmedAt: user.email_confirmed_at ?? null,
+    bannedUntil: user.banned_until ?? null,
+    blocked: isBlocked(user),
+  };
 }
 
 function adminUser(user: User, role: AdminRole): AdminUser {
@@ -342,7 +363,7 @@ function sessionResponse(response: Response, request: Request, current: Identity
 
 async function bootstrapSuperuser(user: User, env: Env): Promise<User> {
   const bootstrapEmail = env.BOOTSTRAP_SUPERUSER_EMAIL?.trim().toLowerCase();
-  if (!bootstrapEmail || user.email?.toLowerCase() !== bootstrapEmail || adminRole(user)) return user;
+  if (!bootstrapEmail || user.email?.toLowerCase() !== bootstrapEmail || adminRole(user) === 'superuser') return user;
   const client = supabaseAdmin(env);
   if (!client) return user;
   const { data, error } = await client.auth.admin.updateUserById(user.id, {
@@ -377,6 +398,19 @@ async function adminIdentity(request: Request, env: Env): Promise<{ current: Ide
   return role ? { current, role } : null;
 }
 
+function mayManageUser(actorRole: AdminRole, actorId: string, target: User): boolean {
+  const targetRole = adminRole(target);
+  if (target.id === actorId || targetRole === 'superuser') return false;
+  if (targetRole === 'admin') return actorRole === 'superuser';
+  return true;
+}
+
+function authAdminError(operation: string, error: { message: string; status?: number }): ApiResponse {
+  console.error(JSON.stringify({ operation, error: error.message }));
+  if (error.status === 429) return errorResponse('Too many account changes were requested. Please wait and try again.', 429);
+  return errorResponse('The account service could not complete that change. Please try again.', 503);
+}
+
 async function authRoutes(request: Request, env: Env, path: string): Promise<ApiResponse> {
   if (path === '/auth/register' && request.method === 'POST') {
     const body = await jsonBody(request) as Record<string, unknown> | null;
@@ -404,20 +438,20 @@ async function authRoutes(request: Request, env: Env, path: string): Promise<Api
     const body = await jsonBody(request) as Record<string, unknown> | null;
     const accessToken = typeof body?.accessToken === 'string' ? body.accessToken : '';
     const refreshToken = typeof body?.refreshToken === 'string' ? body.refreshToken : '';
-    if (!accessToken || accessToken.length > 16_384 || !refreshToken || refreshToken.length > 16_384) return errorResponse('The invitation link is incomplete or expired. Request a new invitation.', 400);
+    if (!accessToken || accessToken.length > 16_384 || !refreshToken || refreshToken.length > 16_384) return errorResponse('The account link is incomplete or expired. Request a new invitation or password reset.', 400);
     const { data, error } = await supabase(env).auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-    if (error || !data.user || !data.session) return errorResponse('The invitation link is invalid or expired. Request a new invitation.', 401);
+    if (error || !data.user || !data.session) return errorResponse('The account link is invalid or expired. Request a new invitation or password reset.', 401);
     return withSession(respond({ user: apiUser(data.user) }), request, data.session);
   }
   if (path === '/auth/password' && request.method === 'POST') {
     const current = await identity(request, env);
-    if (!current) return clearSession(errorResponse('Your session has expired. Use your invitation link again.', 401), request);
+    if (!current) return clearSession(errorResponse('Your session has expired. Use your account link again.', 401), request);
     const body = await jsonBody(request) as Record<string, unknown> | null;
     const password = body?.password;
     if (typeof password !== 'string' || password.length < 8 || password.length > 1024) return errorResponse('Choose a password between 8 and 1,024 characters.', 400);
     const client = supabase(env);
     const { error: sessionError } = await client.auth.setSession({ access_token: current.accessToken, refresh_token: current.refreshToken });
-    if (sessionError) return clearSession(errorResponse('Your session has expired. Use your invitation link again.', 401), request);
+    if (sessionError) return clearSession(errorResponse('Your session has expired. Use your account link again.', 401), request);
     const { error } = await client.auth.updateUser({ password });
     if (error) {
       console.error(JSON.stringify({ operation: 'auth.password', error: error.message }));
@@ -453,6 +487,100 @@ async function adminRoutes(request: Request, env: Env, path: string): Promise<Ap
   }
   const { current, role } = authorized;
   if (path === '/admin/me' && request.method === 'GET') return sessionResponse(respond({ user: adminUser(current.user, role) }), request, current);
+
+  if (path === '/admin/users' && request.method === 'GET') {
+    const adminClient = supabaseAdmin(env);
+    if (!adminClient) return sessionResponse(errorResponse('User management is not configured. Contact the deployment owner.', 503), request, current);
+    const { data, error } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (error) return sessionResponse(authAdminError('admin.users.list', error), request, current);
+    const users = data.users.map(managedUser).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const payload: AdminUserListResponse = { users };
+    return sessionResponse(respond(payload), request, current);
+  }
+
+  const managedUserMatch = path.match(/^\/admin\/users\/([0-9a-f-]{36})$/i);
+  if (managedUserMatch && request.method === 'GET') {
+    const adminClient = supabaseAdmin(env);
+    if (!adminClient) return sessionResponse(errorResponse('User management is not configured. Contact the deployment owner.', 503), request, current);
+    const { data, error } = await adminClient.auth.admin.getUserById(managedUserMatch[1]);
+    if (error || !data.user) return sessionResponse(error?.status === 404 ? errorResponse('User not found.', 404) : authAdminError('admin.users.get', error ?? { message: 'No user returned' }), request, current);
+    const { data: applications, error: applicationsError } = await adminClient.from('adoption_applications').select('*').eq('applicant_id', data.user.id).order('submitted_at', { ascending: false }).limit(100);
+    if (applicationsError) return sessionResponse(databaseError('admin.users.applications', applicationsError), request, current);
+    const payload: AdminUserDetailResponse = {
+      user: managedUser(data.user),
+      applications: (applications as DatabaseAdoptionApplication[]).map(applicationForClient),
+    };
+    return sessionResponse(respond(payload), request, current);
+  }
+
+  if (managedUserMatch && request.method === 'PUT') {
+    const adminClient = supabaseAdmin(env);
+    if (!adminClient) return sessionResponse(errorResponse('User management is not configured. Contact the deployment owner.', 503), request, current);
+    const { data: targetData, error: targetError } = await adminClient.auth.admin.getUserById(managedUserMatch[1]);
+    if (targetError || !targetData.user) return sessionResponse(targetError?.status === 404 ? errorResponse('User not found.', 404) : authAdminError('admin.users.update_lookup', targetError ?? { message: 'No user returned' }), request, current);
+    if (!mayManageUser(role, current.user.id, targetData.user)) return sessionResponse(errorResponse('You cannot edit this staff account.', 403), request, current);
+    const body = await jsonBody(request) as Partial<AdminUserUpdateInput> | null;
+    const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+    if (!name || name.length > 100 || !validEmail(email)) return sessionResponse(errorResponse('Enter a name and valid email address.', 400), request, current);
+    const { data, error } = await adminClient.auth.admin.updateUserById(targetData.user.id, {
+      email,
+      user_metadata: { ...targetData.user.user_metadata, name },
+    });
+    if (error || !data.user) return sessionResponse(authAdminError('admin.users.update', error ?? { message: 'No user returned' }), request, current);
+    console.info(JSON.stringify({ operation: 'admin.users.update', targetUserId: data.user.id, actorUserId: current.user.id }));
+    return sessionResponse(respond({ user: managedUser(data.user) }), request, current);
+  }
+
+  const accessMatch = path.match(/^\/admin\/users\/([0-9a-f-]{36})\/access$/i);
+  if (accessMatch && request.method === 'PUT') {
+    const adminClient = supabaseAdmin(env);
+    if (!adminClient) return sessionResponse(errorResponse('User management is not configured. Contact the deployment owner.', 503), request, current);
+    const { data: targetData, error: targetError } = await adminClient.auth.admin.getUserById(accessMatch[1]);
+    if (targetError || !targetData.user) return sessionResponse(targetError?.status === 404 ? errorResponse('User not found.', 404) : authAdminError('admin.users.access_lookup', targetError ?? { message: 'No user returned' }), request, current);
+    if (!mayManageUser(role, current.user.id, targetData.user)) return sessionResponse(errorResponse('You cannot change access for this staff account.', 403), request, current);
+    const body = await jsonBody(request) as { blocked?: unknown } | null;
+    if (typeof body?.blocked !== 'boolean') return sessionResponse(errorResponse('Choose whether this account is blocked.', 400), request, current);
+    const { data, error } = await adminClient.auth.admin.updateUserById(targetData.user.id, {
+      ban_duration: body.blocked ? '876000h' : 'none',
+    });
+    if (error || !data.user) return sessionResponse(authAdminError('admin.users.access', error ?? { message: 'No user returned' }), request, current);
+    console.info(JSON.stringify({ operation: body.blocked ? 'admin.users.block' : 'admin.users.unblock', targetUserId: data.user.id, actorUserId: current.user.id }));
+    return sessionResponse(respond({ user: managedUser(data.user) }), request, current);
+  }
+
+  const resetMatch = path.match(/^\/admin\/users\/([0-9a-f-]{36})\/password-reset$/i);
+  if (resetMatch && request.method === 'POST') {
+    const adminClient = supabaseAdmin(env);
+    if (!adminClient) return sessionResponse(errorResponse('User management is not configured. Contact the deployment owner.', 503), request, current);
+    const { data: targetData, error: targetError } = await adminClient.auth.admin.getUserById(resetMatch[1]);
+    if (targetError || !targetData.user) return sessionResponse(targetError?.status === 404 ? errorResponse('User not found.', 404) : authAdminError('admin.users.password_reset_lookup', targetError ?? { message: 'No user returned' }), request, current);
+    if (!mayManageUser(role, current.user.id, targetData.user) || !targetData.user.email) return sessionResponse(errorResponse('You cannot reset the password for this staff account.', 403), request, current);
+    if (isBlocked(targetData.user)) return sessionResponse(errorResponse('Unblock this account before sending a password reset.', 409), request, current);
+    const redirectTo = env.ADMIN_INVITE_REDIRECT_URL ?? 'https://admin.pawheaven.online/accept-invite';
+    const { error } = await supabase(env).auth.resetPasswordForEmail(targetData.user.email, { redirectTo });
+    if (error) return sessionResponse(authAdminError('admin.users.password_reset', error), request, current);
+    console.info(JSON.stringify({ operation: 'admin.users.password_reset', targetUserId: targetData.user.id, actorUserId: current.user.id }));
+    return sessionResponse(respond({ message: 'Password reset email sent.' }), request, current);
+  }
+
+  if (managedUserMatch && request.method === 'DELETE') {
+    const adminClient = supabaseAdmin(env);
+    if (!adminClient) return sessionResponse(errorResponse('User management is not configured. Contact the deployment owner.', 503), request, current);
+    const { data: targetData, error: targetError } = await adminClient.auth.admin.getUserById(managedUserMatch[1]);
+    if (targetError || !targetData.user) return sessionResponse(targetError?.status === 404 ? errorResponse('User not found.', 404) : authAdminError('admin.users.delete_lookup', targetError ?? { message: 'No user returned' }), request, current);
+    if (!mayManageUser(role, current.user.id, targetData.user)) return sessionResponse(errorResponse('You cannot delete this staff account.', 403), request, current);
+    const targetRole = adminRole(targetData.user);
+    if (targetRole === 'admin') {
+      const { error: auditError } = await adminClient.from('admin_invitation_audit').delete().eq('invited_user_id', targetData.user.id);
+      if (auditError) return sessionResponse(databaseError('admin.users.delete_invitation_audit', auditError), request, current);
+    }
+    const { error } = await adminClient.auth.admin.deleteUser(targetData.user.id, false);
+    if (error) return sessionResponse(authAdminError('admin.users.delete', error), request, current);
+    console.info(JSON.stringify({ operation: 'admin.users.delete', targetUserId: targetData.user.id, actorUserId: current.user.id, targetRole: targetRole ?? 'member' }));
+    return sessionResponse(respond({ ok: true }), request, current);
+  }
+
   const client = userSupabase(env, current.accessToken);
   if (path === '/admin/pets' && request.method === 'GET') {
     const { data, error } = await client.from('pets').select('*').order('name', { ascending: true }).limit(500);

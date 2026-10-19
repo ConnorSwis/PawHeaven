@@ -2,11 +2,11 @@
 import AdminShell from '../layouts/AdminShell.astro';
 ---
 
-<AdminShell title="Complete invitation">
+<AdminShell title="Set password">
   <div class="grid place-items-center py-4">
     <section class="w-full max-w-md border border-stone-300 bg-white p-7 sm:p-9" data-invite-panel aria-live="polite">
-      <h1 class="text-2xl font-semibold tracking-tight text-stone-950">Complete your invitation</h1>
-      <p class="mt-3 leading-6 text-stone-700">Verifying your invitation…</p>
+      <h1 class="text-2xl font-semibold tracking-tight text-stone-950">Set your password</h1>
+      <p class="mt-3 leading-6 text-stone-700">Verifying your account link…</p>
     </section>
   </div>
 </AdminShell>
@@ -62,7 +62,8 @@ import AdminShell from '../layouts/AdminShell.astro';
         });
         const payload = await response.json().catch(() => null) as { message?: unknown } | null;
         if (!response.ok) throw new Error(typeof payload?.message === 'string' ? payload.message : 'We could not save that password.');
-        window.location.assign('/');
+        const administrator = await fetch(`${apiBase}/admin/me`, { credentials: 'include' });
+        window.location.assign(administrator.ok ? '/' : 'https://pawheaven.online/account');
       } catch (exception) {
         message(exception instanceof Error ? exception.message : 'We could not save that password.', true);
         submit.disabled = false;
@@ -71,25 +72,25 @@ import AdminShell from '../layouts/AdminShell.astro';
     });
   }
 
-  async function acceptInvitation() {
+  async function acceptAccountLink() {
     const values = new URLSearchParams(window.location.hash.slice(1));
     const accessToken = values.get('access_token');
     const refreshToken = values.get('refresh_token');
-    if (!accessToken || !refreshToken) return message('This invitation link is incomplete or has expired. Ask a superuser to send a new invitation.', true);
+    if (!accessToken || !refreshToken) return message('This account link is incomplete or has expired. Ask shelter staff to send a new password reset or invitation.', true);
     try {
       const response = await fetch(`${apiBase}/auth/exchange`, {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessToken, refreshToken }),
       });
       const payload = await response.json().catch(() => null) as { message?: unknown } | null;
-      if (!response.ok) throw new Error(typeof payload?.message === 'string' ? payload.message : 'This invitation link is invalid or expired.');
+      if (!response.ok) throw new Error(typeof payload?.message === 'string' ? payload.message : 'This account link is invalid or expired.');
       history.replaceState(null, '', window.location.pathname);
-      message('Your invitation is verified. Choose a password to finish setting up your account.');
+      message('Your account link is verified. Choose a password to continue.');
       passwordForm();
     } catch (exception) {
-      message(exception instanceof Error ? exception.message : 'We could not verify your invitation.', true);
+      message(exception instanceof Error ? exception.message : 'We could not verify your account link.', true);
     }
   }
 
-  acceptInvitation();
+  acceptAccountLink();
 </script>

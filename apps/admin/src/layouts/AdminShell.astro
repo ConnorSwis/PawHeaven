@@ -19,9 +19,13 @@ const { title, description = 'PawHeaven administrator portal' } = Astro.props;
   </head>
   <body class="min-h-dvh bg-[var(--color-page)] text-stone-900 antialiased">
     <header class="border-b border-stone-300 bg-white">
-      <div class="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-6 py-3">
+      <div class="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-3">
         <a class="text-lg font-semibold tracking-tight text-stone-950" href="/">PawHeaven Admin</a>
-        <a class="text-sm font-medium text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="https://pawheaven.online">Shelter site</a>
+        <nav class="flex items-center gap-5 text-sm font-medium" aria-label="Administrator navigation">
+          <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="/">Portal</a>
+          <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="/users">Users</a>
+          <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="https://pawheaven.online">Shelter site</a>
+        </nav>
       </div>
     </header>
     <main id="main-content" class="mx-auto w-full max-w-6xl px-6 py-10">

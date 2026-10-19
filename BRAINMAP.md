@@ -19,6 +19,7 @@ Public users may eventually save favorites, take a matching quiz, apply to adopt
 - Similar code should be shared when there is a real repeated responsibility. Start with shared API types in `packages/contracts`; extract shared UI or client helpers when both apps actually need the same implementation.
 - The project is small and team-maintained. Prefer clear app ownership, few dependencies, and one root install and lockfile.
 - Keep this brain map current as new requirements appear in conversation.
+- Administrators and superusers must be able to view and manage ordinary user accounts, including profile information, adoption applications, password-reset email, sign-in blocking, and permanent deletion. Superusers can perform the same actions on administrator accounts. The portal protects the active account and every superuser account from these actions.
 
 ## AI-agent operating manual
 
@@ -66,7 +67,7 @@ The web app is at `http://localhost:4321`; the API is at `http://localhost:8787/
 - This project uses imperative, timestamped SQL migrations. Create a schema migration with `npx supabase migration new descriptive_change`, edit the generated file, and run `npm run db:reset` before requesting review.
 - Schema changes include tables, indexes, grants, RLS policies, Storage policies, functions, and triggers. Do not hide schema changes in application code or dashboard-only changes.
 - Do **not** run `supabase link`, `supabase db push`, `supabase db reset --linked`, `supabase db pull`, or `supabase migration repair` against production from a contributor checkout. Do not use the hosted SQL Editor or Table Editor to change production schema.
-- Do not place Supabase access tokens, database passwords, service-role/secret keys, production `.env` files, or `supabase/.temp/` metadata in Git. The public and admin sites use no secret key. The only deliberate exception is the `ADMIN_SUPABASE_SERVICE_ROLE_KEY` Cloudflare secret on `apps/api`; it is used only to call Supabase Auth Admin methods for invitation and immutable `app_metadata` role assignment.
+- Do not place Supabase access tokens, database passwords, service-role/secret keys, production `.env` files, or `supabase/.temp/` metadata in Git. The public and admin sites use no secret key. The only deliberate exception is the `ADMIN_SUPABASE_SERVICE_ROLE_KEY` Cloudflare secret on `apps/api`; it is used only for server-side Supabase Auth administration, including invitations, immutable `app_metadata` role assignment, and authorized user-management actions.
 - New or changed tables in `public` need deliberate grants, RLS enabled, and policies matching the actual actor and row ownership. Never use editable `user_metadata` for authorization. Treat `SECURITY DEFINER`, views, triggers, and Storage rules as security-sensitive and document/verify them.
 - Do not give contributors access to the production Supabase project, its dashboard, database password, access token, or production environment files. The project owner alone applies reviewed migrations to production outside this repository.
 
@@ -107,7 +108,7 @@ When completing a feature, update the relevant existing section of this brain ma
 | `packages/contracts` | Shared TypeScript API shapes | Not deployed |
 | `supabase/migrations` | Versioned schema and access policies | Applied to Supabase |
 
-npm workspaces and the root `package-lock.json` are the single dependency boundary. The public and admin Workers serve static Astro output. The API Worker normally uses `@supabase/supabase-js` with the supplied Supabase URL and publishable key. Administrator invitations are the narrow server-side exception: the API receives `ADMIN_SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare secret, never as a source-controlled binding, static Worker var, or browser value.
+npm workspaces and the root `package-lock.json` are the single dependency boundary. The public and admin Workers serve static Astro output. The API Worker normally uses `@supabase/supabase-js` with the supplied Supabase URL and publishable key. Privileged Auth administration is the narrow server-side exception: the API receives `ADMIN_SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare secret, never as a source-controlled binding, static Worker var, or browser value.
 
 The root lockfile is generated from a clean checkout so native optional dependencies for both macOS and Linux are present. This fixed the public Cloudflare build failure on 2026-10-05 where the Tailwind Linux binding was missing from a macOS-generated lockfile.
 
@@ -128,11 +129,14 @@ Branch and PR deployments use Cloudflare Worker Previews, not unpaired Version U
 - The public account response contains only a member's identity and does not expose an authorization role.
 - A Supabase access token may remain valid until its expiry after logout. Keep JWT expiry short enough for the shelter's security needs; the current local Supabase config uses one hour.
 - The shared header checks the current session on page load: its action is “Log in” when signed out and becomes “Log out” when signed in. Logging out from either the header or account page synchronizes that action without requiring a page refresh.
-- The internal `apps/admin` portal is a separate app folder and Worker, not a separate repository. Administrators and superusers can list, create, and update pet records; upload public pet photos; and review adoption applications. User-management features remain future work.
+- The internal `apps/admin` portal is a separate app folder and Worker, not a separate repository. Administrators and superusers can list, create, and update pet records; upload public pet photos; review adoption applications; and manage ordinary user accounts. Both roles may view user information and applications, edit name/email, send a recovery email, block or unblock sign-in, and permanently delete the account. Only a superuser may perform those actions on an `admin`; the active account and all `superuser` accounts are protected from management and deletion in the portal.
 - A signed-in member can submit one application for an available pet. It stores the account email for shelter follow-up, a required household/care summary, a required pet-care experience/preparedness answer, and an optional note. No identity documents, payment data, or foster-specific responses are collected. The application starts `Pending`; an administrator may set `In review`, `Approved`, or `Declined`. This records a review outcome only and never changes pet availability automatically.
 - Admin roles are only `admin` and `superuser`, stored in `auth.users.raw_app_meta_data.role`; public registration cannot create either. A `superuser` can invite an `admin` by email. The API sends the Supabase invitation, sets the invited user’s immutable app-metadata role before they can use the portal, and records an audit event.
-- Invitations use Supabase’s email invitation flow and password-based login. An invitee follows the email link to `apps/admin`’s `/accept-invite`, where the API exchanges the short-lived Supabase session into its secure API cookies and the invitee chooses their password. This deliberately reuses the existing password login path instead of introducing an OTP-only system.
-- The deployment owner configures one `BOOTSTRAP_SUPERUSER_EMAIL` outside source control. On that address’s first successful sign-in, the API assigns immutable `superuser` app metadata with its server-side secret. Remove the setting after bootstrap so it cannot be reused. Configure `ADMIN_SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare secret, production SMTP, and the exact `https://admin.pawheaven.online/accept-invite` Supabase redirect URL before enabling invitations in production.
+- Invitations use Supabase’s email invitation flow and password-based login. An invitee follows the email link to `apps/admin`’s `/accept-invite`, where the API exchanges the short-lived Supabase session into its secure API cookies and the invitee chooses their password. The same page accepts recovery links for staff-triggered password resets and returns ordinary users to the public account page. This deliberately reuses the existing password login path instead of introducing an OTP-only system.
+- A blocked account is represented by Supabase Auth's `banned_until`. The API rejects a blocked identity on every authenticated request instead of waiting for an already-issued access token to expire. Staff must unblock an account before sending its password-reset email.
+- Permanent user deletion uses Supabase Auth's hard-delete operation. Deleting an ordinary user cascades to that user's adoption applications. Deleting an administrator also removes the invitation audit entry for that account, while reviewed applications preserve their review timestamp/outcome and the `reviewed_by` foreign key becomes null.
+- On 2026-10-19, production's already-present adoption application schema was reconciled with migration history; the missing pet-role, experience-field, and deleted-reviewer migrations were applied and the remote migration history verified up to date.
+- The deployment owner configures one `BOOTSTRAP_SUPERUSER_EMAIL` outside source control. On that address’s first successful administrator request, the API assigns immutable `superuser` app metadata with its server-side secret; the matching account may be an ordinary user or an existing administrator. Remove the setting after bootstrap so it cannot be reused. Configure `ADMIN_SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare secret, production SMTP, and the exact `https://admin.pawheaven.online/accept-invite` Supabase redirect URL before enabling invitations in production.
 - The first request after bootstrap refreshes the session before it uses the new superuser claim for a database operation. This keeps the API’s authorization check and RLS claim in sync.
 
 ## API contract now implemented
@@ -144,12 +148,18 @@ The API base path is `/api`. Local URL: `http://localhost:8787/api`.
 | `GET /health` | API process health; does not test database connectivity |
 | `POST /auth/register` | Creates an ordinary user; returns `{ user }` or `202` with an email-confirmation message |
 | `POST /auth/login` | Sets session cookies and returns `{ user }` |
-| `POST /auth/exchange` | Exchanges the Supabase invitation session returned to the admin app for API-host session cookies |
-| `POST /auth/password` | Authenticated invitee sets the password selected during invite acceptance |
+| `POST /auth/exchange` | Exchanges the Supabase invitation or recovery session returned to the admin app for API-host session cookies |
+| `POST /auth/password` | Authenticated invitation or recovery recipient sets a new password |
 | `GET /auth/me` | Returns `{ user }`, refreshes cookies when needed, or `401` |
 | `POST /auth/logout` | Revokes the current refresh token and clears cookies |
 | `GET /admin/me` | Returns the signed-in administrator plus immutable `admin` or `superuser` role; ordinary users receive `403` |
 | `POST /admin/invitations` | Superuser-only. Sends a Supabase invitation, assigns the invited account the `admin` app-metadata role, and writes an audit record |
+| `GET /admin/users` | Administrator-only. Lists Supabase Auth accounts with role, confirmation, sign-in, and blocked status. |
+| `GET /admin/users/:id` | Administrator-only. Returns one account plus its adoption applications. |
+| `PUT /admin/users/:id` | Updates an authorized target's display name and email. Admin targets require a superuser. |
+| `PUT /admin/users/:id/access` | Blocks or restores sign-in for an authorized target. Admin targets require a superuser. |
+| `POST /admin/users/:id/password-reset` | Sends an authorized, unblocked target a Supabase recovery email. |
+| `DELETE /admin/users/:id` | Hard-deletes an authorized target. Admin targets require a superuser; self and superuser deletion are refused. |
 | `GET /admin/pets` | Administrator-only. Returns all pet records, including non-public statuses, in name order. |
 | `POST /admin/pets` | Administrator-only. Creates a validated pet record. |
 | `PUT /admin/pets/:id` | Administrator-only. Updates a validated pet record. |
@@ -173,7 +183,7 @@ The implemented DBMS is Supabase-hosted PostgreSQL. The PawHeaven-owned tables c
 | --- | --- | --- |
 | `public.pets` (implemented) | `id uuid` PK; `name`, `species`, `breed`, `age_label`, `status`, `summary`, `image_path` as `text`; `intake_date date`; `tags text[]`; `created_at timestamptz` | `image_path` is a Storage object path, not a SQL foreign key. |
 | `public.admin_invitation_audit` (implemented) | `id uuid` PK; `invited_email text`; `invited_user_id uuid` nullable FK; `invited_by uuid` nullable FK; `invited_at timestamptz` | Server-side invitation audit only. RLS is enabled and neither `anon` nor `authenticated` receives table access. |
-| `public.adoption_applications` (implemented) | `id uuid` PK; `applicant_id uuid` FK; `applicant_name`, `applicant_email`, `pet_name`, `household_summary`, `adoption_experience`, `note`, `status` as `text`; `pet_id uuid` FK; `submitted_at`, `reviewed_at` timestamptz; `reviewed_by uuid` nullable FK | A member can read and submit only their own application for an available pet. Administrators can read all applications and update only review fields. One member may submit one application per pet. |
+| `public.adoption_applications` (implemented) | `id uuid` PK; `applicant_id uuid` FK; `applicant_name`, `applicant_email`, `pet_name`, `household_summary`, `adoption_experience`, `note`, `status` as `text`; `pet_id uuid` FK; `submitted_at`, `reviewed_at` timestamptz; `reviewed_by uuid` nullable FK | A member can read and submit only their own application for an available pet. Administrators can read all applications and update only review fields. One member may submit one application per pet. Deleting the applicant cascades to their applications; deleting a reviewer sets `reviewed_by` null without erasing the recorded outcome or review time. |
 | `auth.users` (Supabase-managed) | `id uuid` PK; `email varchar`; `encrypted_password varchar`; `raw_user_meta_data jsonb` for display name; `created_at timestamptz` | Future user-owned rows reference `auth.users.id`. |
 | `public.appointments` (proposed) | `id uuid` PK; `application_id uuid` FK; `scheduled_at timestamptz`; `status text`; `notes text` nullable | One application may have multiple proposed/rescheduled visits. |
 | `public.quiz_responses` (proposed) | `id uuid` PK; `user_id uuid` FK; `answers jsonb`; `completed_at timestamptz` | A user may submit multiple matching quizzes. |
