@@ -10,6 +10,31 @@ export type AdminUser = ApiUser & {
   role: AdminRole;
 };
 
+export type ManagedUserRole = AdminRole | 'member';
+
+export type ManagedUser = ApiUser & {
+  role: ManagedUserRole;
+  createdAt: string;
+  lastSignInAt: string | null;
+  emailConfirmedAt: string | null;
+  bannedUntil: string | null;
+  blocked: boolean;
+};
+
+export type AdminUserListResponse = {
+  users: ManagedUser[];
+};
+
+export type AdminUserDetailResponse = {
+  user: ManagedUser;
+  applications: AdoptionApplication[];
+};
+
+export type AdminUserUpdateInput = {
+  name: string;
+  email: string;
+};
+
 export type PetStatus = 'Available' | 'Pending' | 'Adopted';
 
 export type Pet = {

@@ -1,5 +1,5 @@
 begin;
-select plan(10);
+select plan(14);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values
@@ -93,6 +93,30 @@ select results_eq(
   $$select status from public.adoption_applications where applicant_email = 'member@example.com'$$,
   array['In review'],
   'the recorded application outcome is visible to an administrator'
+);
+
+set local role postgres;
+
+select lives_ok(
+  $$delete from auth.users where id = '50000000-0000-0000-0000-000000000001'$$,
+  'a deleted administrator does not invalidate a completed application review'
+);
+
+select results_eq(
+  $$select status || ':' || coalesce(reviewed_by::text, 'none') from public.adoption_applications where applicant_email = 'member@example.com'$$,
+  array['In review:none'],
+  'the review outcome remains while its deleted reviewer is cleared'
+);
+
+select lives_ok(
+  $$delete from auth.users where id = '30000000-0000-0000-0000-000000000001'$$,
+  'an applicant account can be deleted'
+);
+
+select results_eq(
+  $$select count(*)::integer from public.adoption_applications where applicant_email = 'member@example.com'$$,
+  array[0],
+  'deleting an applicant also deletes their adoption applications'
 );
 
 select * from finish();

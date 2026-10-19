@@ -10,7 +10,7 @@ PawHeaven is an Astro and Cloudflare Workers monorepo for a public shelter site,
 | `packages/contracts` | Shared API types | — |
 | `supabase` | Database migration and local Supabase config | — |
 
-The API uses the provided Supabase project URL and **publishable** key in `apps/api/wrangler.jsonc`. Those values are safe for client use but grant only what database and Storage policies allow. Public and admin Astro sites never receive a secret. Administrator invitations are the narrow exception: the API Worker needs an `ADMIN_SUPABASE_SERVICE_ROLE_KEY` Cloudflare secret to call Supabase's server-only Admin API. It is never stored in source control or a Worker `vars` block. User sessions are kept in API-host `HttpOnly` cookies; the API uses each user's token when querying Supabase.
+The API uses the provided Supabase project URL and **publishable** key in `apps/api/wrangler.jsonc`. Those values are safe for client use but grant only what database and Storage policies allow. Public and admin Astro sites never receive a secret. Privileged account administration is the narrow exception: the API Worker needs an `ADMIN_SUPABASE_SERVICE_ROLE_KEY` Cloudflare secret to call Supabase's server-only Admin API for invitations and authorized user-management actions. It is never stored in source control or a Worker `vars` block. User sessions are kept in API-host `HttpOnly` cookies; the API uses each user's token when querying Supabase.
 
 ## First-time setup
 
@@ -49,20 +49,20 @@ verification and screenshot flow.
 
 ## Administrator access
 
-`apps/admin` is a separate deployable app in this monorepo. Administrators can list, create, and update pet records, including a public JPEG, PNG, or WebP image up to 5 MB. A superuser can also send an administrator invitation by email; Supabase emails the recipient an invitation link, and the recipient sets a password on `/accept-invite` before logging in.
+`apps/admin` is a separate deployable app in this monorepo. Administrators can list, create, and update pet records, including a public JPEG, PNG, or WebP image up to 5 MB. They can also view ordinary user details and adoption applications, edit account information, send a password-reset email, block or restore sign-in, and permanently delete an account. A superuser can additionally send administrator invitations and perform those management actions on administrator accounts. Self-management and changes to superuser accounts are deliberately blocked in the portal.
 
 Signed-in visitors can apply for an available pet with a short household/care summary, a pet-care experience or preparedness answer, and an optional note. PawHeaven uses the verified email attached to their account for follow-up; it does not collect identity documents or payment details. Staff can record an application outcome without changing the pet’s availability automatically.
 
-One deployment owner must set these API Worker values outside source control before using invitations:
+One deployment owner must set these API Worker values outside source control before using invitations or user management:
 
-- `ADMIN_SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare Worker secret.
+- `ADMIN_SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare Worker secret for server-side Auth administration.
 - `BOOTSTRAP_SUPERUSER_EMAIL` as the exact email address that should become the first superuser on its first successful login. Remove this value after that promotion.
 
 From `apps/api`, enter them with `npx wrangler secret put ADMIN_SUPABASE_SERVICE_ROLE_KEY --env production` and `npx wrangler secret put BOOTSTRAP_SUPERUSER_EMAIL --env production`. These commands do not write either value to the repository.
 
 For local testing, run `BOOTSTRAP_SUPERUSER_EMAIL=you@example.com npm run dev:api`; the local setup script retains that ignored value for later starts.
 
-Use `ADMIN_INVITE_REDIRECT_URL=https://admin.pawheaven.online/accept-invite` in production (already represented in the production Worker config) and add that exact redirect URL in Supabase Auth URL Configuration. Also add `https://admin.pawheaven.online` to the API's CORS allowlist, attach the admin Worker to that hostname, and configure production SMTP in Supabase. The platform's default email sender is only appropriate for testing and is rate-limited.
+Use `ADMIN_INVITE_REDIRECT_URL=https://admin.pawheaven.online/accept-invite` in production (already represented in the production Worker config) and add that exact redirect URL in Supabase Auth URL Configuration. The same page completes administrator invitations and staff-triggered password resets; ordinary users return to the public account page after choosing a password. Also add `https://admin.pawheaven.online` to the API's CORS allowlist, attach the admin Worker to that hostname, and configure production SMTP in Supabase. The platform's default email sender is only appropriate for testing and is rate-limited.
 
 If **Confirm Email** is enabled in Supabase Auth, new users receive a confirmation email and then log in. The hosted project's Auth **Site URL** is `https://pawheaven.online` (set on 2026-10-05); this controls the default destination in new confirmation emails. Keep it set under Authentication → URL Configuration when changing domains. The local `supabase/config.toml` uses a localhost URL for local Supabase development and does not set the hosted project's URL. If confirmation is disabled, registration starts a session immediately.
 
