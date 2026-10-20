@@ -41,6 +41,39 @@
     logout.type = 'button';
     logout.className = 'mt-7 border border-stone-400 px-5 py-3 font-semibold text-stone-900 transition-colors hover:bg-stone-100';
     logout.textContent = 'Log out';
+    const profile = document.createElement('form');
+    profile.className = 'mt-6 border-t border-stone-300 pt-6';
+    const label = textElement('label', 'block text-sm font-medium text-stone-900', 'Name');
+    const name = document.createElement('input');
+    name.name = 'name';
+    name.value = user.name;
+    name.maxLength = 100;
+    name.required = true;
+    name.className = 'mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
+    label.append(name);
+    const save = document.createElement('button');
+    save.type = 'submit';
+    save.className = 'mt-3 bg-[var(--color-moss)] px-4 py-2.5 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    save.textContent = 'Save name';
+    const profileMessage = textElement('p', 'mt-2 text-sm text-stone-700', '');
+    profileMessage.setAttribute('role', 'status');
+    profile.append(label, save, profileMessage);
+    profile.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const nextName = name.value.trim().replace(/\s+/g, ' ');
+      if (!nextName || nextName.length > 100) { profileMessage.textContent = 'Enter a name up to 100 characters long.'; return; }
+      save.disabled = true;
+      try {
+        const response = await fetch(`${apiBase}/auth/profile`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nextName }) });
+        const payload = await response.json().catch(() => null) as { user?: ApiUser; message?: string } | null;
+        if (!response.ok || !payload?.user) throw new Error(payload?.message || 'We could not save your profile.');
+        name.value = payload.user.name;
+        const heading = panel?.querySelector('h1');
+        if (heading) heading.textContent = payload.user.name;
+        profileMessage.textContent = 'Profile name saved.';
+      } catch (exception) { profileMessage.textContent = exception instanceof Error ? exception.message : 'We could not save your profile.'; }
+      finally { save.disabled = false; }
+    });
     logout.addEventListener('click', async () => {
       logout.disabled = true;
       logout.textContent = 'Logging out…';
@@ -57,7 +90,7 @@
     const applications = document.createElement('section');
     applications.className = 'mt-8 border-t border-stone-300 pt-6';
     applications.setAttribute('aria-live', 'polite');
-    panel.append(logout, applications);
+    panel.append(profile, logout, applications);
     void showApplications(applications);
   }
 

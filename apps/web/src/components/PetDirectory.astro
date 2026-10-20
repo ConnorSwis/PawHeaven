@@ -15,7 +15,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
     <h1 id="pet-directory-title" class="mt-3 text-3xl font-semibold tracking-tight text-stone-950">Pets available for adoption</h1>
     <p class="mt-3 max-w-2xl leading-7 text-stone-700">Listings are kept in alphabetical order. Search by name, description, breed, age, type, or shelter tag to find a pet that fits your home.</p>
 
-    <form class="mt-8 grid gap-4 border-y border-stone-300 py-5 md:grid-cols-[minmax(0,1fr)_15rem_auto] md:items-end" data-pet-filters>
+    <form class="mt-8 grid gap-4 border-y border-stone-300 py-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_13rem_11rem_11rem_auto] lg:items-end" data-pet-filters>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-search">Search pets</label>
         <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="pet-search" name="search" type="search" placeholder="Try gentle, retriever, or good with kids" value={initialSearch} />
@@ -29,6 +29,19 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
           <option value="calm" selected={initialTag === 'calm'}>Calm</option>
           <option value="indoor" selected={initialTag === 'indoor'}>Indoor</option>
           <option value="playful" selected={initialTag === 'playful'}>Playful</option>
+        </select>
+      </div>
+      <div>
+        <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-species">Species</label>
+        <select class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="pet-species" name="species">
+          <option value="">All species</option>
+          <option value="Cat">Cats</option><option value="Dog">Dogs</option><option value="Rabbit">Rabbits</option>
+        </select>
+      </div>
+      <div>
+        <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-age">Age</label>
+        <select class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="pet-age" name="age">
+          <option value="">Any age</option><option value="young">Under 1 year</option><option value="adult">1–7 years</option><option value="senior">8+ years</option>
         </select>
       </div>
       <button class="bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]" type="submit">Search</button>
@@ -68,8 +81,15 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
   let searchTimer: number | undefined;
   let latestSearch = 0;
 
-  function matches(pet: Pet, search: string, tag: string) {
-    return matchesPetSearch(pet, search) && (!tag || pet.tags.includes(tag));
+  function matches(pet: Pet, search: string, tag: string, species: string, ageGroup: string) {
+    const age = pet.age.toLocaleLowerCase();
+    const years = Number(age.match(/[\d.]+/)?.[0] ?? NaN);
+    const ageYears = age.includes('month') ? years / 12 : years;
+    const ageMatches = !ageGroup || (ageGroup === 'young' && Number.isFinite(ageYears) && ageYears < 1)
+      || (ageGroup === 'adult' && Number.isFinite(ageYears) && ageYears >= 1 && ageYears < 8)
+      || (ageGroup === 'senior' && Number.isFinite(ageYears) && ageYears >= 8);
+    return matchesPetSearch(pet, search) && (!tag || pet.tags.includes(tag))
+      && (!species || pet.type.toLocaleLowerCase() === species.toLocaleLowerCase()) && ageMatches;
   }
 
   function displayPets(pets: Pet[]) {
@@ -131,9 +151,9 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
   }
 
   function filters() {
-    if (!form) return { search: '', tag: '' };
+    if (!form) return { search: '', tag: '', species: '', age: '' };
     const values = new FormData(form);
-    return { search: String(values.get('search') || '').trim(), tag: String(values.get('tag') || '') };
+    return { search: String(values.get('search') || '').trim(), tag: String(values.get('tag') || ''), species: String(values.get('species') || ''), age: String(values.get('age') || '') };
   }
 
   function queryFor(search: string, tag: string) {
@@ -143,11 +163,13 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
     return query;
   }
 
-  function syncUrl(search: string, tag: string) {
+  function syncUrl(search: string, tag: string, species: string, age: string) {
     const url = new URL(window.location.href);
     url.search = '';
     if (search) url.searchParams.set('search', search);
     if (tag) url.searchParams.set('tag', tag);
+    if (species) url.searchParams.set('species', species);
+    if (age) url.searchParams.set('age', age);
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }
 
@@ -156,12 +178,16 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
     const params = new URLSearchParams(window.location.search);
     const search = form.elements.namedItem('search');
     const tag = form.elements.namedItem('tag');
+    const species = form.elements.namedItem('species');
+    const age = form.elements.namedItem('age');
     if (search instanceof HTMLInputElement) search.value = params.get('search') ?? '';
     if (tag instanceof HTMLSelectElement) tag.value = params.get('tag') ?? '';
+    if (species instanceof HTMLSelectElement) species.value = params.get('species') ?? '';
+    if (age instanceof HTMLSelectElement) age.value = params.get('age') ?? '';
   }
 
-  function showSampleResults(search: string, tag: string) {
-    const pets = publicPets(seedPets.filter((pet) => matches(pet, search, tag)));
+  function showSampleResults(search: string, tag: string, species: string, age: string) {
+    const pets = publicPets(seedPets.filter((pet) => matches(pet, search, tag, species, age)));
     displayPets(pets);
     if (status) status.textContent = pets.length === 0
       ? 'No sample pets match that search. Try another word or shelter tag.'
@@ -181,24 +207,24 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
 
   async function loadPets() {
     const searchNumber = ++latestSearch;
-    const { search, tag } = filters();
-    syncUrl(search, tag);
+    const { search, tag, species, age } = filters();
+    syncUrl(search, tag, species, age);
     if (status) status.textContent = source === 'pending' ? 'Loading available pets…' : 'Searching available pets…';
     if (source === 'pending') await chooseSource();
     if (searchNumber !== latestSearch) return;
-    if (source === 'sample') return showSampleResults(search, tag);
+    if (source === 'sample') return showSampleResults(search, tag, species, age);
     try {
       const response = await fetch(`${apiBase}/pets?${queryFor(search, tag)}`, { credentials: 'include' });
       if (!response.ok) throw new Error('Pet search is unavailable.');
       const payload = await response.json() as { pets?: Pet[] };
       if (searchNumber !== latestSearch) return;
-      const pets = publicPets(payload.pets ?? []);
+      const pets = publicPets((payload.pets ?? []).filter((pet) => matches(pet, search, tag, species, age)));
       displayPets(pets);
       if (status) status.textContent = `${pets.length} ${pets.length === 1 ? 'pet' : 'pets'} found.`;
     } catch {
       if (searchNumber !== latestSearch) return;
       source = 'sample';
-      showSampleResults(search, tag);
+      showSampleResults(search, tag, species, age);
     }
   }
 
@@ -220,6 +246,10 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
       window.clearTimeout(searchTimer);
       void loadPets();
     });
+  }
+  for (const fieldName of ['species', 'age']) {
+    const control = form?.elements.namedItem(fieldName);
+    control?.addEventListener('change', () => { void loadPets(); });
   }
   restoreFiltersFromUrl();
   void loadPets();
