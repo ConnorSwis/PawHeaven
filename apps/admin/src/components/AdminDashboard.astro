@@ -411,7 +411,7 @@
   });
 
   function invitationStatus(invitation: AdminInvitation) {
-    return invitation.status === 'active' ? 'Signed in' : 'Awaiting password setup';
+    return invitation.status === 'active' ? 'Password set' : 'Needs password setup';
   }
 
   function renderAdministratorInvitations() {
