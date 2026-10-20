@@ -79,3 +79,26 @@ values
     array['small-dog', 'friendly'], 'Available',
     'Wren is a friendly companion who likes neighborhood walks, familiar routines, and greeting new visitors.'
   );
+
+-- Relative future visit times keep the local scheduling demo usable after the
+-- seed date. They are stored as America/New_York instants, matching the UI.
+insert into public.visit_slots (id, starts_at, ends_at, created_by)
+values
+  (
+    'c1000000-0000-0000-0000-000000000001',
+    ((timezone('America/New_York', now())::date + 1 + time '10:00') at time zone 'America/New_York'),
+    ((timezone('America/New_York', now())::date + 1 + time '10:30') at time zone 'America/New_York'),
+    'a1000000-0000-0000-0000-000000000002'
+  ),
+  (
+    'c1000000-0000-0000-0000-000000000002',
+    ((timezone('America/New_York', now())::date + 1 + time '11:00') at time zone 'America/New_York'),
+    ((timezone('America/New_York', now())::date + 1 + time '11:30') at time zone 'America/New_York'),
+    'a1000000-0000-0000-0000-000000000002'
+  ),
+  (
+    'c1000000-0000-0000-0000-000000000003',
+    ((timezone('America/New_York', now())::date + 2 + time '14:00') at time zone 'America/New_York'),
+    ((timezone('America/New_York', now())::date + 2 + time '14:30') at time zone 'America/New_York'),
+    'a1000000-0000-0000-0000-000000000002'
+  );

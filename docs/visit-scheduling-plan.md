@@ -1,7 +1,8 @@
 # Shelter visit scheduling implementation plan
 
-Status: planned, not implemented. This plan extends the adoption demo scope; it
-does not change a hosted environment. The Sprint 2 report's use case 8 requires
+Status: implemented in source on 2026-10-20, pending Docker-backed local
+migration/test execution. This implementation does not change a hosted
+environment. The Sprint 2 report's use case 8 requires
 staff-published slots, a signed-in visitor's purpose, confirmation, a staff
 schedule, rescheduling and cancellation, and a fresh availability check.
 
