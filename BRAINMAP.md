@@ -237,7 +237,12 @@ The report's diagram shows `public.pets` linked to public `pet-images` Storage b
 
 ## Demo readiness
 
+<<<<<<< Updated upstream
 - `supabase/seed.sql` creates six local-only varied pet records and two local-only demo accounts whenever `npm run db:reset` runs. Baxter is an available `big-dog` listing; Rosie (`Pending`) and Theo (`Adopted`) verify that public browse results exclude non-available animals. The accounts are intentionally documented only in `docs/demo-runbook.md` and must never be used outside the local Docker stack.
+=======
+- `supabase/seed.sql` creates 14 local-only varied pet records and four local-only demo accounts whenever `npm run db:reset` runs. Twelve listings are available publicly; Baxter is an available `big-dog` listing, while Rosie (`Pending`) and Theo (`Adopted`) verify that browse results exclude non-available animals. It also pre-seeds a pending Poppy application, a booked future visit, and a withdrawn visit time for immediately useful administrator views, while the primary demo applicant begins with no application or appointment. The accounts are intentionally documented only in `docs/demo-runbook.md` and must never be used outside the local Docker stack.
+- On 2026-10-20, the production owner verified the deployed Supabase tables, Auth URL configuration, email confirmation, and `pet-images` bucket in the dashboard. The owner then seeded ten non-sensitive animal records and four relative future visit slots (three published, one withdrawn) through the production SQL Editor. No production Auth user, password, application, or booking was created for the demo; see `docs/production-demo-runbook.md`.
+>>>>>>> Stashed changes
 - `npm run qa:demo` is an API-level local verification run. It creates a disposable local applicant and covers discovery, authorization boundaries, invalid/missing answers, duplicate and unavailable-pet rejection, expired-session rejection, staff review, outcome visibility, and logout. It refuses non-loopback API URLs.
 - `docs/demo-runbook.md` provides the two-to-three-minute presentation flow and a screenshot checklist. It explicitly calls out that a review outcome does not alter pet availability; staff make that separate decision.
 
