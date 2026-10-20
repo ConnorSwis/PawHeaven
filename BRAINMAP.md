@@ -20,6 +20,7 @@ Public users may eventually save favorites, take a matching quiz, apply to adopt
 - The project is small and team-maintained. Prefer clear app ownership, few dependencies, and one root install and lockfile.
 - Keep this brain map current as new requirements appear in conversation.
 - Administrators and superusers must be able to view and manage ordinary user accounts, including profile information, adoption applications, password-reset email, sign-in blocking, and permanent deletion. Superusers can perform the same actions on administrator accounts. The portal protects the active account and every superuser account from these actions.
+- The deadline-day demonstration is a five-minute live presentation. All five group members must speak, and it must explain the product plus at least one visible frontend-to-database round trip. The local demo starts from repeatable seed data and should be reset immediately before the group is called.
 
 ## AI-agent operating manual
 
@@ -127,6 +128,7 @@ Branch and PR deployments use Cloudflare Worker Previews, not unpaired Version U
 - Public login and sign-up validate and explain each field error before sending credentials. They also prevent duplicate submits and distinguish safe account-service messages for timeouts, connectivity failures, rate limits, and temporary outages. Login failures remain non-enumerating; confirmation-required registration uses neutral wording because Supabase may intentionally obscure whether an email is already registered.
 - The hosted Supabase Auth Site URL was changed from `http://localhost:3000` to `https://pawheaven.online` on 2026-10-05 so new confirmation emails return to the deployed public site. Previously sent links keep their embedded redirect. Local `supabase/config.toml` retains its localhost Site URL for local development.
 - The public account response contains only a member's identity and does not expose an authorization role.
+- The administrator dashboard shows an access-denied screen only when `/admin/me` returns `403`. A failed downstream data request leaves the authorized portal visible and reports the actual loading error; database outages and missing migrations must never be presented as an authorization failure.
 - Members can update their display name from the account page. Email changes remain managed through administrator account management so confirmation and identity changes stay controlled.
 - A Supabase access token may remain valid until its expiry after logout. Keep JWT expiry short enough for the shelter's security needs; the current local Supabase config uses one hour.
 - The shared header checks the current session on page load: its action is “Log in” when signed out and becomes “Log out” when signed in. Logging out from either the header or account page synchronizes that action without requiring a page refresh.
@@ -235,13 +237,13 @@ The report's diagram shows `public.pets` linked to public `pet-images` Storage b
 
 ## Demo readiness
 
-- `supabase/seed.sql` creates six local-only varied pet records and two local-only demo accounts whenever `npm run db:reset` runs. Baxter is an available `big-dog` listing; Rosie (`Pending`) and Theo (`Adopted`) verify that public browse results exclude non-available animals. The accounts are intentionally documented only in `docs/demo-runbook.md` and must never be used outside the local Docker stack.
+- `supabase/seed.sql` creates 14 local-only varied pet records and four local-only demo accounts whenever `npm run db:reset` runs. Twelve listings are available publicly; Baxter is an available `big-dog` listing, while Rosie (`Pending`) and Theo (`Adopted`) verify that browse results exclude non-available animals. It also pre-seeds a pending Poppy application, a booked future visit, and a withdrawn visit time for immediately useful administrator views, while the primary demo applicant begins with no application or appointment. The accounts are intentionally documented only in `docs/demo-runbook.md` and must never be used outside the local Docker stack.
 - `npm run qa:demo` is an API-level local verification run. It creates a disposable local applicant and covers discovery, authorization boundaries, invalid/missing answers, duplicate and unavailable-pet rejection, expired-session rejection, staff review, outcome visibility, and logout. It refuses non-loopback API URLs.
-- `docs/demo-runbook.md` provides the two-to-three-minute presentation flow and a screenshot checklist. It explicitly calls out that a review outcome does not alter pet availability; staff make that separate decision.
+- `docs/demo-runbook.md` and `docs/presentation-flow.md` provide the five-minute, five-presenter live flow and a screenshot checklist. They explicitly call out that a review outcome does not alter pet availability; staff make that separate decision.
 
 ## Next work
 
-- On 2026-10-06, four available dog listings (Maple, Milo, Nala, and Pepper) were seeded and paired with public `pet-images/seed/` JPEGs; the browser fallback data mirrors those listings.
+- The current local demo seed uses 14 varied records without bundled photos. Public pages handle missing images safely; adding licensed showcase images remains separate presentation polish.
 - Configure the team's public and API custom domains, exact API allowed origins, matching Worker Preview triggers, and Supabase Auth redirect URL. Deploy each Worker independently.
 - Add an administrator-facing applicant communication process and a retention decision for application records. Run the newly implemented appointment migration, RLS tests, and browser journey against the local Docker database before deployment; the plan is in [the visit scheduling plan](docs/visit-scheduling-plan.md).
 - Add pagination beyond 200 pets, image optimization, request rate limiting, and a stronger session strategy if traffic or security needs grow.

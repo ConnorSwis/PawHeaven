@@ -164,6 +164,13 @@
     target.className = `text-sm ${success ? 'text-[var(--color-moss-dark)]' : 'text-red-800'}`;
   }
 
+  class ApiRequestError extends Error {
+    constructor(message: string, readonly status: number) {
+      super(message);
+      this.name = 'ApiRequestError';
+    }
+  }
+
   function field(name: string): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement {
     const input = form?.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[data-field="${name}"]`);
     if (!input) throw new Error(`Missing ${name} field.`);
@@ -247,9 +254,15 @@
 
   async function responseJson<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${apiBase}${path}`, { credentials: 'include', ...init });
-    if (response.status === 401) { window.location.assign('/login'); throw new Error('Your session has expired.'); }
+    if (response.status === 401) {
+      window.location.assign('/login');
+      throw new ApiRequestError('Your session has expired.', response.status);
+    }
     const payload = await response.json().catch(() => null) as { message?: unknown } | T | null;
-    if (!response.ok) throw new Error(typeof (payload as { message?: unknown } | null)?.message === 'string' ? (payload as { message: string }).message : 'The request could not be completed.');
+    if (!response.ok) throw new ApiRequestError(
+      typeof (payload as { message?: unknown } | null)?.message === 'string' ? (payload as { message: string }).message : 'The request could not be completed.',
+      response.status,
+    );
     return payload as T;
   }
 
@@ -626,21 +639,37 @@
   }
 
   async function load() {
+    let identity: { user: AdminUser };
     try {
-      const identity = await responseJson<{ user: AdminUser }>('/admin/me');
-      if (userDetail) userDetail.textContent = `Signed in as ${identity.user.email} · ${identity.user.role === 'superuser' ? 'Superuser' : 'Administrator'}`;
-      if (identity.user.role === 'superuser') {
-        invitations?.removeAttribute('hidden');
-        await Promise.all([loadPets(), loadApplications(), loadVisitSlots(), loadAdministratorInvitations()]);
-      } else {
-        await Promise.all([loadPets(), loadApplications(), loadVisitSlots()]);
-      }
-      loading?.setAttribute('hidden', '');
-      content?.removeAttribute('hidden');
+      identity = await responseJson<{ user: AdminUser }>('/admin/me');
     } catch (exception) {
       loading?.setAttribute('hidden', '');
-      if (exception instanceof Error && exception.message === 'Your session has expired.') return;
-      deniedPanel?.removeAttribute('hidden');
+      if (exception instanceof ApiRequestError && exception.status === 401) return;
+      if (exception instanceof ApiRequestError && exception.status === 403) {
+        deniedPanel?.removeAttribute('hidden');
+        return;
+      }
+      if (loading) {
+        loading.textContent = exception instanceof Error ? `The administrator portal could not be loaded: ${exception.message}` : 'The administrator portal could not be loaded. Reload the page and try again.';
+        loading.className = 'text-sm text-red-800';
+        loading.removeAttribute('hidden');
+      }
+      return;
+    }
+
+    if (userDetail) userDetail.textContent = `Signed in as ${identity.user.email} · ${identity.user.role === 'superuser' ? 'Superuser' : 'Administrator'}`;
+    const requests = [loadPets(), loadApplications(), loadVisitSlots()];
+    if (identity.user.role === 'superuser') {
+      invitations?.removeAttribute('hidden');
+      requests.push(loadAdministratorInvitations());
+    }
+    const results = await Promise.allSettled(requests);
+    loading?.setAttribute('hidden', '');
+    content?.removeAttribute('hidden');
+    const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+    if (failure) {
+      const reason = failure.reason instanceof Error ? failure.reason.message : 'An unknown error occurred.';
+      message(pageMessage, `Some portal data could not be loaded: ${reason}`);
     }
   }
 

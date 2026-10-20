@@ -59,7 +59,7 @@ select results_eq(
 );
 
 select results_eq(
-  $$select event_type from public.appointment_events where member_id = '61000000-0000-0000-0000-000000000001' order by created_at$$,
+  $$select event_type from public.appointment_events where member_id = '61000000-0000-0000-0000-000000000001' order by event_type$$,
   array['booked'],
   'booking creates an account-visible confirmation event'
 );
@@ -98,7 +98,7 @@ select lives_ok(
 );
 
 select results_eq(
-  $$select event_type from public.appointment_events where member_id = '61000000-0000-0000-0000-000000000001' order by created_at$$,
+  $$select event_type from public.appointment_events where member_id = '61000000-0000-0000-0000-000000000001' order by event_type$$,
   array['booked', 'rescheduled'],
   'rescheduling keeps the original confirmation and adds a new event'
 );
@@ -124,7 +124,7 @@ select lives_ok(
 set local request.jwt.claims = '{"role":"authenticated","sub":"61000000-0000-0000-0000-000000000003","email":"visit-admin@example.com","app_metadata":{"role":"admin"},"user_metadata":{"name":"Visit admin"}}';
 
 select results_eq(
-  $$select count(*)::integer from public.appointments where status = 'booked'$$,
+  $$select count(*)::integer from public.appointments where status = 'booked' and slot_id in ('62000000-0000-0000-0000-000000000001', '62000000-0000-0000-0000-000000000002', '62000000-0000-0000-0000-000000000003')$$,
   array[1],
   'an administrator can see the current booking schedule'
 );

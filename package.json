@@ -16,6 +16,7 @@
     "db:test": "npx supabase test db --local",
     "db:configure-api": "node scripts/configure-local-api-env.mjs",
     "db:verify": "npm run db:start && npm run db:reset",
+    "demo:reset": "npm run db:start && npm run db:reset && npm run db:configure-api",
     "db:stop": "npx supabase stop",
     "qa:discovery": "node --experimental-strip-types --test tests/discovery-qa.test.mjs",
     "qa:demo": "node scripts/verify-demo.mjs",
