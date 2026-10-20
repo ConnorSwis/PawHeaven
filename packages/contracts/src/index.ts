@@ -35,6 +35,20 @@ export type AdminUserUpdateInput = {
   email: string;
 };
 
+export type AdminInvitation = {
+  userId: string;
+  email: string;
+  invitedAt: string;
+  createdAt: string;
+  emailConfirmedAt: string | null;
+  lastSignInAt: string | null;
+  status: 'awaiting_setup' | 'active';
+};
+
+export type AdminInvitationListResponse = {
+  invitations: AdminInvitation[];
+};
+
 export type PetStatus = 'Available' | 'Pending' | 'Adopted';
 
 export type Pet = {

@@ -18,6 +18,7 @@ import {
   type PetInput,
   type PetStatus,
 } from '@pawheaven/contracts';
+import type { AdminInvitationListResponse } from '@pawheaven/contracts';
 
 type DatabasePet = {
   id: string;
@@ -680,6 +681,61 @@ async function adminRoutes(request: Request, env: Env, path: string): Promise<Ap
     }
     return sessionResponse(respond(petForClient(data as DatabasePet, env)), request, current);
   }
+  if (path === '/admin/invitations' && request.method === 'GET') {
+    if (role !== 'superuser') return sessionResponse(errorResponse('Only superusers can view administrator invitations.', 403), request, current);
+    const adminClient = supabaseAdmin(env);
+    if (!adminClient) return sessionResponse(errorResponse('Administrator invitations are not configured. Contact the deployment owner.', 503), request, current);
+    const [{ data: users, error: usersError }, { data: auditRows, error: auditError }] = await Promise.all([
+      adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      adminClient.from('admin_invitation_audit').select('invited_user_id, invited_at').not('invited_user_id', 'is', null).order('invited_at', { ascending: false }).limit(1000),
+    ]);
+    if (usersError) return sessionResponse(authAdminError('admin.invitations.list_users', usersError), request, current);
+    if (auditError) return sessionResponse(databaseError('admin.invitations.list_audit', auditError), request, current);
+    const latestInvite = new Map<string, string>();
+    for (const row of (auditRows ?? []) as { invited_user_id: string | null; invited_at: string }[]) {
+      if (row.invited_user_id && !latestInvite.has(row.invited_user_id)) latestInvite.set(row.invited_user_id, row.invited_at);
+    }
+    const invitations = users.users
+      .filter((user) => adminRole(user) === 'admin')
+      .map((user) => ({
+        userId: user.id,
+        email: user.email ?? 'No email address',
+        invitedAt: latestInvite.get(user.id) ?? user.created_at,
+        createdAt: user.created_at,
+        emailConfirmedAt: user.email_confirmed_at ?? null,
+        lastSignInAt: user.last_sign_in_at ?? null,
+        status: user.last_sign_in_at ? 'active' as const : 'awaiting_setup' as const,
+      }))
+      .sort((a, b) => b.invitedAt.localeCompare(a.invitedAt));
+    const payload: AdminInvitationListResponse = { invitations };
+    return sessionResponse(respond(payload), request, current);
+  }
+
+  const resendInvitationMatch = path.match(/^\/admin\/invitations\/([0-9a-f-]{36})\/resend$/i);
+  if (resendInvitationMatch && request.method === 'POST') {
+    if (role !== 'superuser') return sessionResponse(errorResponse('Only superusers can resend administrator invitations.', 403), request, current);
+    const adminClient = supabaseAdmin(env);
+    if (!adminClient) return sessionResponse(errorResponse('Administrator invitations are not configured. Contact the deployment owner.', 503), request, current);
+    const { data: targetData, error: targetError } = await adminClient.auth.admin.getUserById(resendInvitationMatch[1]);
+    if (targetError || !targetData.user) return sessionResponse(targetError?.status === 404 ? errorResponse('Invitation not found.', 404) : authAdminError('admin.invite_resend_lookup', targetError ?? { message: 'No user returned' }), request, current);
+    if (adminRole(targetData.user) !== 'admin' || !targetData.user.email) return sessionResponse(errorResponse('This account is not an administrator invitation.', 400), request, current);
+    if (isBlocked(targetData.user)) return sessionResponse(errorResponse('Unblock this administrator before resending their invitation.', 409), request, current);
+    const redirectTo = env.ADMIN_INVITE_REDIRECT_URL ?? 'https://admin.pawheaven.online/accept-invite';
+    // Supabase does not permit a second invite for an existing Auth user. A
+    // recovery link lets a pending invitee choose their first password, and
+    // this page supports both recovery and invitation links.
+    const { error } = await supabase(env).auth.resetPasswordForEmail(targetData.user.email, { redirectTo });
+    if (error) return sessionResponse(authAdminError('admin.invite_resend', error), request, current);
+    const { error: auditError } = await adminClient.from('admin_invitation_audit').insert({
+      invited_email: targetData.user.email,
+      invited_user_id: targetData.user.id,
+      invited_by: current.user.id,
+    });
+    if (auditError) console.error(JSON.stringify({ operation: 'admin.invite_resend_audit', error: auditError.message, invitedUserId: targetData.user.id }));
+    console.info(JSON.stringify({ operation: 'admin.invite_resend', invitedUserId: targetData.user.id, invitedBy: current.user.id }));
+    return sessionResponse(respond({ message: 'A new password setup email was sent.' }), request, current);
+  }
+
   if (path === '/admin/invitations' && request.method === 'POST') {
     if (role !== 'superuser') return sessionResponse(errorResponse('Only superusers can invite administrators.', 403), request, current);
     const body = await jsonBody(request) as Record<string, unknown> | null;

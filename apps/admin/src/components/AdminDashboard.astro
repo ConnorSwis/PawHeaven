@@ -90,6 +90,11 @@
         <button data-invite-submit type="submit" class="bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70">Send invitation</button>
       </form>
       <p data-invite-message class="mt-3 hidden text-sm" role="status"></p>
+      <div class="mt-8 border-t border-stone-200 pt-6">
+        <h3 class="font-semibold text-stone-950">Administrator invitations</h3>
+        <p class="mt-2 text-sm leading-6 text-stone-700">Resending gives an administrator a fresh password-setup email. They should use the newest message.</p>
+        <div data-invitation-list class="mt-4 grid gap-3"></div>
+      </div>
     </section>
 
     <section class="mt-10 border-t border-stone-300 pt-8" aria-labelledby="applications-title">
@@ -102,6 +107,7 @@
 
 <script>
   import type { AdminAdoptionApplicationListResponse, AdminPetListResponse, AdminUser, AdoptionApplication, AdoptionApplicationStatus, Pet, PetInput } from '@pawheaven/contracts';
+  import type { AdminInvitation, AdminInvitationListResponse } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
 
   const dashboard = document.querySelector<HTMLElement>('[data-admin-dashboard]');
@@ -109,6 +115,7 @@
   const deniedPanel = dashboard?.querySelector<HTMLElement>('[data-denied]');
   const content = dashboard?.querySelector<HTMLElement>('[data-admin-content]');
   const userDetail = dashboard?.querySelector<HTMLElement>('[data-user-detail]');
+  const pageMessage = dashboard?.querySelector<HTMLElement>('[data-page-message]');
   const form = dashboard?.querySelector<HTMLFormElement>('[data-pet-form]');
   const formTitle = dashboard?.querySelector<HTMLElement>('[data-form-title]');
   const formMessage = dashboard?.querySelector<HTMLElement>('[data-form-message]');
@@ -120,9 +127,11 @@
   const inviteEmail = dashboard?.querySelector<HTMLInputElement>('[data-invite-email]');
   const inviteSubmit = dashboard?.querySelector<HTMLButtonElement>('[data-invite-submit]');
   const inviteMessage = dashboard?.querySelector<HTMLElement>('[data-invite-message]');
+  const invitationList = dashboard?.querySelector<HTMLElement>('[data-invitation-list]');
   const applicationList = dashboard?.querySelector<HTMLElement>('[data-application-list]');
   let pets: Pet[] = [];
   let applications: AdoptionApplication[] = [];
+  let administratorInvitations: AdminInvitation[] = [];
   let selectedPetId: string | null = null;
 
   function message(target: HTMLElement | null | undefined, text: string, success = false) {
@@ -199,7 +208,7 @@
         try {
           await responseJson(`/admin/pets/${encodeURIComponent(pet.id)}`, { method: 'DELETE' });
           pets = pets.filter((item) => item.id !== pet.id);
-          if (selectedPetId === pet.id) clearForm();
+          if (selectedPetId === pet.id) resetForm();
           renderPets();
           message(pageMessage, `${pet.name} was removed.`, true);
         } catch (exception) {
@@ -392,6 +401,7 @@
       await responseJson('/admin/invitations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: inviteEmail.value.trim() }) });
       inviteEmail.value = '';
       message(inviteMessage, 'Invitation sent.', true);
+      await loadAdministratorInvitations();
     } catch (exception) {
       message(inviteMessage, exception instanceof Error ? exception.message : 'We could not send that invitation.');
     } finally {
@@ -400,11 +410,70 @@
     }
   });
 
+  function invitationStatus(invitation: AdminInvitation) {
+    return invitation.status === 'active' ? 'Signed in' : 'Awaiting password setup';
+  }
+
+  function renderAdministratorInvitations() {
+    if (!invitationList) return;
+    invitationList.replaceChildren();
+    if (!administratorInvitations.length) {
+      const empty = document.createElement('p');
+      empty.className = 'text-sm leading-6 text-stone-700';
+      empty.textContent = 'No administrator invitations have been sent.';
+      invitationList.append(empty);
+      return;
+    }
+    for (const invitation of administratorInvitations) {
+      const row = document.createElement('article');
+      row.className = 'flex flex-wrap items-center justify-between gap-4 border border-stone-300 bg-white px-4 py-4';
+      const detail = document.createElement('div');
+      const email = document.createElement('p');
+      email.className = 'font-medium text-stone-950';
+      email.textContent = invitation.email;
+      const status = document.createElement('p');
+      status.className = 'mt-1 text-sm text-stone-700';
+      status.textContent = `${invitationStatus(invitation)} · Last sent ${formatDate(invitation.invitedAt)}`;
+      detail.append(email, status);
+      row.append(detail);
+      if (invitation.status === 'awaiting_setup') {
+        const resend = document.createElement('button');
+        resend.type = 'button';
+        resend.className = 'border border-stone-400 px-4 py-2 text-sm font-semibold text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-wait disabled:opacity-70';
+        resend.textContent = 'Resend setup email';
+        resend.addEventListener('click', async () => {
+          resend.disabled = true;
+          resend.textContent = 'Sending…';
+          try {
+            const result = await responseJson<{ message: string }>(`/admin/invitations/${encodeURIComponent(invitation.userId)}/resend`, { method: 'POST' });
+            message(inviteMessage, result.message, true);
+            await loadAdministratorInvitations();
+          } catch (exception) {
+            message(inviteMessage, exception instanceof Error ? exception.message : 'We could not resend the setup email.');
+            resend.disabled = false;
+            resend.textContent = 'Resend setup email';
+          }
+        });
+        row.append(resend);
+      }
+      invitationList.append(row);
+    }
+  }
+
+  async function loadAdministratorInvitations() {
+    const payload = await responseJson<AdminInvitationListResponse>('/admin/invitations');
+    administratorInvitations = payload.invitations;
+    renderAdministratorInvitations();
+  }
+
   async function load() {
     try {
       const identity = await responseJson<{ user: AdminUser }>('/admin/me');
       if (userDetail) userDetail.textContent = `Signed in as ${identity.user.email} · ${identity.user.role === 'superuser' ? 'Superuser' : 'Administrator'}`;
-      if (identity.user.role === 'superuser') invitations?.removeAttribute('hidden');
+      if (identity.user.role === 'superuser') {
+        invitations?.removeAttribute('hidden');
+        await loadAdministratorInvitations();
+      }
       await Promise.all([loadPets(), loadApplications()]);
       loading?.setAttribute('hidden', '');
       content?.removeAttribute('hidden');
