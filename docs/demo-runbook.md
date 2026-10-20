@@ -3,6 +3,10 @@
 This kit is for the local Docker-backed demo only. It never creates hosted
 accounts, changes production data, or supplies production credentials.
 
+For the live hosted deployment, use [production-demo-runbook.md](production-demo-runbook.md)
+instead. Do not run the local reset command against, or expect it to update,
+the production project.
+
 ## Reset and start
 
 From the repository root, reset local data and start the three apps in separate
