@@ -249,7 +249,9 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
   }
   for (const fieldName of ['species', 'age']) {
     const control = form?.elements.namedItem(fieldName);
-    control?.addEventListener('change', () => { void loadPets(); });
+    if (control instanceof HTMLInputElement || control instanceof HTMLSelectElement) {
+      control.addEventListener('change', () => { void loadPets(); });
+    }
   }
   restoreFiltersFromUrl();
   void loadPets();

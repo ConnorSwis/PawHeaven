@@ -2,6 +2,7 @@ import { createClient, type Session, type User } from '@supabase/supabase-js';
 import {
   matchesPetSearch,
   type AdminAdoptionApplicationListResponse,
+  type AdminVisitScheduleResponse,
   type AdminPetListResponse,
   type AdminRole,
   type AdminUserDetailResponse,
@@ -13,10 +14,18 @@ import {
   type AdoptionApplicationListResponse,
   type AdoptionApplicationStatus,
   type ApiUser,
+  type AppointmentEvent,
+  type BookVisitInput,
   type ManagedUser,
   type Pet,
   type PetInput,
   type PetStatus,
+  type PublishVisitSlotInput,
+  type RescheduleVisitInput,
+  type VisitAppointment,
+  type VisitAppointmentListResponse,
+  type VisitSlot,
+  type VisitSlotListResponse,
 } from '@pawheaven/contracts';
 import type { AdminInvitationListResponse } from '@pawheaven/contracts';
 
@@ -47,6 +56,44 @@ type DatabaseAdoptionApplication = {
   submitted_at: string;
   reviewed_at: string | null;
   reviewed_by: string | null;
+};
+
+type DatabaseVisitSlot = {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  status: 'published' | 'withdrawn';
+  created_at: string;
+};
+
+type DatabaseAvailabilitySlot = Pick<DatabaseVisitSlot, 'id' | 'starts_at' | 'ends_at'> & {
+  available: boolean;
+};
+
+type DatabaseAppointment = {
+  id: string;
+  member_id: string;
+  member_name: string;
+  member_email: string;
+  slot_id: string;
+  purpose: string;
+  status: 'booked' | 'canceled';
+  created_at: string;
+  updated_at: string;
+};
+
+type DatabaseMemberAppointment = Pick<DatabaseAppointment, 'id' | 'slot_id' | 'purpose' | 'status' | 'created_at' | 'updated_at'> & {
+  starts_at: string;
+  ends_at: string;
+};
+
+type DatabaseAppointmentEvent = {
+  id: string;
+  appointment_id: string;
+  event_type: 'booked' | 'rescheduled' | 'canceled';
+  slot_starts_at: string;
+  slot_ends_at: string;
+  created_at: string;
 };
 
 type Identity = { user: User; accessToken: string; refreshToken: string; refreshed?: Session };
@@ -321,6 +368,81 @@ function adoptionApplicationInput(body: unknown): { value: AdoptionApplicationIn
 function applicationReviewStatus(body: unknown): AdoptionApplicationStatus | null {
   const status = (body as Record<string, unknown> | null)?.status;
   return status === 'In review' || status === 'Approved' || status === 'Declined' ? status : null;
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function visitSlotForClient(row: DatabaseAvailabilitySlot): VisitSlot {
+  return {
+    id: row.id,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    available: row.available,
+  };
+}
+
+function visitAppointmentForClient(row: DatabaseMemberAppointment): VisitAppointment {
+  return {
+    id: row.id,
+    slotId: row.slot_id,
+    purpose: row.purpose,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+  };
+}
+
+function appointmentEventForClient(row: DatabaseAppointmentEvent): AppointmentEvent {
+  return {
+    id: row.id,
+    appointmentId: row.appointment_id,
+    eventType: row.event_type,
+    startsAt: row.slot_starts_at,
+    endsAt: row.slot_ends_at,
+    createdAt: row.created_at,
+  };
+}
+
+function isoInstant(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 64 || !value.endsWith('Z')) return null;
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.valueOf()) && parsed.toISOString() === value ? value : null;
+}
+
+function publishVisitSlotInput(body: unknown): { value: PublishVisitSlotInput } | { message: string } {
+  const input = body as Record<string, unknown> | null;
+  const startsAt = isoInstant(input?.startsAt);
+  const endsAt = isoInstant(input?.endsAt);
+  if (!startsAt || !endsAt || Date.parse(startsAt) <= Date.now() || Date.parse(endsAt) <= Date.parse(startsAt)) {
+    return { message: 'Choose a future end time after the start time.' };
+  }
+  return { value: { startsAt, endsAt } };
+}
+
+function bookVisitInput(body: unknown): { value: BookVisitInput } | { message: string } {
+  const input = body as Record<string, unknown> | null;
+  const slotId = typeof input?.slotId === 'string' ? input.slotId : '';
+  const purpose = typeof input?.purpose === 'string' ? input.purpose.trim() : '';
+  if (!UUID_PATTERN.test(slotId)) return { message: 'Choose an available visit time.' };
+  if (purpose.length < 1 || purpose.length > 500) return { message: 'Tell the shelter why you would like to visit, using up to 500 characters.' };
+  return { value: { slotId, purpose } };
+}
+
+function rescheduleVisitInput(body: unknown): { value: RescheduleVisitInput } | { message: string } {
+  const slotId = (body as Record<string, unknown> | null)?.slotId;
+  if (typeof slotId !== 'string' || !UUID_PATTERN.test(slotId)) return { message: 'Choose an available visit time.' };
+  return { value: { slotId } };
+}
+
+function visitMutationError(operation: string, error: { message: string; code?: string }): ApiResponse {
+  console.error(JSON.stringify({ operation, error: error.message, code: error.code }));
+  if (error.code === '22023') return errorResponse(error.message, 400);
+  if (error.code === '28000') return errorResponse('Your session has expired. Log in again to manage visits.', 401);
+  if (error.code === '42501') return errorResponse(error.message, 403);
+  if (error.code === 'P0001' || error.code === '23505' || error.code === '23P01') return errorResponse(error.message, 409);
+  return errorResponse('The shelter database is unavailable. Please try again.', 503);
 }
 
 async function readLimited(request: Request, limit: number): Promise<Uint8Array | null> {
@@ -627,6 +749,54 @@ async function adminRoutes(request: Request, env: Env, path: string): Promise<Ap
     const payload: AdminAdoptionApplicationListResponse = { applications: (data as DatabaseAdoptionApplication[]).map(applicationForClient) };
     return sessionResponse(respond(payload), request, current);
   }
+  if (path === '/admin/visit-slots' && request.method === 'GET') {
+    const [slotsResult, appointmentsResult] = await Promise.all([
+      client.from('visit_slots').select('*').order('starts_at', { ascending: true }).limit(500),
+      client.from('appointments').select('*').eq('status', 'booked').limit(500),
+    ]);
+    if (slotsResult.error) return sessionResponse(databaseError('admin.visit_slots.list', slotsResult.error), request, current);
+    if (appointmentsResult.error) return sessionResponse(databaseError('admin.visit_slots.appointments', appointmentsResult.error), request, current);
+    const appointmentBySlot = new Map((appointmentsResult.data as DatabaseAppointment[]).map((appointment) => [appointment.slot_id, appointment]));
+    const payload: AdminVisitScheduleResponse = {
+      slots: (slotsResult.data as DatabaseVisitSlot[]).map((slot) => {
+        const appointment = appointmentBySlot.get(slot.id);
+        return {
+          id: slot.id,
+          startsAt: slot.starts_at,
+          endsAt: slot.ends_at,
+          status: slot.status,
+          createdAt: slot.created_at,
+          appointment: appointment ? {
+            id: appointment.id,
+            memberId: appointment.member_id,
+            memberName: appointment.member_name,
+            memberEmail: appointment.member_email,
+            purpose: appointment.purpose,
+            status: appointment.status,
+            createdAt: appointment.created_at,
+            updatedAt: appointment.updated_at,
+          } : null,
+        };
+      }),
+    };
+    return sessionResponse(respond(payload), request, current);
+  }
+  if (path === '/admin/visit-slots' && request.method === 'POST') {
+    const parsed = publishVisitSlotInput(await jsonBody(request));
+    if ('message' in parsed) return sessionResponse(errorResponse(parsed.message, 400), request, current);
+    const { data, error } = await client.rpc('publish_visit_slot', {
+      p_starts_at: parsed.value.startsAt,
+      p_ends_at: parsed.value.endsAt,
+    });
+    if (error) return sessionResponse(visitMutationError('admin.visit_slots.publish', error), request, current);
+    return sessionResponse(respond({ id: data }, 201), request, current);
+  }
+  const visitSlotMatch = path.match(/^\/admin\/visit-slots\/([0-9a-f-]{36})\/withdraw$/i);
+  if (visitSlotMatch && request.method === 'POST') {
+    const { error } = await client.rpc('withdraw_visit_slot', { p_slot_id: visitSlotMatch[1] });
+    if (error) return sessionResponse(visitMutationError('admin.visit_slots.withdraw', error), request, current);
+    return sessionResponse(respond({ ok: true }), request, current);
+  }
   const applicationMatch = path.match(/^\/admin\/applications\/([0-9a-f-]{36})$/i);
   if (applicationMatch && request.method === 'PUT') {
     const status = applicationReviewStatus(await jsonBody(request));
@@ -826,12 +996,72 @@ async function adoptionApplicationRoutes(request: Request, env: Env, path: strin
   return sessionResponse(errorResponse('Not found.', 404), request, current);
 }
 
+async function visitSchedulingRoutes(request: Request, env: Env, path: string): Promise<ApiResponse> {
+  const current = await identity(request, env);
+  if (!current) return clearSession(errorResponse('Log in to schedule a shelter visit.', 401), request);
+  const client = userSupabase(env, current.accessToken);
+
+  if (path === '/visit-slots' && request.method === 'GET') {
+    const { data, error } = await client.rpc('list_visit_slots');
+    if (error) return sessionResponse(visitMutationError('visit_slots.list', error), request, current);
+    const payload: VisitSlotListResponse = { slots: (data as DatabaseAvailabilitySlot[]).map(visitSlotForClient) };
+    return sessionResponse(respond(payload), request, current);
+  }
+
+  if (path === '/appointments' && request.method === 'GET') {
+    const [appointmentsResult, eventsResult] = await Promise.all([
+      client.rpc('list_my_appointments'),
+      client.rpc('list_my_appointment_events'),
+    ]);
+    if (appointmentsResult.error) return sessionResponse(visitMutationError('appointments.list', appointmentsResult.error), request, current);
+    if (eventsResult.error) return sessionResponse(visitMutationError('appointments.events.list', eventsResult.error), request, current);
+    const payload: VisitAppointmentListResponse = {
+      appointments: (appointmentsResult.data as DatabaseMemberAppointment[]).map(visitAppointmentForClient),
+      events: (eventsResult.data as DatabaseAppointmentEvent[]).map(appointmentEventForClient),
+    };
+    return sessionResponse(respond(payload), request, current);
+  }
+
+  if (path === '/appointments' && request.method === 'POST') {
+    const parsed = bookVisitInput(await jsonBody(request));
+    if ('message' in parsed) return sessionResponse(errorResponse(parsed.message, 400), request, current);
+    const { data, error } = await client.rpc('book_visit_slot', {
+      p_slot_id: parsed.value.slotId,
+      p_purpose: parsed.value.purpose,
+    });
+    if (error) return sessionResponse(visitMutationError('appointments.book', error), request, current);
+    return sessionResponse(respond({ appointmentId: data }, 201), request, current);
+  }
+
+  const appointmentMatch = path.match(/^\/appointments\/([0-9a-f-]{36})$/i);
+  if (appointmentMatch && request.method === 'PUT') {
+    const parsed = rescheduleVisitInput(await jsonBody(request));
+    if ('message' in parsed) return sessionResponse(errorResponse(parsed.message, 400), request, current);
+    const { error } = await client.rpc('reschedule_visit_appointment', {
+      p_appointment_id: appointmentMatch[1],
+      p_slot_id: parsed.value.slotId,
+    });
+    if (error) return sessionResponse(visitMutationError('appointments.reschedule', error), request, current);
+    return sessionResponse(respond({ ok: true }), request, current);
+  }
+
+  const cancelMatch = path.match(/^\/appointments\/([0-9a-f-]{36})\/cancel$/i);
+  if (cancelMatch && request.method === 'POST') {
+    const { error } = await client.rpc('cancel_visit_appointment', { p_appointment_id: cancelMatch[1] });
+    if (error) return sessionResponse(visitMutationError('appointments.cancel', error), request, current);
+    return sessionResponse(respond({ ok: true }), request, current);
+  }
+
+  return sessionResponse(errorResponse('Not found.', 404), request, current);
+}
+
 async function route(request: Request, env: Env): Promise<ApiResponse> {
   const path = new URL(request.url).pathname.replace(/^\/api/, '') || '/';
   if (path === '/health' && request.method === 'GET') return respond({ ok: true });
   if (path.startsWith('/auth/')) return authRoutes(request, env, path);
   if (path.startsWith('/admin/')) return adminRoutes(request, env, path);
   if (path === '/applications' || path.startsWith('/applications/')) return adoptionApplicationRoutes(request, env, path);
+  if (path === '/visit-slots' || path === '/appointments' || path.startsWith('/appointments/')) return visitSchedulingRoutes(request, env, path);
   if (path === '/pets' || path.startsWith('/pets/')) return publicPetRoutes(request, env, path);
   return errorResponse('Not found.', 404);
 }

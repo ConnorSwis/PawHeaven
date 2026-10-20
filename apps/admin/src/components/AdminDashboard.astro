@@ -102,12 +102,29 @@
       <p class="mt-2 max-w-2xl leading-6 text-stone-700">Review applications here. Changing an application outcome does not change the pet’s availability.</p>
       <div data-application-list class="mt-5 grid gap-4"></div>
     </section>
+
+    <section class="mt-10 border-t border-stone-300 pt-8" aria-labelledby="visit-schedule-title">
+      <h2 id="visit-schedule-title" class="text-lg font-semibold text-stone-950">Shelter visit schedule</h2>
+      <p class="mt-2 max-w-2xl leading-6 text-stone-700">Publish general visit times and review confirmed visitor details. Times are entered and displayed in America/New_York.</p>
+      <form data-visit-slot-form class="mt-6 grid max-w-2xl gap-5 border-y border-stone-300 py-6 sm:grid-cols-2" novalidate>
+        <label class="block text-sm font-medium text-stone-900">Start time
+          <input data-visit-start name="startsAt" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" type="datetime-local" required />
+        </label>
+        <label class="block text-sm font-medium text-stone-900">End time
+          <input data-visit-end name="endsAt" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" type="datetime-local" required />
+        </label>
+        <div class="sm:col-span-2 flex flex-wrap items-center gap-3">
+          <button data-visit-submit type="submit" class="bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70">Publish visit time</button>
+          <p data-visit-form-message class="hidden text-sm" role="status"></p>
+        </div>
+      </form>
+      <div data-visit-slot-list class="mt-6 grid gap-4"></div>
+    </section>
   </div>
 </section>
 
 <script>
-  import type { AdminAdoptionApplicationListResponse, AdminPetListResponse, AdminUser, AdoptionApplication, AdoptionApplicationStatus, Pet, PetInput } from '@pawheaven/contracts';
-  import type { AdminInvitation, AdminInvitationListResponse } from '@pawheaven/contracts';
+  import type { AdminAdoptionApplicationListResponse, AdminInvitation, AdminInvitationListResponse, AdminPetListResponse, AdminUser, AdminVisitScheduleResponse, AdminVisitSlot, AdoptionApplication, AdoptionApplicationStatus, Pet, PetInput, PublishVisitSlotInput } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
 
   const dashboard = document.querySelector<HTMLElement>('[data-admin-dashboard]');
@@ -129,9 +146,16 @@
   const inviteMessage = dashboard?.querySelector<HTMLElement>('[data-invite-message]');
   const invitationList = dashboard?.querySelector<HTMLElement>('[data-invitation-list]');
   const applicationList = dashboard?.querySelector<HTMLElement>('[data-application-list]');
+  const visitSlotForm = dashboard?.querySelector<HTMLFormElement>('[data-visit-slot-form]');
+  const visitStart = dashboard?.querySelector<HTMLInputElement>('[data-visit-start]');
+  const visitEnd = dashboard?.querySelector<HTMLInputElement>('[data-visit-end]');
+  const visitSubmit = dashboard?.querySelector<HTMLButtonElement>('[data-visit-submit]');
+  const visitFormMessage = dashboard?.querySelector<HTMLElement>('[data-visit-form-message]');
+  const visitSlotList = dashboard?.querySelector<HTMLElement>('[data-visit-slot-list]');
   let pets: Pet[] = [];
   let applications: AdoptionApplication[] = [];
   let administratorInvitations: AdminInvitation[] = [];
+  let visitSlots: AdminVisitSlot[] = [];
   let selectedPetId: string | null = null;
 
   function message(target: HTMLElement | null | undefined, text: string, success = false) {
@@ -340,6 +364,111 @@
     renderApplications();
   }
 
+  const shelterTimeZone = 'America/New_York';
+  const localPartsFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: shelterTimeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  });
+
+  function formatVisitTime(startsAt: string, endsAt: string) {
+    const start = new Date(startsAt);
+    const end = new Date(endsAt);
+    if (Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf())) return 'Unknown visit time';
+    const date = new Intl.DateTimeFormat(undefined, { timeZone: shelterTimeZone, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).format(start);
+    const range = new Intl.DateTimeFormat(undefined, { timeZone: shelterTimeZone, hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).formatRange(start, end);
+    return `${date} · ${range}`;
+  }
+
+  function formatterParts(date: Date) {
+    const pieces = localPartsFormatter.formatToParts(date);
+    const get = (type: Intl.DateTimeFormatPartTypes) => Number(pieces.find((part) => part.type === type)?.value);
+    return { year: get('year'), month: get('month'), day: get('day'), hour: get('hour'), minute: get('minute'), second: get('second') };
+  }
+
+  /** Converts a datetime-local value as a New York civil time, rejecting DST gaps and folds. */
+  function newYorkInstant(value: string): string | null {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+    if (!match) return null;
+    const [year, month, day, hour, minute] = match.slice(1).map(Number);
+    const naive = Date.UTC(year, month - 1, day, hour, minute, 0);
+    if (Number.isNaN(naive)) return null;
+    const offsets = new Set([naive - 86_400_000, naive, naive + 86_400_000].map((probe) => {
+      const parts = formatterParts(new Date(probe));
+      return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - probe;
+    }));
+    const matches = [...offsets].map((offset) => new Date(naive - offset)).filter((candidate) => {
+      const parts = formatterParts(candidate);
+      return parts.year === year && parts.month === month && parts.day === day && parts.hour === hour && parts.minute === minute;
+    });
+    return matches.length === 1 ? matches[0].toISOString() : null;
+  }
+
+  function renderVisitSlots() {
+    if (!visitSlotList) return;
+    visitSlotList.replaceChildren();
+    if (!visitSlots.length) {
+      visitSlotList.append(textNode('p', 'text-sm leading-6 text-stone-700', 'No visit times have been published yet.'));
+      return;
+    }
+    for (const slot of visitSlots) {
+      const card = document.createElement('article');
+      card.className = 'border border-stone-300 bg-white p-5';
+      const heading = document.createElement('h3');
+      heading.className = 'font-semibold text-stone-950';
+      heading.textContent = formatVisitTime(slot.startsAt, slot.endsAt);
+      const state = document.createElement('p');
+      state.className = 'mt-1 text-sm text-stone-700';
+      state.textContent = slot.status === 'withdrawn' ? 'Withdrawn' : slot.appointment ? 'Booked' : 'Open';
+      card.append(heading, state);
+      if (slot.appointment) {
+        const visitor = document.createElement('p');
+        visitor.className = 'mt-4 leading-7 text-stone-800';
+        visitor.textContent = `${slot.appointment.memberName} · ${slot.appointment.memberEmail}`;
+        const purpose = document.createElement('p');
+        purpose.className = 'mt-2 whitespace-pre-wrap leading-7 text-stone-700';
+        purpose.textContent = `Visit purpose: ${slot.appointment.purpose}`;
+        card.append(visitor, purpose);
+      }
+      if (slot.status === 'published' && !slot.appointment && Date.parse(slot.startsAt) > Date.now()) {
+        const withdraw = document.createElement('button');
+        withdraw.type = 'button';
+        withdraw.className = 'mt-5 text-sm font-medium text-red-800 underline underline-offset-4 hover:text-red-950 disabled:cursor-wait disabled:opacity-70';
+        withdraw.textContent = 'Withdraw time';
+        const result = document.createElement('p');
+        result.className = 'mt-2 text-sm';
+        result.setAttribute('role', 'status');
+        withdraw.addEventListener('click', async () => {
+          if (!window.confirm('Withdraw this open visit time? It will no longer be available to visitors.')) return;
+          withdraw.disabled = true;
+          withdraw.textContent = 'Withdrawing…';
+          try {
+            await responseJson(`/admin/visit-slots/${encodeURIComponent(slot.id)}/withdraw`, { method: 'POST' });
+            await loadVisitSlots();
+          } catch (exception) {
+            message(result, exception instanceof Error ? exception.message : 'We could not withdraw this visit time.');
+            withdraw.disabled = false;
+            withdraw.textContent = 'Withdraw time';
+          }
+        });
+        card.append(withdraw, result);
+      }
+      visitSlotList.append(card);
+    }
+  }
+
+  function textNode(tag: string, className: string, content: string) {
+    const node = document.createElement(tag);
+    node.className = className;
+    node.textContent = content;
+    return node;
+  }
+
+  async function loadVisitSlots() {
+    const payload = await responseJson<AdminVisitScheduleResponse>('/admin/visit-slots');
+    visitSlots = payload.slots;
+    renderVisitSlots();
+  }
+
   async function uploadImage(id: string, image: File): Promise<Pet> {
     const data = new FormData();
     data.append('image', image);
@@ -383,6 +512,36 @@
   });
 
   cancelEdit?.addEventListener('click', resetForm);
+
+  visitSlotForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!visitStart?.value || !visitEnd?.value) { message(visitFormMessage, 'Choose both a start and end time.'); return; }
+    const startsAt = newYorkInstant(visitStart.value);
+    const endsAt = newYorkInstant(visitEnd.value);
+    if (!startsAt || !endsAt) {
+      message(visitFormMessage, 'Choose a valid unambiguous America/New_York time. The selected time falls in a daylight-saving transition.');
+      return;
+    }
+    const payload: PublishVisitSlotInput = { startsAt, endsAt };
+    if (Date.parse(payload.startsAt) <= Date.now() || Date.parse(payload.endsAt) <= Date.parse(payload.startsAt)) {
+      message(visitFormMessage, 'Choose a future end time after the start time.');
+      return;
+    }
+    if (!visitSubmit) return;
+    visitSubmit.disabled = true;
+    visitSubmit.textContent = 'Publishing…';
+    try {
+      await responseJson('/admin/visit-slots', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      visitSlotForm.reset();
+      message(visitFormMessage, 'Visit time published.', true);
+      await loadVisitSlots();
+    } catch (exception) {
+      message(visitFormMessage, exception instanceof Error ? exception.message : 'We could not publish that visit time.');
+    } finally {
+      visitSubmit.disabled = false;
+      visitSubmit.textContent = 'Publish visit time';
+    }
+  });
 
   for (const button of dashboard?.querySelectorAll<HTMLButtonElement>('[data-logout]') ?? []) {
     button.addEventListener('click', async () => {
@@ -472,9 +631,10 @@
       if (userDetail) userDetail.textContent = `Signed in as ${identity.user.email} · ${identity.user.role === 'superuser' ? 'Superuser' : 'Administrator'}`;
       if (identity.user.role === 'superuser') {
         invitations?.removeAttribute('hidden');
-        await loadAdministratorInvitations();
+        await Promise.all([loadPets(), loadApplications(), loadVisitSlots(), loadAdministratorInvitations()]);
+      } else {
+        await Promise.all([loadPets(), loadApplications(), loadVisitSlots()]);
       }
-      await Promise.all([loadPets(), loadApplications()]);
       loading?.setAttribute('hidden', '');
       content?.removeAttribute('hidden');
     } catch (exception) {
