@@ -1,7 +1,5 @@
 # PawHeaven use-case screenshots
 
-Captured from the local UI with synthetic, browser-only API responses because the local Docker database was unavailable; no real user, animal, appointment, or admin records were changed.
-
 ![The public landing page introduces the shelter and highlights available pets.](01-home.png)
 
 *The public landing page introduces the shelter and highlights available pets.*
