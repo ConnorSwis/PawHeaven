@@ -588,6 +588,17 @@ async function authRoutes(request: Request, env: Env, path: string): Promise<Api
       console.error(JSON.stringify({ operation: 'auth.password', error: error.message }));
       return errorResponse('We could not save that password. Please try again.', 503);
     }
+    if (adminRole(current.user) === 'admin') {
+      const adminClient = supabaseAdmin(env);
+      if (adminClient) {
+        const { error: auditError } = await adminClient
+          .from('admin_invitation_audit')
+          .update({ password_set_at: new Date().toISOString() })
+          .eq('invited_user_id', current.user.id)
+          .is('password_set_at', null);
+        if (auditError) console.error(JSON.stringify({ operation: 'admin.invite_password_setup_audit', error: auditError.message, invitedUserId: current.user.id }));
+      }
+    }
     return sessionResponse(respond({ ok: true }), request, current);
   }
   if (path === '/auth/me' && request.method === 'GET') {
@@ -857,13 +868,16 @@ async function adminRoutes(request: Request, env: Env, path: string): Promise<Ap
     if (!adminClient) return sessionResponse(errorResponse('Administrator invitations are not configured. Contact the deployment owner.', 503), request, current);
     const [{ data: users, error: usersError }, { data: auditRows, error: auditError }] = await Promise.all([
       adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-      adminClient.from('admin_invitation_audit').select('invited_user_id, invited_at').not('invited_user_id', 'is', null).order('invited_at', { ascending: false }).limit(1000),
+      adminClient.from('admin_invitation_audit').select('invited_user_id, invited_at, password_set_at').not('invited_user_id', 'is', null).order('invited_at', { ascending: false }).limit(1000),
     ]);
     if (usersError) return sessionResponse(authAdminError('admin.invitations.list_users', usersError), request, current);
     if (auditError) return sessionResponse(databaseError('admin.invitations.list_audit', auditError), request, current);
     const latestInvite = new Map<string, string>();
-    for (const row of (auditRows ?? []) as { invited_user_id: string | null; invited_at: string }[]) {
-      if (row.invited_user_id && !latestInvite.has(row.invited_user_id)) latestInvite.set(row.invited_user_id, row.invited_at);
+    const passwordSet = new Set<string>();
+    for (const row of (auditRows ?? []) as { invited_user_id: string | null; invited_at: string; password_set_at: string | null }[]) {
+      if (!row.invited_user_id) continue;
+      if (!latestInvite.has(row.invited_user_id)) latestInvite.set(row.invited_user_id, row.invited_at);
+      if (row.password_set_at) passwordSet.add(row.invited_user_id);
     }
     const invitations = users.users
       .filter((user) => adminRole(user) === 'admin')
@@ -874,7 +888,7 @@ async function adminRoutes(request: Request, env: Env, path: string): Promise<Ap
         createdAt: user.created_at,
         emailConfirmedAt: user.email_confirmed_at ?? null,
         lastSignInAt: user.last_sign_in_at ?? null,
-        status: user.last_sign_in_at ? 'active' as const : 'awaiting_setup' as const,
+        status: passwordSet.has(user.id) ? 'active' as const : 'awaiting_setup' as const,
       }))
       .sort((a, b) => b.invitedAt.localeCompare(a.invitedAt));
     const payload: AdminInvitationListResponse = { invitations };

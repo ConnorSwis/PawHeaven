@@ -2,7 +2,7 @@
 
 A superuser invites an email address from the admin portal. The invitee opens the newest email, selects **Continue to set password**, chooses a password, and then signs in at `https://admin.pawheaven.online/login`. Invitations are single-use and expire according to Supabase Auth's email OTP expiration setting. A superuser can submit the same pending email again to send a replacement. Do not forward invitation links.
 
-Superusers can also use **Resend setup email** beside an administrator who is awaiting password setup. The resend uses Supabase's password-recovery flow because Supabase cannot create a second invite for an existing Auth user. It gives that administrator a fresh one-time link to choose their first password; the old email should be ignored.
+Superusers can also use **Resend setup email** beside an administrator who needs password setup. The resend uses Supabase's password-recovery flow because Supabase cannot create a second invite for an existing Auth user. It gives that administrator a fresh one-time link to choose their first password; the old email should be ignored. The portal marks **Password set** only after the shared acceptance page successfully saves a password; opening an email link alone does not complete setup.
 
 ## Expiration window
 
