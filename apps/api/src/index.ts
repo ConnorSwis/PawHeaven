@@ -473,6 +473,22 @@ async function authRoutes(request: Request, env: Env, path: string): Promise<Api
     const response = respond({ user: apiUser(current.user) });
     return current.refreshed ? withSession(response, request, current.refreshed) : response;
   }
+  if (path === '/auth/profile' && request.method === 'PUT') {
+    const current = await identity(request, env);
+    if (!current) return clearSession(errorResponse('Your session has expired. Log in again to update your profile.', 401), request);
+    const body = await jsonBody(request) as Record<string, unknown> | null;
+    const name = typeof body?.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
+    if (!name || name.length > 100) return sessionResponse(errorResponse('Enter a name up to 100 characters long.', 400), request, current);
+    const client = supabase(env);
+    const { error } = await client.auth.setSession({ access_token: current.accessToken, refresh_token: current.refreshToken });
+    if (error) return clearSession(errorResponse('Your session has expired. Log in again to update your profile.', 401), request);
+    const { data, error: updateError } = await client.auth.updateUser({ data: { ...current.user.user_metadata, name } });
+    if (updateError || !data.user) {
+      console.error(JSON.stringify({ operation: 'auth.profile.update', error: updateError?.message ?? 'No user returned' }));
+      return sessionResponse(errorResponse('We could not save your profile. Please try again.', 503), request, current);
+    }
+    return sessionResponse(respond({ user: apiUser(data.user) }), request, current);
+  }
   if (path === '/auth/logout' && request.method === 'POST') {
     const cookies = parseCookies(request);
     if (cookies[ACCESS_COOKIE] && cookies[REFRESH_COOKIE]) {
@@ -632,6 +648,12 @@ async function adminRoutes(request: Request, env: Env, path: string): Promise<Ap
     if (error) return sessionResponse(databaseError('admin.pets.update', error), request, current);
     if (!data) return sessionResponse(errorResponse('Pet not found.', 404), request, current);
     return sessionResponse(respond(petForClient(data as DatabasePet, env)), request, current);
+  }
+  if (petMatch && request.method === 'DELETE') {
+    const { data, error } = await client.from('pets').delete().eq('id', petMatch[1]).select('id').maybeSingle();
+    if (error) return sessionResponse(databaseError('admin.pets.delete', error), request, current);
+    if (!data) return sessionResponse(errorResponse('Pet not found.', 404), request, current);
+    return sessionResponse(respond({ ok: true }), request, current);
   }
   const imageMatch = path.match(/^\/admin\/pets\/([0-9a-f-]{36})\/image$/i);
   if (imageMatch && request.method === 'POST') {

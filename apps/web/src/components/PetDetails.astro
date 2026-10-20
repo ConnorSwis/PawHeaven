@@ -128,6 +128,15 @@ const seedPets = [
     note.maxLength = 1000;
     note.className = 'mt-2 block min-h-24 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
     noteLabel.append(note);
+    const draftKey = `pawheaven:application-draft:${user.id}:${pet.id}`;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(draftKey) || 'null') as Partial<AdoptionApplicationInput> | null;
+      if (saved) {
+        household.value = typeof saved.householdSummary === 'string' ? saved.householdSummary : '';
+        experience.value = typeof saved.adoptionExperience === 'string' ? saved.adoptionExperience : '';
+        note.value = typeof saved.note === 'string' ? saved.note : '';
+      }
+    } catch { /* Ignore a malformed or unavailable session draft. */ }
     const controls = document.createElement('div');
     controls.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
@@ -139,6 +148,11 @@ const seedPets = [
     controls.append(submit, message);
     form.append(householdLabel, experienceLabel, noteLabel, controls);
     target.append(form);
+    form.addEventListener('input', () => {
+      try {
+        sessionStorage.setItem(draftKey, JSON.stringify({ householdSummary: household.value, adoptionExperience: experience.value, note: note.value }));
+      } catch { /* Draft saving is best effort and never blocks the form. */ }
+    });
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const payload: AdoptionApplicationInput = {
@@ -156,6 +170,7 @@ const seedPets = [
         });
         const result = await response.json().catch(() => null) as AdoptionApplication | { message?: unknown } | null;
         if (!response.ok) throw new Error(typeof (result as { message?: unknown } | null)?.message === 'string' ? (result as { message: string }).message : 'We could not submit your application.');
+        try { sessionStorage.removeItem(draftKey); } catch { /* Submission still succeeded. */ }
         existingApplication(target, result as AdoptionApplication);
       } catch (exception) {
         applicationMessage(message, exception instanceof Error ? exception.message : 'We could not submit your application.', true);

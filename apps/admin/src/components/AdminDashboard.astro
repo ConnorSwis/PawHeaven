@@ -175,9 +175,11 @@
       return;
     }
     for (const pet of pets) {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-3 border border-stone-300 px-3 py-3';
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = `border px-3 py-3 text-left transition-colors ${selectedPetId === pet.id ? 'border-stone-950 bg-stone-100' : 'border-stone-300 bg-white hover:bg-stone-100'}`;
+      button.className = 'min-w-0 flex-1 text-left';
       const name = document.createElement('span');
       name.className = 'block font-semibold text-stone-950';
       name.textContent = pet.name;
@@ -186,7 +188,27 @@
       details.textContent = `${pet.type} · ${pet.status}`;
       button.append(name, details);
       button.addEventListener('click', () => editPet(pet));
-      petList.append(button);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'shrink-0 text-sm font-medium text-red-800 underline underline-offset-4 hover:text-red-950';
+      remove.textContent = 'Remove';
+      remove.setAttribute('aria-label', `Remove ${pet.name}`);
+      remove.addEventListener('click', async () => {
+        if (!window.confirm(`Remove ${pet.name} from the animal records? This may be blocked if applications refer to this pet.`)) return;
+        remove.disabled = true;
+        try {
+          await responseJson(`/admin/pets/${encodeURIComponent(pet.id)}`, { method: 'DELETE' });
+          pets = pets.filter((item) => item.id !== pet.id);
+          if (selectedPetId === pet.id) clearForm();
+          renderPets();
+          message(pageMessage, `${pet.name} was removed.`, true);
+        } catch (exception) {
+          message(pageMessage, exception instanceof Error ? exception.message : 'We could not remove this pet.');
+          remove.disabled = false;
+        }
+      });
+      row.append(button, remove);
+      petList.append(row);
     }
   }
 
