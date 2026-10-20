@@ -1,8 +1,8 @@
 # Shelter visit scheduling implementation plan
 
-Status: implemented in source on 2026-10-20, pending Docker-backed local
-migration/test execution. This implementation does not change a hosted
-environment. The Sprint 2 report's use case 8 requires
+Status: implemented in source, verified through Docker-backed local migration
+and RLS tests, and the migration was applied to production on 2026-10-20. The
+Sprint 2 report's use case 8 requires
 staff-published slots, a signed-in visitor's purpose, confirmation, a staff
 schedule, rescheduling and cancellation, and a fresh availability check.
 
