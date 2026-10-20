@@ -2,6 +2,8 @@
 
 PawHeaven is an Astro and Cloudflare Workers monorepo for a public shelter site, an internal admin site, and an API backed by Supabase. The connected demo includes pet browsing, administrator pet management, and minimal adoption applications with administrator outcomes.
 
+Check out the screenshots from the project [here](https://github.com/ConnorSwis/PawHeaven/blob/main/screenshots/current-use-cases/INDEX.md).
+
 | Workspace | Purpose | Local URL |
 | --- | --- | --- |
 | `apps/web` | Public Astro site | `http://localhost:4321` |
