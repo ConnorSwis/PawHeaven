@@ -5,7 +5,9 @@ import { adminRoutes } from './routes/admin';
 import { adoptionApplicationRoutes } from './routes/applications';
 import { authRoutes } from './routes/auth';
 import { fosterApplicationRoutes } from './routes/foster-applications';
+import { lostPetRoutes } from './routes/lost-pets';
 import { publicPetRoutes } from './routes/pets';
+import { quizRoutes } from './routes/quiz';
 import { visitSchedulingRoutes } from './routes/visits';
 import { volunteerRoutes } from './routes/volunteer';
 
@@ -37,6 +39,8 @@ async function route(context: RouteContext): Promise<ApiResponse> {
   if (path.startsWith('/admin/')) return adminRoutes(context);
   if (path === '/applications' || path.startsWith('/applications/')) return adoptionApplicationRoutes(context);
   if (path === '/foster-applications' || path.startsWith('/foster-applications/')) return fosterApplicationRoutes(context);
+  if (path === '/quiz' || path.startsWith('/quiz/')) return quizRoutes(context);
+  if (path.startsWith('/lost-pet/')) return lostPetRoutes(context);
   if (path.startsWith('/volunteer/')) return volunteerRoutes(context);
   if (path === '/visit-slots' || path === '/appointments' || path.startsWith('/appointments/')) return visitSchedulingRoutes(context);
   if (path === '/pets' || path.startsWith('/pets/')) return publicPetRoutes(context);

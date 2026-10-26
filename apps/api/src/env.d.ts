@@ -11,4 +11,12 @@ interface Env {
   EMAIL_FROM?: string;
   /** Set to "true" in apps/api/.dev.vars to send real email from a local API. */
   EMAIL_LOCAL_DELIVERY?: string;
+  /** Cloudflare secret for AI matching through OpenRouter. Without it, the quiz and lost-pet search report that matching is unavailable. */
+  OPENROUTER_API_KEY?: string;
+  /** Optional OpenRouter model id for the pet-matching quiz. */
+  OPENROUTER_QUIZ_MODEL?: string;
+  /** Optional OpenRouter model id for lost-pet photo comparison. Must accept images. */
+  OPENROUTER_VISION_MODEL?: string;
+  /** Optional address that is emailed when a lost-pet inquiry arrives. Staff always see inquiries in the portal. */
+  SHELTER_NOTIFICATION_EMAIL?: string;
 }

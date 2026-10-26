@@ -132,3 +132,23 @@ export function volunteerShiftCanceledEmail(input: { to: string; name: string; t
   ]);
   return { to: input.to, subject: heading, html, text };
 }
+
+export function lostPetInquiryReceivedEmail(input: { to: string; name: string; petName: string }): EmailMessage {
+  const heading = `We received your question about ${input.petName}`;
+  const { html, text } = layout(heading, [
+    `Hi ${input.name},`,
+    `Your message about ${input.petName} was sent to the shelter team. A photo match is only a first step, so staff will review it and contact you using the phone number and email on your account.`,
+    'If this is urgent, please call the shelter directly. You can see the status of your inquiry in your PawHeaven account.',
+  ]);
+  return { to: input.to, subject: heading, html, text };
+}
+
+export function lostPetInquiryStaffEmail(input: { to: string; memberName: string; memberEmail: string; memberPhone: string; petName: string; message: string }): EmailMessage {
+  const heading = `New lost-pet inquiry about ${input.petName}`;
+  const { html, text } = layout(heading, [
+    `${input.memberName} (${input.memberEmail}, ${input.memberPhone}) thinks ${input.petName} may be their lost pet.`,
+    `Message: ${input.message}`,
+    'Open the staff portal to review the photos they uploaded and record what you find. A visual match does not confirm ownership.',
+  ]);
+  return { to: input.to, subject: heading, html, text };
+}

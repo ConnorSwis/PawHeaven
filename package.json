@@ -18,8 +18,9 @@
     "db:verify": "npm run db:start && npm run db:reset",
     "db:stop": "npx supabase stop",
     "qa:discovery": "node --experimental-strip-types --test tests/discovery-qa.test.mjs",
+    "qa:ai": "node --experimental-strip-types --test tests/ai-matching.test.mjs",
     "qa:demo": "node scripts/verify-demo.mjs",
     "build": "npm run build -w @pawheaven/web && npm run build -w @pawheaven/admin && npm run build -w @pawheaven/api",
-    "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run check:astro -w @pawheaven/admin && npm run workers:deploy:dry-run -w @pawheaven/api && npm run workers:deploy:dry-run -w @pawheaven/admin && npm run qa:discovery"
+    "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run check:astro -w @pawheaven/admin && npm run workers:deploy:dry-run -w @pawheaven/api && npm run workers:deploy:dry-run -w @pawheaven/admin && npm run qa:discovery && npm run qa:ai"
   }
 }

@@ -65,9 +65,10 @@ writeFileSync(destination, [
   ...(typeof bootstrapSuperuserEmail === 'string' && bootstrapSuperuserEmail
     ? [`BOOTSTRAP_SUPERUSER_EMAIL=${JSON.stringify(bootstrapSuperuserEmail)}`]
     : ['# Set BOOTSTRAP_SUPERUSER_EMAIL to your own address before first local admin login.']),
-  // Optional email settings survive regeneration. Local development logs email
-  // unless EMAIL_LOCAL_DELIVERY is "true".
-  ...['RESEND_API_KEY', 'EMAIL_LOCAL_DELIVERY'].flatMap((name) => typeof existingValues[name] === 'string' && existingValues[name]
+  // Optional settings and secrets survive regeneration. Local development logs
+  // email unless EMAIL_LOCAL_DELIVERY is "true"; AI matching is unavailable
+  // without OPENROUTER_API_KEY.
+  ...['RESEND_API_KEY', 'EMAIL_LOCAL_DELIVERY', 'OPENROUTER_API_KEY', 'OPENROUTER_QUIZ_MODEL', 'OPENROUTER_VISION_MODEL', 'SHELTER_NOTIFICATION_EMAIL'].flatMap((name) => typeof existingValues[name] === 'string' && existingValues[name]
     ? [`${name}=${JSON.stringify(existingValues[name])}`]
     : []),
   '',
