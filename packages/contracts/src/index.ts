@@ -4,8 +4,8 @@ export type ApiUser = {
   email: string;
 };
 
-/** `staff` manages pets, applications, and the visit schedule; `admin` also manages members; `superuser` also invites administrators. */
-export type AdminRole = 'staff' | 'admin' | 'superuser';
+/** Three roles exist: `member` (no portal access), `staff`, and `superuser`. Staff manage pets, applications, the visit schedule, and member accounts; a superuser also manages staff accounts and invites staff. */
+export type AdminRole = 'staff' | 'superuser';
 
 export type AdminUser = ApiUser & {
   role: AdminRole;
@@ -13,7 +13,7 @@ export type AdminUser = ApiUser & {
 
 export type ManagedUserRole = AdminRole | 'member';
 
-/** Roles an administrator may assign to an ordinary account. Administrators are invited by a superuser. */
+/** Roles a superuser may assign to an ordinary or staff account. */
 export type AssignableUserRole = 'member' | 'staff';
 
 export type AdminUserRoleInput = {

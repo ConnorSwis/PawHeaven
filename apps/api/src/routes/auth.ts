@@ -85,7 +85,7 @@ export async function authRoutes({ request, env, path }: RouteContext): Promise<
       console.error(JSON.stringify({ operation: 'auth.password', error: error.message }));
       return errorResponse('We could not save that password. Please try again.', 503);
     }
-    if (adminRole(current.user) === 'admin') {
+    if (adminRole(current.user) === 'staff') {
       const adminClient = supabaseAdmin(env);
       if (adminClient) {
         const { error: auditError } = await adminClient

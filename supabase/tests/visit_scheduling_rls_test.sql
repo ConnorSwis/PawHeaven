@@ -5,7 +5,7 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, e
 values
   ('61000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'visit-member@example.com', '', now(), '{}', '{"name":"Visit member"}', now(), now()),
   ('61000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'other-visit-member@example.com', '', now(), '{}', '{"name":"Other visit member"}', now(), now()),
-  ('61000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'visit-admin@example.com', '', now(), '{"role":"admin"}', '{"name":"Visit admin"}', now(), now()),
+  ('61000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'visit-admin@example.com', '', now(), '{"role":"staff"}', '{"name":"Visit admin"}', now(), now()),
   ('61000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'visit-staff@example.com', '', now(), '{"role":"staff"}', '{"name":"Visit staff"}', now(), now());
 
 insert into public.visit_slots (id, starts_at, ends_at, created_by)
@@ -122,18 +122,18 @@ select lives_ok(
   'cancellation frees the slot for another member'
 );
 
-set local request.jwt.claims = '{"role":"authenticated","sub":"61000000-0000-0000-0000-000000000003","email":"visit-admin@example.com","app_metadata":{"role":"admin"},"user_metadata":{"name":"Visit admin"}}';
+set local request.jwt.claims = '{"role":"authenticated","sub":"61000000-0000-0000-0000-000000000003","email":"visit-admin@example.com","app_metadata":{"role":"staff"},"user_metadata":{"name":"Visit admin"}}';
 
 select results_eq(
   $$select count(*)::integer from public.appointments where status = 'booked'$$,
   array[1],
-  'an administrator can see the current booking schedule'
+  'a staff member can see the current booking schedule'
 );
 
 select throws_ok(
   $$select public.withdraw_visit_slot('62000000-0000-0000-0000-000000000002')$$,
   'P0001', null,
-  'an administrator cannot withdraw a booked visit time'
+  'a staff member cannot withdraw a booked visit time'
 );
 
 select throws_ok(

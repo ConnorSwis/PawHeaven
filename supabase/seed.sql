@@ -23,23 +23,23 @@ values
   (
     'a1000000-0000-0000-0000-000000000002',
     '00000000-0000-0000-0000-000000000000',
-    'authenticated', 'authenticated', 'demo.admin@pawheaven.local',
-    extensions.crypt('DemoAdmin-2026!', extensions.gen_salt('bf')),
-    now(),
-    '', '', '', '', '', '', '', '',
-    '{"provider":"email","providers":["email"],"role":"admin"}'::jsonb,
-    '{"name":"Demo Administrator","email":"demo.admin@pawheaven.local","email_verified":true,"phone_verified":false,"sub":"a1000000-0000-0000-0000-000000000002"}'::jsonb,
-    now(), now()
-  ),
-  (
-    'a1000000-0000-0000-0000-000000000003',
-    '00000000-0000-0000-0000-000000000000',
     'authenticated', 'authenticated', 'demo.staff@pawheaven.local',
     extensions.crypt('DemoStaff-2026!', extensions.gen_salt('bf')),
     now(),
     '', '', '', '', '', '', '', '',
     '{"provider":"email","providers":["email"],"role":"staff"}'::jsonb,
-    '{"name":"Demo Staff","email":"demo.staff@pawheaven.local","email_verified":true,"phone_verified":false,"sub":"a1000000-0000-0000-0000-000000000003"}'::jsonb,
+    '{"name":"Demo Staff","email":"demo.staff@pawheaven.local","email_verified":true,"phone_verified":false,"sub":"a1000000-0000-0000-0000-000000000002"}'::jsonb,
+    now(), now()
+  ),
+  (
+    'a1000000-0000-0000-0000-000000000003',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'demo.superuser@pawheaven.local',
+    extensions.crypt('DemoSuperuser-2026!', extensions.gen_salt('bf')),
+    now(),
+    '', '', '', '', '', '', '', '',
+    '{"provider":"email","providers":["email"],"role":"superuser"}'::jsonb,
+    '{"name":"Demo Superuser","email":"demo.superuser@pawheaven.local","email_verified":true,"phone_verified":false,"sub":"a1000000-0000-0000-0000-000000000003"}'::jsonb,
     now(), now()
   );
 
@@ -54,13 +54,13 @@ values
   (
     'a1000000-0000-0000-0000-000000000002',
     'a1000000-0000-0000-0000-000000000002',
-    '{"sub":"a1000000-0000-0000-0000-000000000002","email":"demo.admin@pawheaven.local","email_verified":true,"phone_verified":false}'::jsonb,
+    '{"sub":"a1000000-0000-0000-0000-000000000002","email":"demo.staff@pawheaven.local","email_verified":true,"phone_verified":false}'::jsonb,
     'email', now(), now(), now()
   ),
   (
     'a1000000-0000-0000-0000-000000000003',
     'a1000000-0000-0000-0000-000000000003',
-    '{"sub":"a1000000-0000-0000-0000-000000000003","email":"demo.staff@pawheaven.local","email_verified":true,"phone_verified":false}'::jsonb,
+    '{"sub":"a1000000-0000-0000-0000-000000000003","email":"demo.superuser@pawheaven.local","email_verified":true,"phone_verified":false}'::jsonb,
     'email', now(), now(), now()
   );
 

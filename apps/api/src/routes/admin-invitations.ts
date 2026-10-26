@@ -15,9 +15,9 @@ export async function adminInvitationRoutes({ request, env, path, current, role 
   const resendMatch = path.match(/^\/admin\/invitations\/([0-9a-f-]{36})\/resend$/i);
 
   if (path === '/admin/invitations' && request.method === 'GET') {
-    if (role !== 'superuser') return errorResponse('Only superusers can view administrator invitations.', 403);
+    if (role !== 'superuser') return errorResponse('Only superusers can view staff invitations.', 403);
     const adminClient = supabaseAdmin(env);
-    if (!adminClient) return errorResponse('Administrator invitations are not configured. Contact the deployment owner.', 503);
+    if (!adminClient) return errorResponse('Staff invitations are not configured. Contact the deployment owner.', 503);
     const [{ data: users, error: usersError }, { data: auditRows, error: auditError }] = await Promise.all([
       adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 }),
       adminClient.from('admin_invitation_audit').select('invited_user_id, invited_at, password_set_at').not('invited_user_id', 'is', null).order('invited_at', { ascending: false }).limit(1000),
@@ -32,7 +32,7 @@ export async function adminInvitationRoutes({ request, env, path, current, role 
       if (row.password_set_at) passwordSet.add(row.invited_user_id);
     }
     const invitations = users.users
-      .filter((user) => adminRole(user) === 'admin')
+      .filter((user) => adminRole(user) === 'staff')
       .map((user) => ({
         userId: user.id,
         email: user.email ?? 'No email address',
@@ -48,13 +48,13 @@ export async function adminInvitationRoutes({ request, env, path, current, role 
   }
 
   if (resendMatch && request.method === 'POST') {
-    if (role !== 'superuser') return errorResponse('Only superusers can resend administrator invitations.', 403);
+    if (role !== 'superuser') return errorResponse('Only superusers can resend staff invitations.', 403);
     const adminClient = supabaseAdmin(env);
-    if (!adminClient) return errorResponse('Administrator invitations are not configured. Contact the deployment owner.', 503);
+    if (!adminClient) return errorResponse('Staff invitations are not configured. Contact the deployment owner.', 503);
     const { data: targetData, error: targetError } = await adminClient.auth.admin.getUserById(resendMatch[1]);
     if (targetError || !targetData.user) return targetError?.status === 404 ? errorResponse('Invitation not found.', 404) : authAdminError('admin.invite_resend_lookup', targetError ?? { message: 'No user returned' });
-    if (adminRole(targetData.user) !== 'admin' || !targetData.user.email) return errorResponse('This account is not an administrator invitation.', 400);
-    if (isBlocked(targetData.user)) return errorResponse('Unblock this administrator before resending their invitation.', 409);
+    if (adminRole(targetData.user) !== 'staff' || !targetData.user.email) return errorResponse('This account is not a staff invitation.', 400);
+    if (isBlocked(targetData.user)) return errorResponse('Unblock this staff member before resending their invitation.', 409);
     const redirectTo = env.ADMIN_INVITE_REDIRECT_URL ?? 'https://admin.pawheaven.online/accept-invite';
     // Supabase does not permit a second invite for an existing Auth user. A
     // recovery link lets a pending invitee choose their first password, and
@@ -72,12 +72,12 @@ export async function adminInvitationRoutes({ request, env, path, current, role 
   }
 
   if (path === '/admin/invitations' && request.method === 'POST') {
-    if (role !== 'superuser') return errorResponse('Only superusers can invite administrators.', 403);
+    if (role !== 'superuser') return errorResponse('Only superusers can invite staff.', 403);
     const body = await jsonBody(request) as Record<string, unknown> | null;
     const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
     if (!validEmail(email)) return errorResponse('Enter a valid email address.', 400);
     const adminClient = supabaseAdmin(env);
-    if (!adminClient) return errorResponse('Administrator invitations are not configured. Contact the deployment owner.', 503);
+    if (!adminClient) return errorResponse('Staff invitations are not configured. Contact the deployment owner.', 503);
     const redirectTo = env.ADMIN_INVITE_REDIRECT_URL ?? 'https://admin.pawheaven.online/accept-invite';
     const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, { redirectTo });
     if (inviteError || !invited.user) {
@@ -85,7 +85,7 @@ export async function adminInvitationRoutes({ request, env, path, current, role 
       return errorResponse('We could not send that invitation. Check the address or try again later.', inviteError?.status === 429 ? 429 : 400);
     }
     const { error: roleError } = await adminClient.auth.admin.updateUserById(invited.user.id, {
-      app_metadata: { ...invited.user.app_metadata, role: 'admin' },
+      app_metadata: { ...invited.user.app_metadata, role: 'staff' },
     });
     if (roleError) {
       console.error(JSON.stringify({ operation: 'admin.invite_role', error: roleError.message, invitedUserId: invited.user.id }));

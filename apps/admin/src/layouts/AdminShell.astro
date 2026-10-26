@@ -6,7 +6,7 @@ interface Props {
   description?: string;
 }
 
-const { title, description = 'PawHeaven administrator portal' } = Astro.props;
+const { title, description = 'PawHeaven staff portal' } = Astro.props;
 ---
 
 <!doctype html>
@@ -21,9 +21,9 @@ const { title, description = 'PawHeaven administrator portal' } = Astro.props;
     <header class="border-b border-stone-300 bg-white">
       <div class="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-3">
         <a class="text-lg font-semibold tracking-tight text-stone-950" href="/">PawHeaven Admin</a>
-        <nav class="flex items-center gap-5 text-sm font-medium" aria-label="Administrator navigation">
+        <nav class="flex items-center gap-5 text-sm font-medium" aria-label="Staff navigation">
           <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="/">Portal</a>
-          <a data-nav-users class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="/users">Users</a>
+          <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="/users">Users</a>
           <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="https://pawheaven.online">Shelter site</a>
         </nav>
       </div>

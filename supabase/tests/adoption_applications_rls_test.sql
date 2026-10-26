@@ -5,7 +5,7 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, e
 values
   ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'member@example.com', '', now(), '{}', '{"name":"Member"}', now(), now()),
   ('30000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'other@example.com', '', now(), '{}', '{"name":"Other member"}', now(), now()),
-  ('50000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin@example.com', '', now(), '{"role":"admin"}', '{"name":"Admin"}', now(), now());
+  ('50000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin@example.com', '', now(), '{"role":"staff"}', '{"name":"Admin"}', now(), now());
 
 insert into public.pets (id, name, species, breed, age_label, intake_date, tags, status, summary)
 values
@@ -74,25 +74,25 @@ select results_eq(
 
 set local role postgres;
 set local role authenticated;
-set local request.jwt.claims = '{"role":"authenticated","sub":"50000000-0000-0000-0000-000000000001","email":"admin@example.com","app_metadata":{"role":"admin"}}';
+set local request.jwt.claims = '{"role":"authenticated","sub":"50000000-0000-0000-0000-000000000001","email":"admin@example.com","app_metadata":{"role":"staff"}}';
 
 select results_eq(
   $$select count(*)::integer from public.adoption_applications where id in ('40000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000002')$$,
   array[2],
-  'an administrator can read all applications'
+  'a staff member can read all applications'
 );
 
 select lives_ok(
   $$update public.adoption_applications
     set status = 'In review', reviewed_at = now(), reviewed_by = '50000000-0000-0000-0000-000000000001'
     where applicant_email = 'member@example.com'$$,
-  'an administrator can record an application review'
+  'a staff member can record an application review'
 );
 
 select results_eq(
   $$select status from public.adoption_applications where applicant_email = 'member@example.com'$$,
   array['In review'],
-  'the recorded application outcome is visible to an administrator'
+  'the recorded application outcome is visible to a staff member'
 );
 
 set local role postgres;
@@ -129,7 +129,7 @@ set local role postgres;
 
 select lives_ok(
   $$delete from auth.users where id = '50000000-0000-0000-0000-000000000001'$$,
-  'a deleted administrator does not invalidate a completed application review'
+  'a deleted staff member does not invalidate a completed application review'
 );
 
 select results_eq(

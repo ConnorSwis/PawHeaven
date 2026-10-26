@@ -75,14 +75,18 @@ export function apiUser(user: User): ApiUser {
   };
 }
 
-export function adminRole(user: User): AdminRole | null {
-  const role = user.app_metadata?.role;
-  return role === 'staff' || role === 'admin' || role === 'superuser' ? role : null;
+/**
+ * Maps a stored role to the two portal roles. Accounts created before the
+ * admin tier was merged into staff still carry the legacy `admin` value, which
+ * is treated as `staff` until those accounts are migrated.
+ */
+function normalizeRole(role: unknown): AdminRole | null {
+  if (role === 'superuser') return 'superuser';
+  return role === 'staff' || role === 'admin' ? 'staff' : null;
 }
 
-/** True for roles that may manage ordinary accounts. Staff may not. */
-export function canManageAccounts(role: AdminRole): boolean {
-  return role === 'admin' || role === 'superuser';
+export function adminRole(user: User): AdminRole | null {
+  return normalizeRole(user.app_metadata?.role);
 }
 
 export function managedUser(user: User): ManagedUser {
@@ -102,12 +106,12 @@ export function adminUser(user: User, role: AdminRole): AdminUser {
 }
 
 /** Reads the role claim a Supabase access token carries, which row-level security uses. */
-function claimedRole(accessToken: string): string | null {
+function claimedRole(accessToken: string): AdminRole | null {
   try {
     const payload = accessToken.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/');
     if (!payload) return null;
     const claims = JSON.parse(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, '='))) as { app_metadata?: { role?: unknown } };
-    return typeof claims.app_metadata?.role === 'string' ? claims.app_metadata.role : null;
+    return normalizeRole(claims.app_metadata?.role);
   } catch {
     return null;
   }
@@ -156,6 +160,7 @@ export async function adminIdentity(request: Request, env: Env): Promise<{ curre
 export function mayManageUser(actorRole: AdminRole, actorId: string, target: User): boolean {
   const targetRole = adminRole(target);
   if (target.id === actorId || targetRole === 'superuser') return false;
-  if (targetRole === 'admin') return actorRole === 'superuser';
-  return canManageAccounts(actorRole);
+  // Staff and superusers manage members; only a superuser manages other staff.
+  if (targetRole === 'staff') return actorRole === 'superuser';
+  return true;
 }

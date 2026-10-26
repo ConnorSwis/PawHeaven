@@ -3,10 +3,10 @@ const baxterId = 'b1000000-0000-0000-0000-000000000001';
 const rosieId = 'b1000000-0000-0000-0000-000000000004';
 const firstVisitSlotId = 'c1000000-0000-0000-0000-000000000001';
 const secondVisitSlotId = 'c1000000-0000-0000-0000-000000000002';
-const adminEmail = 'demo.admin@pawheaven.local';
-const adminPassword = 'DemoAdmin-2026!';
 const staffEmail = 'demo.staff@pawheaven.local';
 const staffPassword = 'DemoStaff-2026!';
+const superuserEmail = 'demo.superuser@pawheaven.local';
+const superuserPassword = 'DemoSuperuser-2026!';
 
 const baseUrl = new URL(apiBase);
 if (baseUrl.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(baseUrl.hostname)) {
@@ -185,32 +185,35 @@ if (!canceledAppointmentsPayload.appointments?.some((appointment) => appointment
 
 expectStatus(await request('/applications', { cookie: 'ph_access=expired' }), 401, 'expired session is rejected');
 
-const adminCookie = await login(adminEmail, adminPassword);
-const adminSchedule = await request('/admin/visit-slots', { cookie: adminCookie });
-const adminSchedulePayload = expectStatus(adminSchedule, 200, 'administrator visit schedule');
-if (!adminSchedulePayload.slots?.some((slot) => slot.id === firstVisitSlotId)) fail('administrator schedule did not include the seeded visit times.');
-expectStatus(await request(`/admin/visit-slots/${firstVisitSlotId}/withdraw`, { method: 'POST', cookie: adminCookie }), 200, 'withdraw an open visit time');
+const staffCookie = await login(staffEmail, staffPassword);
+const adminSchedule = await request('/admin/visit-slots', { cookie: staffCookie });
+const adminSchedulePayload = expectStatus(adminSchedule, 200, 'staff visit schedule');
+if (!adminSchedulePayload.slots?.some((slot) => slot.id === firstVisitSlotId)) fail('staff schedule did not include the seeded visit times.');
+expectStatus(await request(`/admin/visit-slots/${firstVisitSlotId}/withdraw`, { method: 'POST', cookie: staffCookie }), 200, 'withdraw an open visit time');
 const review = await request(`/admin/applications/${applicationPayload.id}`, {
-  method: 'PUT', cookie: adminCookie, body: { status: 'Approved' },
+  method: 'PUT', cookie: staffCookie, body: { status: 'Approved' },
 });
-const reviewPayload = expectStatus(review, 200, 'administrator review');
-if (reviewPayload.status !== 'Approved') fail('administrator review did not save the selected outcome.');
+const reviewPayload = expectStatus(review, 200, 'staff review');
+if (reviewPayload.status !== 'Approved') fail('staff review did not save the selected outcome.');
 
 const applications = await request('/applications', { cookie: applicantCookie });
 const applicationsPayload = expectStatus(applications, 200, 'applicant application list');
 if (!applicationsPayload.applications?.some((item) => item.id === applicationPayload.id && item.status === 'Approved')) {
-  fail('applicant cannot see the administrator-recorded outcome.');
+  fail('applicant cannot see the staff-recorded outcome.');
 }
 
 // Staff role: limited to pets, applications, and the visit schedule.
-const staffCookie = await login(staffEmail, staffPassword);
+const superCookie = await login(superuserEmail, superuserPassword);
 const staffIdentity = expectStatus(await request('/admin/me', { cookie: staffCookie }), 200, 'staff portal access');
 if (staffIdentity.user?.role !== 'staff') fail('the demo staff account did not report the staff role.');
 expectStatus(await request('/admin/pets', { cookie: staffCookie }), 200, 'staff can list pets');
 expectStatus(await request('/admin/applications', { cookie: staffCookie }), 200, 'staff can list applications');
 expectStatus(await request('/admin/visit-slots', { cookie: staffCookie }), 200, 'staff can view the visit schedule');
-expectStatus(await request('/admin/users', { cookie: staffCookie }), 403, 'staff cannot manage user accounts');
-expectStatus(await request('/admin/invitations', { cookie: staffCookie }), 403, 'staff cannot view administrator invitations');
+expectStatus(await request('/admin/users', { cookie: staffCookie }), 200, 'staff can list member accounts');
+expectStatus(await request('/admin/invitations', { cookie: staffCookie }), 403, 'staff cannot view staff invitations');
+expectStatus(await request('/admin/invitations', { cookie: superCookie }), 200, 'a superuser can view staff invitations');
+const superIdentity = expectStatus(await request('/admin/me', { cookie: superCookie }), 200, 'superuser portal access');
+if (superIdentity.user?.role !== 'superuser') fail('the demo superuser did not report the superuser role.');
 
 // Pet validation reports every incorrect field and the new care details round-trip.
 const invalidPet = await request('/admin/pets', { method: 'POST', cookie: staffCookie, body: { name: '', type: '', breed: 'Mixed', age: '2 years', intakeDate: '2999-01-01', tags: [], status: 'Available', summary: '' } });
@@ -226,14 +229,14 @@ if (createdPet.status !== 'Unavailable' || createdPet.medicalHistory !== 'Vaccin
 expectStatus(await request(`/pets/${createdPet.id}`), 404, 'an unavailable pet stays hidden from the public');
 expectStatus(await request(`/admin/pets/${createdPet.id}`, { method: 'DELETE', cookie: staffCookie }), 200, 'staff can remove a pet');
 
-// Administrators assign the staff role; the change takes effect on the member's next request.
+// A superuser assigns the staff role; the change takes effect on the member's next request.
 const applicantIdentity = expectStatus(await request('/auth/me', { cookie: applicantCookie }), 200, 'applicant identity');
 expectStatus(await request('/admin/pets', { cookie: applicantCookie }), 403, 'member starts without staff access');
 expectStatus(await request(`/admin/users/${applicantIdentity.user.id}/role`, { method: 'PUT', cookie: staffCookie, body: { role: 'staff' } }), 403, 'staff cannot assign roles');
-expectStatus(await request(`/admin/users/${applicantIdentity.user.id}/role`, { method: 'PUT', cookie: adminCookie, body: { role: 'owner' } }), 400, 'an unknown role is rejected');
-expectStatus(await request(`/admin/users/${applicantIdentity.user.id}/role`, { method: 'PUT', cookie: adminCookie, body: { role: 'staff' } }), 200, 'administrator promotes a member to staff');
+expectStatus(await request(`/admin/users/${applicantIdentity.user.id}/role`, { method: 'PUT', cookie: superCookie, body: { role: 'owner' } }), 400, 'an unknown role is rejected');
+expectStatus(await request(`/admin/users/${applicantIdentity.user.id}/role`, { method: 'PUT', cookie: superCookie, body: { role: 'staff' } }), 200, 'superuser promotes a member to staff');
 expectStatus(await request('/admin/pets', { cookie: applicantCookie }), 200, 'promoted member can use staff features');
-expectStatus(await request(`/admin/users/${applicantIdentity.user.id}/role`, { method: 'PUT', cookie: adminCookie, body: { role: 'member' } }), 200, 'administrator returns the account to member');
+expectStatus(await request(`/admin/users/${applicantIdentity.user.id}/role`, { method: 'PUT', cookie: superCookie, body: { role: 'member' } }), 200, 'superuser returns the account to member');
 expectStatus(await request('/admin/pets', { cookie: applicantCookie }), 403, 'demoted account loses staff features');
 
 // Self-service password change requires the current password and the password policy.
@@ -245,6 +248,6 @@ expectStatus(await request('/auth/email', { method: 'PUT', cookie: applicantCook
 
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: staffCookie }), 200, 'staff logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: applicantCookie }), 200, 'applicant logout');
-expectStatus(await request('/auth/logout', { method: 'POST', cookie: adminCookie }), 200, 'administrator logout');
+expectStatus(await request('/auth/logout', { method: 'POST', cookie: superCookie }), 200, 'superuser logout');
 
 console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, visit booking/reschedule/cancellation history, staff visit scheduling, session expiry, and logout.');

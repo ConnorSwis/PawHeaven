@@ -8,7 +8,7 @@ import type {
 import type { DatabaseAdoptionApplication } from '../lib/applications';
 import { applicationForClient } from '../lib/applications';
 import { databaseError, errorResponse, jsonBody, respond, validEmail, type ApiResponse } from '../lib/http';
-import { adminRole, canManageAccounts, isBlocked, managedUser, mayManageUser, type AdminContext } from '../lib/session';
+import { adminRole, isBlocked, managedUser, mayManageUser, type AdminContext } from '../lib/session';
 import { supabase, supabaseAdmin } from '../lib/supabase';
 
 const USER_PATH = /^\/admin\/users\/([0-9a-f-]{36})(?:\/(access|password-reset|role))?$/i;
@@ -30,7 +30,6 @@ async function lookupTarget(adminClient: NonNullable<ReturnType<typeof supabaseA
 /** Account management is limited to administrators and superusers; staff never reach these routes. */
 export async function adminUserRoutes({ request, env, path, current, role }: AdminContext): Promise<ApiResponse | null> {
   if (!path.startsWith('/admin/users')) return null;
-  if (!canManageAccounts(role)) return errorResponse('Only administrators can manage user accounts.', 403);
   const adminClient = supabaseAdmin(env);
   if (!adminClient) return errorResponse('User management is not configured. Contact the deployment owner.', 503);
 
@@ -91,8 +90,7 @@ export async function adminUserRoutes({ request, env, path, current, role }: Adm
     const target = await lookupTarget(adminClient, targetId, 'admin.users.role_lookup');
     if ('response' in target) return target.response;
     if (!mayManageUser(role, current.user.id, target.user)) return errorResponse('You cannot change the role of this account.', 403);
-    const targetRole = adminRole(target.user);
-    if (targetRole && targetRole !== 'staff') return errorResponse('Administrator roles are assigned through an invitation from a superuser.', 403);
+    if (role !== 'superuser') return errorResponse('Only a superuser can change an account’s role.', 403);
     const body = await jsonBody(request) as Partial<AdminUserRoleInput> | null;
     if (body?.role !== 'member' && body?.role !== 'staff') return errorResponse('Choose Member or Staff.', 400);
     const { data, error } = await adminClient.auth.admin.updateUserById(target.user.id, {
@@ -121,7 +119,7 @@ export async function adminUserRoutes({ request, env, path, current, role }: Adm
     if ('response' in target) return target.response;
     if (!mayManageUser(role, current.user.id, target.user)) return errorResponse('You cannot delete this staff account.', 403);
     const targetRole = adminRole(target.user);
-    if (targetRole === 'admin') {
+    if (targetRole === 'staff') {
       const { error: auditError } = await adminClient.from('admin_invitation_audit').delete().eq('invited_user_id', target.user.id);
       if (auditError) return databaseError('admin.users.delete_invitation_audit', auditError);
     }

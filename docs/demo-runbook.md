@@ -33,11 +33,12 @@ also loads three future America/New_York shelter visit times for scheduling.
 | Role | Email | Password |
 | --- | --- | --- |
 | Applicant | `demo.applicant@pawheaven.local` | `DemoApplicant-2026!` |
-| Administrator | `demo.admin@pawheaven.local` | `DemoAdmin-2026!` |
 | Staff | `demo.staff@pawheaven.local` | `DemoStaff-2026!` |
+| Superuser | `demo.superuser@pawheaven.local` | `DemoSuperuser-2026!` |
 
-Staff can manage pets, applications, and the visit schedule but not user
-accounts. Administrators can assign the staff role from the Users page.
+Staff manage pets, applications, the visit schedule, and member accounts.
+The superuser can also manage staff accounts, invite staff, and assign the
+staff role from the Users page.
 
 These accounts exist only in the local database created by `npm run db:reset`.
 Do not reuse the email addresses or passwords outside this demo.
