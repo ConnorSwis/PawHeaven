@@ -153,6 +153,125 @@ export type AdoptionApplicationListResponse = {
 
 export type AdminAdoptionApplicationListResponse = AdoptionApplicationListResponse;
 
+export type FosterApplicationInput = {
+  applicantPhone: string;
+  applicantAddress: string;
+  /** ISO calendar date (YYYY-MM-DD). Applicants must be at least 18. */
+  applicantDateOfBirth: string;
+  householdSummary: string;
+  fosterExperience: string;
+  /** First day (YYYY-MM-DD) the applicant can provide care. Not in the past. */
+  availableFrom: string;
+  /** Last day (YYYY-MM-DD) of the care window; on or after the start and within one year. */
+  availableUntil: string;
+  note: string;
+};
+
+export type FosterApplication = {
+  id: string;
+  petId: string;
+  petName: string;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone: string;
+  applicantAddress: string;
+  applicantDateOfBirth: string;
+  householdSummary: string;
+  fosterExperience: string;
+  availableFrom: string;
+  availableUntil: string;
+  note: string;
+  status: AdoptionApplicationStatus;
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+};
+
+export type FosterApplicationListResponse = {
+  applications: FosterApplication[];
+};
+
+export type AdminFosterApplicationListResponse = FosterApplicationListResponse;
+
+export type VolunteerShift = {
+  id: string;
+  title: string;
+  /** Duties volunteers will perform. */
+  description: string;
+  /** Participation requirements such as footwear or training; may be empty. */
+  requirements: string;
+  /** Minimum age in years; 0 means no minimum. */
+  minAge: number;
+  startsAt: string;
+  endsAt: string;
+  capacity: number;
+  spotsRemaining: number;
+  /** True when the signed-in member already holds an active registration. */
+  registered: boolean;
+};
+
+export type VolunteerShiftListResponse = {
+  shifts: VolunteerShift[];
+};
+
+export type VolunteerRegistrationStatus = 'registered' | 'canceled';
+export type VolunteerCancelReason = 'member' | 'shift_canceled';
+
+export type VolunteerRegistration = {
+  id: string;
+  shiftId: string;
+  status: VolunteerRegistrationStatus;
+  canceledReason: VolunteerCancelReason | null;
+  createdAt: string;
+  updatedAt: string;
+  title: string;
+  description: string;
+  requirements: string;
+  startsAt: string;
+  endsAt: string;
+};
+
+export type VolunteerRegistrationListResponse = {
+  registrations: VolunteerRegistration[];
+};
+
+export type RegisterVolunteerInput = {
+  phone: string;
+  /** ISO calendar date (YYYY-MM-DD), checked against the shift's minimum age. */
+  dateOfBirth: string;
+};
+
+export type VolunteerShiftInput = {
+  title: string;
+  description: string;
+  requirements: string;
+  minAge: number;
+  startsAt: string;
+  endsAt: string;
+  capacity: number;
+};
+
+export type AdminVolunteerParticipant = {
+  id: string;
+  memberId: string;
+  memberName: string;
+  memberEmail: string;
+  memberPhone: string;
+  status: VolunteerRegistrationStatus;
+  registeredAt: string;
+};
+
+export type AdminVolunteerShift = Omit<VolunteerShift, 'spotsRemaining' | 'registered'> & {
+  status: 'published' | 'canceled';
+  createdAt: string;
+  /** Active registrations only. */
+  participants: AdminVolunteerParticipant[];
+};
+
+export type AdminVolunteerShiftListResponse = {
+  shifts: AdminVolunteerShift[];
+};
+
 export type VisitSlot = {
   id: string;
   startsAt: string;
