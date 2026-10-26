@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 const apiBase = process.env.DEMO_API_BASE ?? 'http://localhost:8787/api';
 const baxterId = 'b1000000-0000-0000-0000-000000000001';
 const rosieId = 'b1000000-0000-0000-0000-000000000004';
@@ -37,6 +39,15 @@ async function request(path, { body, cookie, method = 'GET' } = {}) {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+  return { response, body: await response.json().catch(() => null), cookie: cookieHeader(response) };
+}
+
+
+async function multipart(path, { fields = {}, files = [], cookie, method = 'POST' }) {
+  const form = new FormData();
+  for (const [name, value] of Object.entries(fields)) form.append(name, value);
+  for (const file of files) form.append(file.field, new Blob([file.bytes], { type: file.type }), file.name);
+  const response = await fetch(`${apiBase}${path}`, { method, headers: { Origin: 'http://localhost:4321', ...(cookie ? { Cookie: cookie } : {}) }, body: form });
   return { response, body: await response.json().catch(() => null), cookie: cookieHeader(response) };
 }
 
@@ -309,6 +320,93 @@ if (!afterShiftCancel.registrations?.some((item) => item.shiftId === kennelShift
 if (expectStatus(await request('/volunteer/shifts', { cookie: applicantCookie }), 200, 'shifts after cancellation').shifts.some((shift) => shift.id === kennelShiftId)) fail('a canceled shift is still listed for volunteers.');
 expectStatus(await request(`/volunteer/shifts/${kennelShiftId}/register`, { method: 'POST', cookie: applicantCookie, body: { phone: '(404) 555-0142', dateOfBirth: '1990-04-12' } }), 409, 'a canceled shift rejects registration');
 
+
+// AI quiz and lost-pet matching. Validation, authorization, limits, and inquiry rules run without a model;
+// the live model checks run only when the local API has an OpenRouter key.
+const quizAnswers = { livingSpace: 'apartment', household: 'adults', otherPets: 'none', activityLevel: 'low', hoursAlone: '4-8', experience: 'first-time', species: 'dog', size: 'any', age: 'any', traits: ['calm', 'cuddly'], notes: 'I work from home.' };
+expectStatus(await request('/quiz', { method: 'POST', body: quizAnswers }), 401, 'the quiz requires a login');
+expectStatus(await request('/quiz/latest'), 401, 'quiz results require a login');
+const emptyQuiz = await request('/quiz', { method: 'POST', cookie: applicantCookie, body: {} });
+expectStatus(emptyQuiz, 400, 'unanswered quiz questions are rejected');
+for (const fieldName of ['livingSpace', 'activityLevel', 'experience', 'species', 'traits']) {
+  if (!emptyQuiz.body?.fieldErrors?.[fieldName]) fail(`the quiz rejection did not identify the ${fieldName} question.`);
+}
+const manyTraits = await request('/quiz', { method: 'POST', cookie: applicantCookie, body: { ...quizAnswers, traits: ['calm', 'playful', 'cuddly', 'active'] } });
+expectStatus(manyTraits, 400, 'more than three quiz traits are rejected');
+if (!manyTraits.body?.fieldErrors?.traits) fail('too many traits did not identify the traits question.');
+expectStatus(await request('/quiz', { method: 'POST', cookie: applicantCookie, body: { ...quizAnswers, size: 'giant' } }), 400, 'an unknown quiz answer is rejected');
+const noQuizYet = expectStatus(await request('/quiz/latest', { cookie: applicantCookie }), 200, 'latest quiz before taking it');
+if (noQuizYet.result !== null) fail('a new member should not have a saved quiz result.');
+
+const baxterPhoto = readFileSync(new URL('../assets/demo-pets/baxter.jpg', import.meta.url));
+const photoFile = (name = 'baxter.jpg') => ({ field: 'photos', bytes: baxterPhoto, type: 'image/jpeg', name });
+expectStatus(await multipart('/lost-pet/searches', { fields: { species: 'Dog' }, files: [photoFile()] }), 401, 'lost-pet search requires a login');
+const noPhoto = await multipart('/lost-pet/searches', { cookie: applicantCookie, fields: { species: 'Dog' } });
+expectStatus(noPhoto, 400, 'a search without photos is rejected');
+if (!noPhoto.body?.fieldErrors?.photos) fail('the missing-photo rejection did not identify the photos field.');
+const wrongSpecies = await multipart('/lost-pet/searches', { cookie: applicantCookie, fields: { species: 'Dragon' }, files: [photoFile()] });
+expectStatus(wrongSpecies, 400, 'an unknown species is rejected');
+if (!wrongSpecies.body?.fieldErrors?.species) fail('the species rejection did not identify the species field.');
+const disguised = await multipart('/lost-pet/searches', { cookie: applicantCookie, fields: { species: 'Dog' }, files: [{ field: 'photos', bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>'), type: 'image/png', name: 'fake.png' }] });
+expectStatus(disguised, 400, 'a file that is not really an image is rejected');
+const gifUpload = await multipart('/lost-pet/searches', { cookie: applicantCookie, fields: { species: 'Dog' }, files: [{ field: 'photos', bytes: Buffer.from('GIF89a'), type: 'image/gif', name: 'pet.gif' }] });
+expectStatus(gifUpload, 400, 'an unsupported image type is rejected');
+const tooMany = await multipart('/lost-pet/searches', { cookie: applicantCookie, fields: { species: 'Dog' }, files: [photoFile('1.jpg'), photoFile('2.jpg'), photoFile('3.jpg'), photoFile('4.jpg')] });
+expectStatus(tooMany, 400, 'more than three photos are rejected');
+const oversize = await multipart('/lost-pet/searches', { cookie: applicantCookie, fields: { species: 'Dog' }, files: [{ field: 'photos', bytes: Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(5 * 1024 * 1024)]), type: 'image/jpeg', name: 'big.jpg' }] });
+expectStatus(oversize, 400, 'a photo over 5 MB is rejected');
+
+expectStatus(await request('/lost-pet/inquiries', { method: 'POST', cookie: applicantCookie, body: {} }), 400, 'an empty lost-pet inquiry is rejected');
+const orphanInquiry = await request('/lost-pet/inquiries', { method: 'POST', cookie: applicantCookie, body: { searchId: baxterId, petId: baxterId, phone: '(404) 555-0142', message: 'This search does not belong to me or exist.' } });
+expectStatus(orphanInquiry, 409, 'an inquiry for a search that does not exist is rejected');
+const noInquiries = expectStatus(await request('/lost-pet/inquiries', { cookie: applicantCookie }), 200, 'member lost-pet inquiries');
+if (noInquiries.inquiries?.length !== 0) fail('a new member should have no lost-pet inquiries.');
+expectStatus(await request('/admin/lost-pet-inquiries', { cookie: applicantCookie }), 403, 'a member cannot read lost-pet inquiries');
+expectStatus(await request('/admin/lost-pet/purge-expired', { method: 'POST', cookie: applicantCookie }), 403, 'a member cannot purge lost-pet data');
+expectStatus(await request('/admin/lost-pet-inquiries', { cookie: staffCookie }), 200, 'staff lost-pet inquiry list');
+expectStatus(await request('/admin/lost-pet/purge-expired', { method: 'POST', cookie: staffCookie }), 200, 'staff can purge expired lost-pet data');
+
+// With no cat photos in the shelter there is nothing to compare, so no model is called; the daily limit still counts each attempt.
+const limitUser = await request('/auth/register', { method: 'POST', body: { name: 'Limit Tester', email: `limit-${Date.now()}@pawheaven.local`, password: qaPassword } });
+expectStatus(limitUser, 201, 'register a disposable limit tester');
+for (let attempt = 1; attempt <= 5; attempt += 1) {
+  const result = await multipart('/lost-pet/searches', { cookie: limitUser.cookie, fields: { species: 'Cat' }, files: [photoFile()] });
+  expectStatus(result, 200, `lost-pet search ${attempt} with nothing to compare`);
+  if (result.body?.searchId !== null || result.body?.matches?.length !== 0 || !result.body?.notice) fail('a search with nothing to compare should return a notice and keep nothing.');
+}
+expectStatus(await multipart('/lost-pet/searches', { cookie: limitUser.cookie, fields: { species: 'Cat' }, files: [photoFile()] }), 429, 'the daily lost-pet search limit applies');
+
+const quiz = await request('/quiz', { method: 'POST', cookie: applicantCookie, body: quizAnswers });
+const aiLive = quiz.response.status !== 503;
+if (!aiLive) {
+  console.log('AI matching is not configured on this local API (no OPENROUTER_API_KEY in apps/api/.dev.vars): skipped the live quiz and photo-match checks.');
+} else {
+  const quizResult = expectStatus(quiz, 201, 'live pet-matching quiz');
+  if (!Array.isArray(quizResult.recommendations) || quizResult.recommendations.some((item) => item.pet?.status !== 'Available' || item.pet?.type?.toLowerCase() !== 'dog' || !item.reason || item.score < 40 || item.score > 100)) {
+    fail('the quiz returned recommendations that are not available dogs with a reason and a score.');
+  }
+  const latestQuiz = expectStatus(await request('/quiz/latest', { cookie: applicantCookie }), 200, 'latest quiz after taking it');
+  if (latestQuiz.result?.answers?.livingSpace !== 'apartment') fail('the quiz did not save the member answers.');
+
+  // Give Baxter a shelter photo, then search with that same photo: it must be the top possible match.
+  expectStatus(await multipart(`/admin/pets/${baxterId}/image`, { cookie: staffCookie, files: [{ field: 'image', bytes: baxterPhoto, type: 'image/jpeg', name: 'baxter.jpg' }] }), 200, 'staff uploads a shelter photo');
+  const search = await multipart('/lost-pet/searches', { cookie: applicantCookie, fields: { species: 'Dog', description: 'Large black, white, and tan dog' }, files: [photoFile()] });
+  const searchResult = expectStatus(search, 200, 'live lost-pet photo search');
+  const bestMatch = searchResult.matches?.[0];
+  if (!searchResult.searchId || bestMatch?.pet?.id !== baxterId || bestMatch.pet.medicalHistory !== undefined) fail('searching with Baxter\'s own photo did not return Baxter as the top, privacy-limited match.');
+  const inquiry = expectStatus(await request('/lost-pet/inquiries', { method: 'POST', cookie: applicantCookie, body: { searchId: searchResult.searchId, petId: baxterId, phone: '(404) 555-0142', message: 'I think Baxter is my dog. He went missing near Park Place on Friday.' } }), 201, 'send a lost-pet inquiry');
+  expectStatus(await request('/lost-pet/inquiries', { method: 'POST', cookie: applicantCookie, body: { searchId: searchResult.searchId, petId: baxterId, phone: '(404) 555-0142', message: 'Sending the same inquiry a second time.' } }), 409, 'a duplicate lost-pet inquiry is rejected');
+  const staffInquiries = expectStatus(await request('/admin/lost-pet-inquiries', { cookie: staffCookie }), 200, 'staff sees the inquiry');
+  const staffRow = staffInquiries.inquiries?.find((item) => item.id === inquiry.id);
+  if (!staffRow || staffRow.photoUrls?.length !== 1 || staffRow.memberEmail !== uniqueEmail) fail('staff did not see the inquiry with the member contact details and uploaded photo.');
+  const signedPhoto = await fetch(staffRow.photoUrls[0]);
+  if (!signedPhoto.ok) fail('the staff signed link to the member photo did not load.');
+  expectStatus(await request(`/admin/lost-pet-inquiries/${inquiry.id}`, { method: 'PUT', cookie: staffCookie, body: { status: 'In progress', staffNote: 'Called the owner to verify the microchip.' } }), 200, 'staff updates an inquiry');
+  expectStatus(await request(`/admin/lost-pet-inquiries/${inquiry.id}`, { method: 'PUT', cookie: staffCookie, body: { status: 'Closed', staffNote: '' } }), 400, 'an unknown inquiry status is rejected');
+  const mine = expectStatus(await request('/lost-pet/inquiries', { cookie: applicantCookie }), 200, 'member sees the inquiry status');
+  if (mine.inquiries?.[0]?.status !== 'In progress' || 'staffNote' in mine.inquiries[0]) fail('the member should see the status but never the staff note.');
+}
+
 // Staff role: limited to pets, applications, and the visit schedule.
 const superCookie = await login(superuserEmail, superuserPassword);
 const staffIdentity = expectStatus(await request('/admin/me', { cookie: staffCookie }), 200, 'staff portal access');
@@ -357,4 +455,4 @@ expectStatus(await request('/auth/logout', { method: 'POST', cookie: staffCookie
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: applicantCookie }), 200, 'applicant logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: superCookie }), 200, 'superuser logout');
 
-console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, visit booking/reschedule/cancellation history, staff visit scheduling, session expiry, and logout.');
+console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, visit booking/reschedule/cancellation history, staff visit scheduling, session expiry, and logout.');

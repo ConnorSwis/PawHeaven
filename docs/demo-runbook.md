@@ -59,7 +59,7 @@ discovery, unavailable-pet hiding, member/admin boundaries, required answers,
 duplicate rejection, visit booking/rescheduling/cancellation confirmations,
 staff scheduling, foster application validation and review, volunteer
 registration rules (capacity, minimum age, overlap, duplicate, cancellation,
-shift cancellation), expired-session rejection, application review, outcome
+shift cancellation), quiz and lost-pet validation, limits, and (with a key) live matching, expired-session rejection, application review, outcome
 visibility, and logout. It refuses non-loopback URLs.
 
 For database policy coverage, also run:
@@ -67,6 +67,7 @@ For database policy coverage, also run:
 ```sh
 npm run db:test
 npm run qa:discovery
+npm run qa:ai
 ```
 
 ## Two-to-three-minute presentation
@@ -100,6 +101,17 @@ npm run qa:discovery
    section, show the participant list, then cancel the shift to cancel the
    registration and email the volunteer.
 
+9. **3:30 — AI matching:** Open `http://localhost:4321/quiz` as the demo
+   applicant, answer the questions, and show the recommended animals with
+   their reasons. Change an answer and resubmit to show the update. This and
+   the next step need `OPENROUTER_API_KEY` in `apps/api/.dev.vars`.
+10. **4:15 — lost pet:** Give Baxter a shelter photo from the administrator
+    portal (use `assets/demo-pets/baxter.jpg`), then open
+    `http://localhost:4321/lost-pet`, upload the same photo as a Dog, and send
+    staff an inquiry about the match. Show the inquiry, the member's photo,
+    and the status control in the portal's Lost-pet inquiries section, then
+    open `/lost-pet/flyer`, fill in the template, and print it.
+
 Reset the local database before another presentation so the application starts
 in the expected pending state.
 
@@ -117,5 +129,8 @@ Capture these local pages after reset for a report or slide deck:
 7. `07-foster-application-form.png` — Baxter’s foster application form.
 8. `08-public-volunteer-shifts.png` — `/volunteer` with open and full shifts.
 9. `09-admin-volunteer-shifts.png` — the administrator's shift form and participant list.
+10. `10-pet-quiz-results.png` — recommendations with reasons.
+11. `11-lost-pet-matches.png` — possible matches with the ownership notice.
+12. `12-lost-pet-flyer.png` — the printable flyer template.
 
 Do not capture real applicant information or production URLs.

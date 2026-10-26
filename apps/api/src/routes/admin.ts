@@ -3,6 +3,7 @@ import { adminIdentity, adminUser, clearSession, sessionResponse, type AdminCont
 import { adminApplicationRoutes } from './admin-applications';
 import { adminFosterApplicationRoutes } from './admin-foster-applications';
 import { adminInvitationRoutes } from './admin-invitations';
+import { adminLostPetRoutes } from './admin-lost-pets';
 import { adminPetRoutes } from './admin-pets';
 import { adminUserRoutes } from './admin-users';
 import { adminVisitRoutes } from './admin-visits';
@@ -29,6 +30,7 @@ export async function adminRoutes(context: RouteContext): Promise<ApiResponse> {
     ?? (await adminFosterApplicationRoutes(admin))
     ?? (await adminVisitRoutes(admin))
     ?? (await adminVolunteerRoutes(admin))
+    ?? (await adminLostPetRoutes(admin))
     ?? errorResponse('Not found.', 404);
   return sessionResponse(response, request, current);
 }

@@ -16,3 +16,12 @@ ADMIN_INVITE_REDIRECT_URL="http://localhost:4322/accept-invite"
 # EMAIL_LOCAL_DELIVERY is "true" (seeded demo addresses are unreachable).
 RESEND_API_KEY="re_your_resend_key"
 EMAIL_LOCAL_DELIVERY="false"
+# AI matching (pet quiz and lost-pet photo search) uses OpenRouter. Without a
+# key those features report that matching is unavailable.
+OPENROUTER_API_KEY="sk-or-your-openrouter-key"
+# Optional model overrides (defaults: anthropic/claude-haiku-5.5 with a
+# google/gemini-2.5-flash-lite fallback). The vision model must accept images.
+# OPENROUTER_QUIZ_MODEL="anthropic/claude-haiku-5.5"
+# OPENROUTER_VISION_MODEL="anthropic/claude-haiku-5.5"
+# Optional: also email lost-pet inquiries to the shelter.
+# SHELTER_NOTIFICATION_EMAIL="shelter@example.org"
