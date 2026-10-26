@@ -5,7 +5,7 @@
 </div>
 
 <script>
-  import { passwordProblem, type AdoptionApplicationListResponse, type ApiUser, type ChangeEmailInput, type ChangePasswordInput, type FieldErrors, type RescheduleVisitInput, type VisitAppointmentListResponse, type VisitSlotListResponse } from '@pawheaven/contracts';
+  import { passwordProblem, type AdoptionApplicationListResponse, type ApiUser, type FosterApplicationListResponse, type VolunteerRegistrationListResponse, type ChangeEmailInput, type ChangePasswordInput, type FieldErrors, type RescheduleVisitInput, type VisitAppointmentListResponse, type VisitSlotListResponse } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
   const panel = document.querySelector<HTMLElement>('[data-account-panel]');
 
@@ -116,9 +116,17 @@
     const applications = document.createElement('section');
     applications.className = 'mt-8 border-t border-stone-300 pt-6';
     applications.setAttribute('aria-live', 'polite');
-    panel.append(profile, security, logout, visits, applications);
+    const fosterApplications = document.createElement('section');
+    fosterApplications.className = 'mt-8 border-t border-stone-300 pt-6';
+    fosterApplications.setAttribute('aria-live', 'polite');
+    const volunteering = document.createElement('section');
+    volunteering.className = 'mt-8 border-t border-stone-300 pt-6';
+    volunteering.setAttribute('aria-live', 'polite');
+    panel.append(profile, security, logout, visits, applications, fosterApplications, volunteering);
     void showAppointments(visits);
     void showApplications(applications);
+    void showFosterApplications(fosterApplications);
+    void showVolunteerShifts(volunteering);
   }
 
   class AccountError extends Error {
@@ -367,6 +375,96 @@
       target.replaceChildren(
         textElement('h2', 'text-lg font-semibold text-stone-950', 'Your adoption applications'),
         textElement('p', 'mt-2 leading-7 text-stone-700', 'We could not load your applications right now. Please try again later.'),
+      );
+    }
+  }
+
+  async function showFosterApplications(target: HTMLElement) {
+    target.replaceChildren(textElement('p', 'text-sm text-stone-600', 'Loading your foster applications…'));
+    try {
+      const payload = await visitResponse<FosterApplicationListResponse>('/foster-applications');
+      target.replaceChildren(textElement('h2', 'text-lg font-semibold text-stone-950', 'Your foster applications'));
+      if (!payload.applications.length) {
+        target.append(textElement('p', 'mt-2 leading-7 text-stone-700', 'You have not submitted a foster application yet. Pets that are open to foster say so on their details page.'));
+        return;
+      }
+      const list = document.createElement('ul');
+      list.className = 'mt-4 grid gap-3';
+      for (const application of payload.applications) {
+        const item = document.createElement('li');
+        item.className = 'border border-stone-300 bg-white px-4 py-3';
+        item.append(
+          textElement('p', 'font-medium text-stone-950', application.petName),
+          textElement('p', 'mt-1 text-sm text-stone-700', `Status: ${application.status}`),
+          textElement('p', 'mt-1 text-sm text-stone-700', `Care period: ${application.availableFrom} to ${application.availableUntil}`),
+        );
+        list.append(item);
+      }
+      target.append(list);
+    } catch {
+      target.replaceChildren(
+        textElement('h2', 'text-lg font-semibold text-stone-950', 'Your foster applications'),
+        textElement('p', 'mt-2 leading-7 text-stone-700', 'We could not load your foster applications right now. Please try again later.'),
+      );
+    }
+  }
+
+  async function showVolunteerShifts(target: HTMLElement) {
+    target.replaceChildren(textElement('p', 'text-sm text-stone-600', 'Loading your volunteer shifts…'));
+    try {
+      const payload = await visitResponse<VolunteerRegistrationListResponse>('/volunteer/registrations');
+      target.replaceChildren(
+        textElement('h2', 'text-lg font-semibold text-stone-950', 'Your volunteer shifts'),
+        textElement('p', 'mt-2 leading-7 text-stone-700', 'Shift times are shown in America/New_York.'),
+      );
+      if (!payload.registrations.length) {
+        const empty = textElement('p', 'mt-4 leading-7 text-stone-700', 'You have not signed up to volunteer yet.');
+        const browse = document.createElement('a');
+        browse.href = '/volunteer';
+        browse.className = 'mt-4 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4';
+        browse.textContent = 'Find a volunteer shift';
+        target.append(empty, browse);
+        return;
+      }
+      const list = document.createElement('div');
+      list.className = 'mt-5 grid gap-4';
+      for (const registration of payload.registrations) {
+        const item = document.createElement('article');
+        item.className = 'border border-stone-300 bg-white p-5';
+        const label = registration.status === 'registered'
+          ? 'Signed up'
+          : registration.canceledReason === 'shift_canceled' ? 'Canceled by the shelter' : 'Canceled';
+        item.append(
+          textElement('h3', 'font-semibold text-stone-950', registration.title),
+          textElement('p', 'mt-1 text-sm text-stone-700', `${formatVisitTime(registration.startsAt, registration.endsAt)} · ${label}`),
+        );
+        if (registration.status === 'registered' && Date.parse(registration.startsAt) > Date.now()) {
+          const cancel = textElement('button', 'mt-4 text-sm font-medium text-red-800 underline underline-offset-4 hover:text-red-950 disabled:cursor-wait disabled:opacity-70', 'Cancel sign-up') as HTMLButtonElement;
+          cancel.type = 'button';
+          const result = document.createElement('p');
+          result.setAttribute('role', 'status');
+          cancel.addEventListener('click', async () => {
+            if (!window.confirm('Cancel this volunteer shift? Your spot will open for someone else.')) return;
+            cancel.disabled = true;
+            cancel.textContent = 'Canceling…';
+            try {
+              await visitResponse(`/volunteer/registrations/${encodeURIComponent(registration.id)}/cancel`, { method: 'POST' });
+              await showVolunteerShifts(target);
+            } catch (exception) {
+              visitMessage(result, exception instanceof Error ? exception.message : 'We could not cancel your sign-up.', true);
+              cancel.disabled = false;
+              cancel.textContent = 'Cancel sign-up';
+            }
+          });
+          item.append(cancel, result);
+        }
+        list.append(item);
+      }
+      target.append(list);
+    } catch {
+      target.replaceChildren(
+        textElement('h2', 'text-lg font-semibold text-stone-950', 'Your volunteer shifts'),
+        textElement('p', 'mt-2 leading-7 text-stone-700', 'We could not load your volunteer shifts right now. Please try again later.'),
       );
     }
   }

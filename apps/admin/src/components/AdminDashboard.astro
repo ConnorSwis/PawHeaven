@@ -1,3 +1,8 @@
+---
+import AdminFosterApplications from './AdminFosterApplications.astro';
+import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
+---
+
 <section data-admin-dashboard aria-live="polite">
   <p data-loading class="text-sm text-stone-700">Checking staff access…</p>
 
@@ -116,6 +121,8 @@
       <div data-application-list class="mt-5 grid gap-4"></div>
     </section>
 
+    <AdminFosterApplications />
+
     <section class="mt-10 border-t border-stone-300 pt-8" aria-labelledby="visit-schedule-title">
       <h2 id="visit-schedule-title" class="text-lg font-semibold text-stone-950">Shelter visit schedule</h2>
       <p class="mt-2 max-w-2xl leading-6 text-stone-700">Publish general visit times and review confirmed visitor details. Times are entered and displayed in America/New_York.</p>
@@ -133,12 +140,15 @@
       </form>
       <div data-visit-slot-list class="mt-6 grid gap-4"></div>
     </section>
+
+    <AdminVolunteerShifts />
   </div>
 </section>
 
 <script>
   import type { AdminAdoptionApplicationListResponse, AdminInvitation, FieldErrors, AdminInvitationListResponse, AdminPetListResponse, AdminUser, AdminVisitScheduleResponse, AdminVisitSlot, AdoptionApplication, AdoptionApplicationStatus, Pet, PetInput, PublishVisitSlotInput } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
+  import { newYorkInstant } from '../lib/shelter-time';
 
   const dashboard = document.querySelector<HTMLElement>('[data-admin-dashboard]');
   const loading = dashboard?.querySelector<HTMLElement>('[data-loading]');
@@ -416,11 +426,6 @@
   }
 
   const shelterTimeZone = 'America/New_York';
-  const localPartsFormatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: shelterTimeZone,
-    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
-  });
-
   function formatVisitTime(startsAt: string, endsAt: string) {
     const start = new Date(startsAt);
     const end = new Date(endsAt);
@@ -428,30 +433,6 @@
     const date = new Intl.DateTimeFormat(undefined, { timeZone: shelterTimeZone, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).format(start);
     const range = new Intl.DateTimeFormat(undefined, { timeZone: shelterTimeZone, hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).formatRange(start, end);
     return `${date} · ${range}`;
-  }
-
-  function formatterParts(date: Date) {
-    const pieces = localPartsFormatter.formatToParts(date);
-    const get = (type: Intl.DateTimeFormatPartTypes) => Number(pieces.find((part) => part.type === type)?.value);
-    return { year: get('year'), month: get('month'), day: get('day'), hour: get('hour'), minute: get('minute'), second: get('second') };
-  }
-
-  /** Converts a datetime-local value as a New York civil time, rejecting DST gaps and folds. */
-  function newYorkInstant(value: string): string | null {
-    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
-    if (!match) return null;
-    const [year, month, day, hour, minute] = match.slice(1).map(Number);
-    const naive = Date.UTC(year, month - 1, day, hour, minute, 0);
-    if (Number.isNaN(naive)) return null;
-    const offsets = new Set([naive - 86_400_000, naive, naive + 86_400_000].map((probe) => {
-      const parts = formatterParts(new Date(probe));
-      return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - probe;
-    }));
-    const matches = [...offsets].map((offset) => new Date(naive - offset)).filter((candidate) => {
-      const parts = formatterParts(candidate);
-      return parts.year === year && parts.month === month && parts.day === day && parts.hour === hour && parts.minute === minute;
-    });
-    return matches.length === 1 ? matches[0].toISOString() : null;
   }
 
   function renderVisitSlots() {
