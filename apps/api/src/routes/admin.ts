@@ -1,10 +1,12 @@
 import { errorResponse, respond, type ApiResponse } from '../lib/http';
 import { adminIdentity, adminUser, clearSession, sessionResponse, type AdminContext, type RouteContext } from '../lib/session';
 import { adminApplicationRoutes } from './admin-applications';
+import { adminFosterApplicationRoutes } from './admin-foster-applications';
 import { adminInvitationRoutes } from './admin-invitations';
 import { adminPetRoutes } from './admin-pets';
 import { adminUserRoutes } from './admin-users';
 import { adminVisitRoutes } from './admin-visits';
+import { adminVolunteerRoutes } from './admin-volunteer';
 
 /**
  * Staff-level access gate. Every /admin route requires staff, admin, or
@@ -24,7 +26,9 @@ export async function adminRoutes(context: RouteContext): Promise<ApiResponse> {
     ?? (await adminInvitationRoutes(admin))
     ?? (await adminPetRoutes(admin))
     ?? (await adminApplicationRoutes(admin))
+    ?? (await adminFosterApplicationRoutes(admin))
     ?? (await adminVisitRoutes(admin))
+    ?? (await adminVolunteerRoutes(admin))
     ?? errorResponse('Not found.', 404);
   return sessionResponse(response, request, current);
 }
