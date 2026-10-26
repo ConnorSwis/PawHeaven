@@ -3,6 +3,11 @@ const baxterId = 'b1000000-0000-0000-0000-000000000001';
 const rosieId = 'b1000000-0000-0000-0000-000000000004';
 const firstVisitSlotId = 'c1000000-0000-0000-0000-000000000001';
 const secondVisitSlotId = 'c1000000-0000-0000-0000-000000000002';
+const poppyId = 'b1000000-0000-0000-0000-000000000009';
+const kennelShiftId = 'd1000000-0000-0000-0000-000000000001';
+const dogWalkShiftId = 'd1000000-0000-0000-0000-000000000002';
+const fullShiftId = 'd1000000-0000-0000-0000-000000000003';
+const overlappingShiftId = 'd1000000-0000-0000-0000-000000000004';
 const staffEmail = 'demo.staff@pawheaven.local';
 const staffPassword = 'DemoStaff-2026!';
 const superuserEmail = 'demo.superuser@pawheaven.local';
@@ -202,6 +207,108 @@ if (!applicationsPayload.applications?.some((item) => item.id === applicationPay
   fail('applicant cannot see the staff-recorded outcome.');
 }
 
+
+// Foster applications: fosterable pets only, validated availability window, staff review.
+const isoDay = (offsetDays) => new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
+const fosterDetails = {
+  ...applicationDetails,
+  householdSummary: 'Two adults, a quiet apartment, and a flexible work-from-home schedule for a foster pet.',
+  fosterExperience: 'We fostered two dogs for a local rescue last year and are comfortable with medication routines.',
+  availableFrom: isoDay(7),
+  availableUntil: isoDay(60),
+  note: '',
+};
+expectStatus(await request(`/foster-applications/pets/${baxterId}`, { method: 'POST', body: fosterDetails }), 401, 'foster applications require a login');
+expectStatus(await request(`/foster-applications/pets/${poppyId}`, { method: 'POST', cookie: applicantCookie, body: fosterDetails }), 409, 'a pet that is not open to foster is rejected');
+expectStatus(await request(`/foster-applications/pets/${rosieId}`, { method: 'POST', cookie: applicantCookie, body: fosterDetails }), 409, 'a non-available pet cannot receive a foster application');
+const emptyFoster = await request(`/foster-applications/pets/${baxterId}`, { method: 'POST', cookie: applicantCookie, body: {} });
+expectStatus(emptyFoster, 400, 'missing foster answers are rejected');
+for (const fieldName of ['applicantPhone', 'householdSummary', 'fosterExperience', 'availableFrom', 'availableUntil']) {
+  if (!emptyFoster.body?.fieldErrors?.[fieldName]) fail(`missing foster answers did not identify the ${fieldName} field.`);
+}
+const pastWindow = await request(`/foster-applications/pets/${baxterId}`, { method: 'POST', cookie: applicantCookie, body: { ...fosterDetails, availableFrom: isoDay(-30) } });
+expectStatus(pastWindow, 400, 'a foster window that starts in the past is rejected');
+if (!pastWindow.body?.fieldErrors?.availableFrom) fail('past foster start date did not identify availableFrom.');
+const backwardsWindow = await request(`/foster-applications/pets/${baxterId}`, { method: 'POST', cookie: applicantCookie, body: { ...fosterDetails, availableUntil: isoDay(3) } });
+expectStatus(backwardsWindow, 400, 'a foster window that ends before it starts is rejected');
+if (!backwardsWindow.body?.fieldErrors?.availableUntil) fail('backwards foster window did not identify availableUntil.');
+expectStatus(await request(`/foster-applications/pets/${baxterId}`, { method: 'POST', cookie: applicantCookie, body: { ...fosterDetails, availableUntil: isoDay(500) } }), 400, 'a foster window longer than a year is rejected');
+const fosterApplication = expectStatus(await request(`/foster-applications/pets/${baxterId}`, { method: 'POST', cookie: applicantCookie, body: fosterDetails }), 201, 'valid foster application');
+if (fosterApplication.status !== 'Pending' || fosterApplication.availableFrom !== fosterDetails.availableFrom) fail('the foster application did not begin Pending with its availability window.');
+expectStatus(await request(`/foster-applications/pets/${baxterId}`, { method: 'POST', cookie: applicantCookie, body: fosterDetails }), 409, 'duplicate foster application is rejected');
+expectStatus(await request('/admin/foster-applications', { cookie: applicantCookie }), 403, 'a member cannot list foster applications');
+const fosterQueue = expectStatus(await request('/admin/foster-applications', { cookie: staffCookie }), 200, 'staff foster queue');
+if (!fosterQueue.applications?.some((item) => item.id === fosterApplication.id)) fail('staff did not see the submitted foster application.');
+expectStatus(await request(`/admin/foster-applications/${fosterApplication.id}`, { method: 'PUT', cookie: staffCookie, body: { status: 'Pending' } }), 400, 'staff cannot move a foster application back to Pending');
+expectStatus(await request(`/admin/foster-applications/${fosterApplication.id}`, { method: 'PUT', cookie: staffCookie, body: { status: 'In review' } }), 200, 'staff reviews a foster application');
+const myFosterApplications = expectStatus(await request('/foster-applications', { cookie: applicantCookie }), 200, 'applicant foster application list');
+if (!myFosterApplications.applications?.some((item) => item.id === fosterApplication.id && item.status === 'In review')) fail('the applicant cannot see the foster review outcome.');
+const baxterAfterFoster = expectStatus(await request(`/pets/${baxterId}`), 200, 'pet stays public after a foster review');
+if (baxterAfterFoster.status !== 'Available') fail('a foster review changed the pet status.');
+
+// Volunteer shifts: capacity, minimum age, time conflicts, duplicates, cancellation, and staff management.
+expectStatus(await request('/volunteer/shifts'), 401, 'volunteer shifts require a login');
+const shiftList = expectStatus(await request('/volunteer/shifts', { cookie: applicantCookie }), 200, 'list volunteer shifts');
+const shiftById = (id) => shiftList.shifts?.find((shift) => shift.id === id);
+if (!shiftById(kennelShiftId) || shiftById(kennelShiftId).spotsRemaining !== 4 || shiftById(fullShiftId)?.spotsRemaining !== 0) fail('the seeded volunteer shifts did not report their remaining capacity.');
+const fullRegistration = await request(`/volunteer/shifts/${fullShiftId}/register`, { method: 'POST', cookie: applicantCookie, body: { phone: '(404) 555-0142', dateOfBirth: '1990-04-12' } });
+expectStatus(fullRegistration, 409, 'a full shift rejects registration');
+if (!/full/i.test(fullRegistration.body?.message ?? '')) fail('the full-shift rejection did not explain that the shift is full.');
+const minorDateOfBirth = new Date(Date.now() - 16 * 365 * 86_400_000).toISOString().slice(0, 10);
+const underAge = await request(`/volunteer/shifts/${dogWalkShiftId}/register`, { method: 'POST', cookie: applicantCookie, body: { phone: '(404) 555-0142', dateOfBirth: minorDateOfBirth } });
+expectStatus(underAge, 409, 'a volunteer below the minimum age is rejected');
+if (!/18/.test(underAge.body?.message ?? '')) fail('the minimum-age rejection did not state the required age.');
+const badVolunteerPhone = await request(`/volunteer/shifts/${kennelShiftId}/register`, { method: 'POST', cookie: applicantCookie, body: { phone: '12', dateOfBirth: '' } });
+expectStatus(badVolunteerPhone, 400, 'invalid volunteer contact details are rejected');
+if (!badVolunteerPhone.body?.fieldErrors?.phone || !badVolunteerPhone.body.fieldErrors.dateOfBirth) fail('invalid volunteer details did not identify each field.');
+const volunteerRegistration = expectStatus(await request(`/volunteer/shifts/${kennelShiftId}/register`, { method: 'POST', cookie: applicantCookie, body: { phone: '(404) 555-0142', dateOfBirth: '1990-04-12' } }), 201, 'register for a volunteer shift');
+expectStatus(await request(`/volunteer/shifts/${kennelShiftId}/register`, { method: 'POST', cookie: applicantCookie, body: { phone: '(404) 555-0142', dateOfBirth: '1990-04-12' } }), 409, 'duplicate volunteer registration is rejected');
+const conflicting = await request(`/volunteer/shifts/${overlappingShiftId}/register`, { method: 'POST', cookie: applicantCookie, body: { phone: '(404) 555-0142', dateOfBirth: '1990-04-12' } });
+expectStatus(conflicting, 409, 'an overlapping volunteer shift is rejected');
+if (!/overlap/i.test(conflicting.body?.message ?? '')) fail('the time-conflict rejection did not explain the overlap.');
+const afterRegistration = expectStatus(await request('/volunteer/shifts', { cookie: applicantCookie }), 200, 'volunteer shifts after registering');
+const kennelAfter = afterRegistration.shifts.find((shift) => shift.id === kennelShiftId);
+if (!kennelAfter?.registered || kennelAfter.spotsRemaining !== 3) fail('registering did not update the shift capacity and registered flag.');
+const myRegistrations = expectStatus(await request('/volunteer/registrations', { cookie: applicantCookie }), 200, 'member volunteer registrations');
+if (!myRegistrations.registrations?.some((item) => item.id === volunteerRegistration.registrationId && item.status === 'registered')) fail('the member registration list is missing the new registration.');
+
+expectStatus(await request('/admin/volunteer-shifts', { cookie: applicantCookie }), 403, 'a member cannot view the volunteer roster');
+const volunteerRoster = expectStatus(await request('/admin/volunteer-shifts', { cookie: staffCookie }), 200, 'staff volunteer roster');
+const rosterKennel = volunteerRoster.shifts?.find((shift) => shift.id === kennelShiftId);
+if (!rosterKennel?.participants?.some((participant) => participant.memberEmail === uniqueEmail)) fail('staff did not see the volunteer on the shift participant list.');
+const invalidShift = await request('/admin/volunteer-shifts', { method: 'POST', cookie: staffCookie, body: { title: '', description: '', requirements: '', minAge: -1, capacity: 0, startsAt: '2001-01-01T00:00:00.000Z', endsAt: '2001-01-01T01:00:00.000Z' } });
+expectStatus(invalidShift, 400, 'an invalid volunteer shift is rejected');
+for (const fieldName of ['title', 'description', 'minAge', 'capacity', 'startsAt']) {
+  if (!invalidShift.body?.fieldErrors?.[fieldName]) fail(`invalid volunteer shift rejection did not identify the ${fieldName} field.`);
+}
+const shiftStart = new Date(Date.now() + 20 * 86_400_000);
+const newShift = expectStatus(await request('/admin/volunteer-shifts', {
+  method: 'POST', cookie: staffCookie,
+  body: { title: 'QA cleanup', description: 'Temporary QA shift.', requirements: '', minAge: 0, capacity: 2, startsAt: shiftStart.toISOString(), endsAt: new Date(shiftStart.getTime() + 2 * 3_600_000).toISOString() },
+}), 201, 'staff publishes a volunteer shift');
+if (!newShift.id) fail('publishing a volunteer shift did not return its id.');
+expectStatus(await request(`/admin/volunteer-shifts/${kennelShiftId}`, {
+  method: 'PUT', cookie: staffCookie,
+  body: { title: rosterKennel.title, description: rosterKennel.description, requirements: rosterKennel.requirements, minAge: rosterKennel.minAge, capacity: 5, startsAt: new Date(Date.parse(rosterKennel.startsAt) + 3_600_000).toISOString(), endsAt: new Date(Date.parse(rosterKennel.endsAt) + 3_600_000).toISOString() },
+}), 409, 'the time of a shift with volunteers cannot change');
+expectStatus(await request(`/admin/volunteer-shifts/${kennelShiftId}`, {
+  method: 'PUT', cookie: staffCookie,
+  body: { title: rosterKennel.title, description: rosterKennel.description, requirements: rosterKennel.requirements, minAge: rosterKennel.minAge, capacity: 5, startsAt: new Date(rosterKennel.startsAt).toISOString(), endsAt: new Date(rosterKennel.endsAt).toISOString() },
+}), 200, 'staff raises shift capacity');
+expectStatus(await request(`/admin/volunteer-shifts/${newShift.id}/cancel`, { method: 'POST', cookie: staffCookie }), 200, 'staff cancels an empty shift');
+
+expectStatus(await request(`/volunteer/registrations/${volunteerRegistration.registrationId}/cancel`, { method: 'POST', cookie: applicantCookie }), 200, 'member cancels a volunteer registration');
+expectStatus(await request(`/volunteer/registrations/${volunteerRegistration.registrationId}/cancel`, { method: 'POST', cookie: applicantCookie }), 409, 'canceling twice is rejected');
+const afterCancel = expectStatus(await request('/volunteer/shifts', { cookie: applicantCookie }), 200, 'volunteer shifts after canceling');
+if (afterCancel.shifts.find((shift) => shift.id === kennelShiftId)?.spotsRemaining !== 5) fail('canceling did not free the volunteer spot.');
+expectStatus(await request(`/volunteer/shifts/${kennelShiftId}/register`, { method: 'POST', cookie: applicantCookie, body: { phone: '(404) 555-0142', dateOfBirth: '1990-04-12' } }), 201, 'register again after canceling');
+const canceledShift = expectStatus(await request(`/admin/volunteer-shifts/${kennelShiftId}/cancel`, { method: 'POST', cookie: staffCookie }), 200, 'staff cancels a shift with volunteers');
+if (canceledShift.notified !== 1) fail('canceling a shift did not report notifying its volunteer.');
+const afterShiftCancel = expectStatus(await request('/volunteer/registrations', { cookie: applicantCookie }), 200, 'registrations after the shift was canceled');
+if (!afterShiftCancel.registrations?.some((item) => item.shiftId === kennelShiftId && item.status === 'canceled' && item.canceledReason === 'shift_canceled')) fail('the volunteer was not told the shelter canceled the shift.');
+if (expectStatus(await request('/volunteer/shifts', { cookie: applicantCookie }), 200, 'shifts after cancellation').shifts.some((shift) => shift.id === kennelShiftId)) fail('a canceled shift is still listed for volunteers.');
+expectStatus(await request(`/volunteer/shifts/${kennelShiftId}/register`, { method: 'POST', cookie: applicantCookie, body: { phone: '(404) 555-0142', dateOfBirth: '1990-04-12' } }), 409, 'a canceled shift rejects registration');
+
 // Staff role: limited to pets, applications, and the visit schedule.
 const superCookie = await login(superuserEmail, superuserPassword);
 const staffIdentity = expectStatus(await request('/admin/me', { cookie: staffCookie }), 200, 'staff portal access');
@@ -250,4 +357,4 @@ expectStatus(await request('/auth/logout', { method: 'POST', cookie: staffCookie
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: applicantCookie }), 200, 'applicant logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: superCookie }), 200, 'superuser logout');
 
-console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, visit booking/reschedule/cancellation history, staff visit scheduling, session expiry, and logout.');
+console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, visit booking/reschedule/cancellation history, staff visit scheduling, session expiry, and logout.');

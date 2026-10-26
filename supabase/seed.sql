@@ -169,3 +169,50 @@ values
     ((timezone('America/New_York', now())::date + 2 + time '14:30') at time zone 'America/New_York'),
     'a1000000-0000-0000-0000-000000000002'
   );
+
+-- Volunteer demo shifts, relative to the seed date in the shelter timezone.
+-- The kennel shift and the laundry shift overlap so the time-conflict message
+-- can be shown; the adoption-event shift is already full (staff and a
+-- superuser account stand in as volunteers); the dog-walking shift has an
+-- 18+ minimum age.
+insert into public.volunteer_shifts (id, title, description, requirements, min_age, starts_at, ends_at, capacity, created_by)
+values
+  (
+    'd1000000-0000-0000-0000-000000000001', 'Kennel care',
+    'Clean and refill kennels, fresh water, and bedding for the dogs and cats.',
+    'Closed-toe shoes. No experience needed; staff will train you.', 0,
+    ((timezone('America/New_York', now())::date + 3 + time '09:00') at time zone 'America/New_York'),
+    ((timezone('America/New_York', now())::date + 3 + time '12:00') at time zone 'America/New_York'),
+    4, 'a1000000-0000-0000-0000-000000000002'
+  ),
+  (
+    'd1000000-0000-0000-0000-000000000002', 'Dog walking',
+    'Walk shelter dogs on the trail behind the building and log how each walk went.',
+    'Comfortable handling large dogs. Volunteers must be 18 or older.', 18,
+    ((timezone('America/New_York', now())::date + 4 + time '10:00') at time zone 'America/New_York'),
+    ((timezone('America/New_York', now())::date + 4 + time '12:00') at time zone 'America/New_York'),
+    6, 'a1000000-0000-0000-0000-000000000002'
+  ),
+  (
+    'd1000000-0000-0000-0000-000000000003', 'Adoption event greeter',
+    'Welcome visitors at the weekend adoption event and hand out information sheets.',
+    '', 16,
+    ((timezone('America/New_York', now())::date + 5 + time '13:00') at time zone 'America/New_York'),
+    ((timezone('America/New_York', now())::date + 5 + time '16:00') at time zone 'America/New_York'),
+    1, 'a1000000-0000-0000-0000-000000000002'
+  ),
+  (
+    'd1000000-0000-0000-0000-000000000004', 'Laundry and supplies',
+    'Wash blankets and towels and restock the supply closet.',
+    '', 0,
+    ((timezone('America/New_York', now())::date + 3 + time '11:00') at time zone 'America/New_York'),
+    ((timezone('America/New_York', now())::date + 3 + time '13:00') at time zone 'America/New_York'),
+    3, 'a1000000-0000-0000-0000-000000000002'
+  );
+
+insert into public.volunteer_registrations (shift_id, member_id, member_name, member_email, member_phone, member_date_of_birth)
+values
+  (
+    'd1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000003',
+    'Demo Superuser', 'demo.superuser@pawheaven.local', '(404) 555-0100', date '1985-06-15'
+  );

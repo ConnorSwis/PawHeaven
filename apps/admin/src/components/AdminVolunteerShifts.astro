@@ -1,0 +1,258 @@
+<section class="mt-10 border-t border-stone-300 pt-8" aria-labelledby="volunteer-shifts-title">
+  <h2 id="volunteer-shifts-title" class="text-lg font-semibold text-stone-950">Volunteer shifts</h2>
+  <p class="mt-2 max-w-2xl leading-6 text-stone-700">Publish shifts with duties, requirements, a minimum age, and a capacity. Times are entered and displayed in America/New_York. Canceling a shift cancels every registration and emails the volunteers.</p>
+  <form data-shift-form class="mt-6 grid max-w-3xl gap-5 border-y border-stone-300 py-6 sm:grid-cols-2" novalidate>
+    <div class="flex flex-wrap items-baseline justify-between gap-3 sm:col-span-2">
+      <h3 data-shift-form-title class="font-semibold text-stone-950">Publish a shift</h3>
+      <button data-shift-cancel-edit type="button" class="hidden text-sm font-medium text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950">Cancel editing</button>
+    </div>
+    <label class="block text-sm font-medium text-stone-900 sm:col-span-2">Title
+      <input data-shift-field="title" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="100" required />
+    </label>
+    <label class="block text-sm font-medium text-stone-900 sm:col-span-2">Duties
+      <textarea data-shift-field="description" class="mt-2 block min-h-24 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="2000" required></textarea>
+    </label>
+    <label class="block text-sm font-medium text-stone-900 sm:col-span-2">Requirements (optional)
+      <textarea data-shift-field="requirements" class="mt-2 block min-h-16 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="1000" placeholder="Footwear, training, physical demands"></textarea>
+    </label>
+    <label class="block text-sm font-medium text-stone-900">Start time
+      <input data-shift-field="startsAt" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" type="datetime-local" required />
+    </label>
+    <label class="block text-sm font-medium text-stone-900">End time
+      <input data-shift-field="endsAt" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" type="datetime-local" required />
+    </label>
+    <label class="block text-sm font-medium text-stone-900">Capacity
+      <input data-shift-field="capacity" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" type="number" min="1" max="500" value="5" required />
+    </label>
+    <label class="block text-sm font-medium text-stone-900">Minimum age (0 for none)
+      <input data-shift-field="minAge" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" type="number" min="0" max="99" value="0" required />
+    </label>
+    <p data-shift-lock-note class="hidden text-sm leading-6 text-stone-700 sm:col-span-2">Volunteers have registered, so the time and minimum age are locked. Capacity cannot go below the number registered.</p>
+    <div class="flex flex-wrap items-center gap-3 sm:col-span-2">
+      <button data-shift-submit type="submit" class="bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70">Publish shift</button>
+      <p data-shift-form-message class="hidden text-sm" role="status"></p>
+    </div>
+  </form>
+  <div data-shift-list class="mt-6 grid gap-4" aria-live="polite">
+    <p class="text-sm text-stone-700">Loading volunteer shifts…</p>
+  </div>
+</section>
+
+<script>
+  import type { AdminVolunteerShift, AdminVolunteerShiftListResponse, FieldErrors, VolunteerShiftInput } from '@pawheaven/contracts';
+  import { apiBase } from '../lib/api';
+  import { formatShelterRange, newYorkInstant, newYorkLocalInput } from '../lib/shelter-time';
+
+  const root = document.querySelector<HTMLElement>('[aria-labelledby="volunteer-shifts-title"]');
+  const form = root?.querySelector<HTMLFormElement>('[data-shift-form]');
+  const formTitle = root?.querySelector<HTMLElement>('[data-shift-form-title]');
+  const formMessage = root?.querySelector<HTMLElement>('[data-shift-form-message]');
+  const submitButton = root?.querySelector<HTMLButtonElement>('[data-shift-submit]');
+  const cancelEdit = root?.querySelector<HTMLButtonElement>('[data-shift-cancel-edit]');
+  const lockNote = root?.querySelector<HTMLElement>('[data-shift-lock-note]');
+  const list = root?.querySelector<HTMLElement>('[data-shift-list]');
+  let shifts: AdminVolunteerShift[] = [];
+  let editingId: string | null = null;
+
+  function textNode(tag: string, className: string, content: string) {
+    const node = document.createElement(tag);
+    node.className = className;
+    node.textContent = content;
+    return node;
+  }
+
+  function message(target: HTMLElement | null | undefined, text: string, success = false) {
+    if (!target) return;
+    target.textContent = text;
+    target.className = `text-sm ${success ? 'text-[var(--color-moss-dark)]' : 'text-red-800'}`;
+  }
+
+  class ApiError extends Error {
+    fieldErrors?: FieldErrors;
+    constructor(text: string, fieldErrors?: FieldErrors) { super(text); this.fieldErrors = fieldErrors; }
+  }
+
+  async function request<T>(path: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(`${apiBase}${path}`, { credentials: 'include', ...init });
+    const payload = await response.json().catch(() => null) as { message?: unknown; fieldErrors?: FieldErrors } | T | null;
+    if (!response.ok) {
+      const failure = payload as { message?: unknown; fieldErrors?: FieldErrors } | null;
+      throw new ApiError(typeof failure?.message === 'string' ? failure.message : 'The request could not be completed.', failure?.fieldErrors);
+    }
+    return payload as T;
+  }
+
+  function input(name: string): HTMLInputElement | HTMLTextAreaElement {
+    const control = form?.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-shift-field="${name}"]`);
+    if (!control) throw new Error(`Missing ${name} field.`);
+    return control;
+  }
+
+  function showFieldErrors(fieldErrors: FieldErrors = {}) {
+    for (const control of form?.querySelectorAll<HTMLElement>('[data-shift-field]') ?? []) {
+      const name = control.dataset.shiftField ?? '';
+      const container = control.closest('label') ?? control.parentElement;
+      let error = container?.querySelector<HTMLElement>(`[data-shift-field-error="${name}"]`);
+      if (!error && container) {
+        error = document.createElement('span');
+        error.dataset.shiftFieldError = name;
+        error.setAttribute('role', 'alert');
+        container.append(error);
+      }
+      if (!error) continue;
+      error.textContent = fieldErrors[name] ?? '';
+      error.className = fieldErrors[name] ? 'mt-2 block text-sm font-medium text-red-800' : 'hidden';
+      if (fieldErrors[name]) control.setAttribute('aria-invalid', 'true'); else control.removeAttribute('aria-invalid');
+    }
+    form?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }
+
+  function setLocked(locked: boolean) {
+    for (const name of ['startsAt', 'endsAt', 'minAge']) (input(name) as HTMLInputElement).disabled = locked;
+    lockNote?.classList.toggle('hidden', !locked);
+  }
+
+  function resetForm() {
+    editingId = null;
+    form?.reset();
+    setLocked(false);
+    if (formTitle) formTitle.textContent = 'Publish a shift';
+    if (submitButton) submitButton.textContent = 'Publish shift';
+    cancelEdit?.classList.add('hidden');
+    showFieldErrors();
+  }
+
+  function editShift(shift: AdminVolunteerShift) {
+    editingId = shift.id;
+    input('title').value = shift.title;
+    input('description').value = shift.description;
+    input('requirements').value = shift.requirements;
+    input('startsAt').value = newYorkLocalInput(shift.startsAt);
+    input('endsAt').value = newYorkLocalInput(shift.endsAt);
+    input('capacity').value = String(shift.capacity);
+    input('minAge').value = String(shift.minAge);
+    setLocked(shift.participants.length > 0);
+    showFieldErrors();
+    message(formMessage, '');
+    if (formTitle) formTitle.textContent = `Edit ${shift.title}`;
+    if (submitButton) submitButton.textContent = 'Save changes';
+    cancelEdit?.classList.remove('hidden');
+    form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function render() {
+    if (!list) return;
+    list.replaceChildren();
+    if (!shifts.length) {
+      list.append(textNode('p', 'text-sm leading-6 text-stone-700', 'No volunteer shifts have been published yet.'));
+      return;
+    }
+    for (const shift of shifts) {
+      const upcoming = shift.status === 'published' && Date.parse(shift.startsAt) > Date.now();
+      const card = document.createElement('article');
+      card.className = 'border border-stone-300 bg-white p-5';
+      const state = shift.status === 'canceled' ? 'Canceled' : upcoming ? 'Published' : 'Past';
+      card.append(
+        textNode('h3', 'font-semibold text-stone-950', shift.title),
+        textNode('p', 'mt-1 text-sm text-stone-700', `${formatShelterRange(shift.startsAt, shift.endsAt)} · ${state} · ${shift.participants.length} of ${shift.capacity} registered${shift.minAge ? ` · ${shift.minAge}+` : ''}`),
+        textNode('p', 'mt-3 whitespace-pre-wrap leading-7 text-stone-800', shift.description),
+      );
+      if (shift.requirements) card.append(textNode('p', 'mt-2 whitespace-pre-wrap text-sm leading-6 text-stone-700', `Requirements: ${shift.requirements}`));
+      const roster = document.createElement('div');
+      roster.className = 'mt-4 border-t border-stone-200 pt-4';
+      roster.append(textNode('h4', 'text-sm font-semibold text-stone-950', 'Participants'));
+      if (!shift.participants.length) {
+        roster.append(textNode('p', 'mt-2 text-sm text-stone-700', shift.status === 'canceled' ? 'Registrations were canceled with the shift.' : 'No one has registered yet.'));
+      } else {
+        const people = document.createElement('ul');
+        people.className = 'mt-2 grid gap-1 text-sm text-stone-800';
+        for (const participant of shift.participants) people.append(textNode('li', '', `${participant.memberName} · ${participant.memberEmail} · ${participant.memberPhone}`));
+        roster.append(people);
+      }
+      card.append(roster);
+      if (upcoming) {
+        const controls = document.createElement('div');
+        controls.className = 'mt-5 flex flex-wrap items-center gap-4';
+        const edit = textNode('button', 'border border-stone-400 px-4 py-2 text-sm font-semibold text-stone-900 transition-colors hover:bg-stone-100', 'Edit shift') as HTMLButtonElement;
+        edit.type = 'button';
+        edit.addEventListener('click', () => editShift(shift));
+        const cancel = textNode('button', 'text-sm font-medium text-red-800 underline underline-offset-4 hover:text-red-950 disabled:cursor-wait disabled:opacity-70', 'Cancel shift') as HTMLButtonElement;
+        cancel.type = 'button';
+        const result = textNode('p', 'text-sm', '');
+        result.setAttribute('role', 'status');
+        cancel.addEventListener('click', async () => {
+          const warning = shift.participants.length
+            ? `Cancel “${shift.title}”? This cancels ${shift.participants.length} registration(s) and emails each volunteer.`
+            : `Cancel “${shift.title}”? It will no longer be available to volunteers.`;
+          if (!window.confirm(warning)) return;
+          cancel.disabled = true;
+          cancel.textContent = 'Canceling…';
+          try {
+            await request(`/admin/volunteer-shifts/${encodeURIComponent(shift.id)}/cancel`, { method: 'POST' });
+            if (editingId === shift.id) resetForm();
+            await load();
+          } catch (exception) {
+            message(result, exception instanceof Error ? exception.message : 'We could not cancel this shift.');
+            cancel.disabled = false;
+            cancel.textContent = 'Cancel shift';
+          }
+        });
+        controls.append(edit, cancel, result);
+        card.append(controls);
+      }
+      list.append(card);
+    }
+  }
+
+  async function load() {
+    try {
+      shifts = (await request<AdminVolunteerShiftListResponse>('/admin/volunteer-shifts')).shifts;
+      render();
+    } catch {
+      list?.replaceChildren(textNode('p', 'text-sm text-red-800', 'We could not load volunteer shifts right now.'));
+    }
+  }
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    showFieldErrors();
+    const startsAt = newYorkInstant(input('startsAt').value);
+    const endsAt = newYorkInstant(input('endsAt').value);
+    const problems: FieldErrors = {};
+    if (!input('startsAt').value) problems.startsAt = 'Choose a start time.';
+    else if (!startsAt) problems.startsAt = 'Choose an unambiguous America/New_York time; this one falls in a daylight-saving transition.';
+    if (!input('endsAt').value) problems.endsAt = 'Choose an end time.';
+    else if (!endsAt) problems.endsAt = 'Choose an unambiguous America/New_York time; this one falls in a daylight-saving transition.';
+    if (Object.keys(problems).length || !startsAt || !endsAt) { showFieldErrors(problems); return; }
+    const payload: VolunteerShiftInput = {
+      title: input('title').value.trim(),
+      description: input('description').value.trim(),
+      requirements: input('requirements').value.trim(),
+      minAge: Number(input('minAge').value),
+      capacity: Number(input('capacity').value),
+      startsAt,
+      endsAt,
+    };
+    if (!submitButton) return;
+    submitButton.disabled = true;
+    submitButton.textContent = editingId ? 'Saving…' : 'Publishing…';
+    try {
+      await request(editingId ? `/admin/volunteer-shifts/${encodeURIComponent(editingId)}` : '/admin/volunteer-shifts', {
+        method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      const wasEditing = Boolean(editingId);
+      resetForm();
+      message(formMessage, wasEditing ? 'Shift saved.' : 'Shift published.', true);
+      await load();
+    } catch (exception) {
+      if (exception instanceof ApiError && exception.fieldErrors) showFieldErrors(exception.fieldErrors);
+      message(formMessage, exception instanceof Error ? exception.message : 'We could not save that shift.');
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = editingId ? 'Save changes' : 'Publish shift';
+    }
+  });
+
+  cancelEdit?.addEventListener('click', resetForm);
+  void load();
+</script>

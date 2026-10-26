@@ -47,7 +47,7 @@ export function applicationForClient(row: DatabaseAdoptionApplication): Adoption
 const MINIMUM_APPLICANT_AGE = 18;
 
 /** Whole years between a YYYY-MM-DD birth date and today (UTC), or null for an invalid date. */
-function ageOn(dateOfBirth: string, today = new Date()): number | null {
+export function ageOn(dateOfBirth: string, today = new Date()): number | null {
   const match = dateOfBirth.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return null;
   const [year, month, day] = match.slice(1).map(Number);

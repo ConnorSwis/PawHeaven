@@ -4,8 +4,10 @@ import type { RouteContext } from './lib/session';
 import { adminRoutes } from './routes/admin';
 import { adoptionApplicationRoutes } from './routes/applications';
 import { authRoutes } from './routes/auth';
+import { fosterApplicationRoutes } from './routes/foster-applications';
 import { publicPetRoutes } from './routes/pets';
 import { visitSchedulingRoutes } from './routes/visits';
+import { volunteerRoutes } from './routes/volunteer';
 
 function isAllowedWorkersDevApp(origin: string, env: Env): boolean {
   try {
@@ -34,6 +36,8 @@ async function route(context: RouteContext): Promise<ApiResponse> {
   if (path.startsWith('/auth/')) return authRoutes(context);
   if (path.startsWith('/admin/')) return adminRoutes(context);
   if (path === '/applications' || path.startsWith('/applications/')) return adoptionApplicationRoutes(context);
+  if (path === '/foster-applications' || path.startsWith('/foster-applications/')) return fosterApplicationRoutes(context);
+  if (path.startsWith('/volunteer/')) return volunteerRoutes(context);
   if (path === '/visit-slots' || path === '/appointments' || path.startsWith('/appointments/')) return visitSchedulingRoutes(context);
   if (path === '/pets' || path.startsWith('/pets/')) return publicPetRoutes(context);
   return errorResponse('Not found.', 404);

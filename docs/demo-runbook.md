@@ -26,7 +26,10 @@ with the `big-dog` tag and several open to foster), Rosie in `Pending`, Theo in
 `Adopted`, Daisy `Fostered`, and Pearl `Unavailable`. Everything except the
 available pets is visible to staff only and proves public availability
 boundaries. Each listing carries a public medical summary. It
-also loads three future America/New_York shelter visit times for scheduling.
+also loads three future America/New_York shelter visit times for scheduling and
+four volunteer shifts: Kennel care (4 spots), Laundry and supplies (overlaps
+Kennel care), Dog walking (18+), and an Adoption event greeter shift that is
+already full (the demo superuser holds its only spot).
 
 ## Local-only demo accounts
 
@@ -54,7 +57,9 @@ npm run qa:demo
 The verifier creates a disposable local applicant, then confirms public
 discovery, unavailable-pet hiding, member/admin boundaries, required answers,
 duplicate rejection, visit booking/rescheduling/cancellation confirmations,
-staff scheduling, expired-session rejection, application review, outcome
+staff scheduling, foster application validation and review, volunteer
+registration rules (capacity, minimum age, overlap, duplicate, cancellation,
+shift cancellation), expired-session rejection, application review, outcome
 visibility, and logout. It refuses non-loopback URLs.
 
 For database policy coverage, also run:
@@ -83,6 +88,18 @@ npm run qa:discovery
    and optionally add a note. An administrator can record an outcome without
    changing pet availability.
 
+7. **2:30 — foster:** On a pet badged "Open to foster" (Baxter, Arlo, Miso,
+   and others), complete the foster form, including the dates you can provide
+   care. Show the validation message when the end date precedes the start,
+   then review the application in the administrator portal's Foster
+   applications section.
+8. **3:00 — volunteering:** Open `http://localhost:4321/volunteer`. Sign up
+   for Kennel care, then try Laundry and supplies (time-conflict message),
+   Dog walking with a minor's date of birth (age message), and the full
+   Adoption event shift. In the administrator portal's Volunteer shifts
+   section, show the participant list, then cancel the shift to cancel the
+   registration and email the volunteer.
+
 Reset the local database before another presentation so the application starts
 in the expected pending state.
 
@@ -97,5 +114,8 @@ Capture these local pages after reset for a report or slide deck:
 4. `04-admin-booked-visit.png` — an administrator's booked visit details.
 5. `05-public-big-dog-search.png` — `/pets?tag=big-dog` with Baxter visible.
 6. `06-application-form.png` — Baxter’s signed-in application form.
+7. `07-foster-application-form.png` — Baxter’s foster application form.
+8. `08-public-volunteer-shifts.png` — `/volunteer` with open and full shifts.
+9. `09-admin-volunteer-shifts.png` — the administrator's shift form and participant list.
 
 Do not capture real applicant information or production URLs.

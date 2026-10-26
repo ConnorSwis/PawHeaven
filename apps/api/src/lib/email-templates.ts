@@ -73,3 +73,62 @@ export function applicationOutcomeEmail(input: { to: string; name: string; petNa
   const { html, text } = layout(heading, [`Hi ${input.name},`, outcome, 'You can see the latest status in your PawHeaven account.']);
   return { to: input.to, subject: heading, html, text };
 }
+
+function formatCalendarDate(value: string): string {
+  return new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(`${value}T00:00:00Z`));
+}
+
+export function fosterReceivedEmail(input: { to: string; name: string; petName: string; availableFrom: string; availableUntil: string }): EmailMessage {
+  const heading = `We received your foster application for ${input.petName}`;
+  const { html, text } = layout(heading, [
+    `Hi ${input.name},`,
+    `Thank you for offering to foster ${input.petName}. Your application is pending and a member of the shelter team will review it. You told us you can provide care from ${formatCalendarDate(input.availableFrom)} to ${formatCalendarDate(input.availableUntil)}.`,
+    `Submitting an application does not approve a placement or reserve ${input.petName}. We will email you when there is an update, and you can also check its status in your PawHeaven account.`,
+  ]);
+  return { to: input.to, subject: heading, html, text };
+}
+
+export function fosterOutcomeEmail(input: { to: string; name: string; petName: string; status: AdoptionApplicationStatus }): EmailMessage {
+  const heading = `Update on your foster application for ${input.petName}`;
+  const outcome = {
+    'In review': 'Your foster application is now being reviewed by the shelter team. We will be in touch once a decision has been made.',
+    Approved: 'Good news: your foster application was approved. A member of the shelter team will contact you about next steps.',
+    Declined: `After review, the shelter was not able to approve this foster application. Thank you for your willingness to help ${input.petName}; we hope you will consider other animals who need a temporary home.`,
+    Pending: 'Your foster application is pending review.',
+  }[input.status];
+  const { html, text } = layout(heading, [`Hi ${input.name},`, outcome, 'You can see the latest status in your PawHeaven account.']);
+  return { to: input.to, subject: heading, html, text };
+}
+
+export function volunteerRegistrationEmail(input: {
+  to: string;
+  name: string;
+  event: 'registered' | 'canceled';
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  requirements?: string;
+}): EmailMessage {
+  const when = formatShelterTime(input.startsAt, input.endsAt);
+  const heading = input.event === 'registered' ? `You are signed up to volunteer: ${input.title}` : `Your volunteer shift was canceled: ${input.title}`;
+  const paragraphs = [`Hi ${input.name},`];
+  if (input.event === 'registered') {
+    paragraphs.push(`Thank you for volunteering. You are registered for "${input.title}" on ${when}.`);
+    if (input.requirements) paragraphs.push(`Please remember: ${input.requirements}`);
+    paragraphs.push('You can cancel from your PawHeaven account if your plans change, so another volunteer can take your spot.');
+  } else {
+    paragraphs.push(`Your registration for "${input.title}" on ${when} was canceled, and the spot is open for someone else. You can sign up for another shift any time from your PawHeaven account.`);
+  }
+  const { html, text } = layout(heading, paragraphs);
+  return { to: input.to, subject: heading, html, text };
+}
+
+export function volunteerShiftCanceledEmail(input: { to: string; name: string; title: string; startsAt: string; endsAt: string }): EmailMessage {
+  const heading = `The volunteer shift "${input.title}" was canceled`;
+  const { html, text } = layout(heading, [
+    `Hi ${input.name},`,
+    `The shelter had to cancel "${input.title}" on ${formatShelterTime(input.startsAt, input.endsAt)}, and your registration was canceled with it. We are sorry for the change and appreciate your willingness to help.`,
+    'You can sign up for another shift from your PawHeaven account.',
+  ]);
+  return { to: input.to, subject: heading, html, text };
+}

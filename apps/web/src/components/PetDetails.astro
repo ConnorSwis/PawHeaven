@@ -14,7 +14,7 @@ const seedPets = [
 </div>
 
 <script>
-  import type { AdoptionApplication, AdoptionApplicationInput, AdoptionApplicationListResponse, ApiUser, FieldErrors, Pet } from '@pawheaven/contracts';
+  import type { AdoptionApplication, AdoptionApplicationInput, AdoptionApplicationListResponse, ApiUser, FieldErrors, FosterApplication, FosterApplicationInput, FosterApplicationListResponse, Pet } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
   import { canStartApplication, hasPetImage } from '../lib/pet-discovery';
   const container = document.querySelector<HTMLElement>('[data-pet-detail]');
@@ -63,7 +63,15 @@ const seedPets = [
     const application = document.createElement('section');
     application.className = 'mt-9 border-t border-stone-300 pt-7';
     application.setAttribute('aria-live', 'polite');
-    container.append(description, details, medicalHeading, medical, tagHeading, tags, application, back);
+    container.append(description, details, medicalHeading, medical, tagHeading, tags, application);
+    if (pet.fosterAvailable) {
+      const foster = document.createElement('section');
+      foster.className = 'mt-9 border-t border-stone-300 pt-7';
+      foster.setAttribute('aria-live', 'polite');
+      container.append(foster);
+      void displayFosterForm(pet, foster, Boolean(note));
+    }
+    container.append(back);
     if (note) container.append(element('p', 'mt-5 text-sm text-stone-600', note));
     void displayApplicationForm(pet, application, Boolean(note));
   }
@@ -248,6 +256,179 @@ const seedPets = [
         element('h2', 'text-xl font-semibold tracking-tight text-stone-950', 'Applications are unavailable right now'),
         element('p', 'mt-3 leading-7 text-stone-700', 'Please try again shortly, or contact the shelter directly.'),
       );
+    }
+  }
+
+  function existingFosterApplication(target: HTMLElement, application: FosterApplication) {
+    target.replaceChildren(
+      element('h2', 'text-xl font-semibold tracking-tight text-stone-950', 'Foster application submitted'),
+      element('p', 'mt-3 leading-7 text-stone-700', `Your foster application for ${application.petName} is ${application.status.toLowerCase()}. You offered care from ${application.availableFrom} to ${application.availableUntil}. We emailed a confirmation, and the shelter will contact you using the details you provided.`),
+    );
+  }
+
+  type FosterFieldName = keyof FosterApplicationInput;
+
+  function fosterForm(target: HTMLElement, pet: Pet, user: ApiUser) {
+    target.replaceChildren(
+      element('h2', 'text-xl font-semibold tracking-tight text-stone-950', `Apply to foster ${pet.name}`),
+      element('p', 'mt-3 max-w-xl leading-7 text-stone-700', `Fostering gives ${pet.name} a temporary home. We’ll email you at your PawHeaven account address (${user.email}) and may call or write using the details below. A foster application does not approve a placement, and we never ask for a driver’s license or payment information here.`),
+    );
+    const form = document.createElement('form');
+    form.className = 'mt-6 space-y-5';
+    form.noValidate = true;
+    const controls = new Map<FosterFieldName, HTMLInputElement | HTMLTextAreaElement>();
+    const errors = new Map<FosterFieldName, HTMLElement>();
+    const inputClass = 'mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
+
+    function addField(name: FosterFieldName, labelText: string, control: HTMLInputElement | HTMLTextAreaElement, help?: string) {
+      const label = document.createElement('label');
+      label.className = 'block text-sm font-medium text-stone-900';
+      label.textContent = labelText;
+      control.name = `foster-${name}`;
+      control.className = control instanceof HTMLTextAreaElement ? `${inputClass} resize-y` : inputClass;
+      label.append(control);
+      const error = element('p', 'mt-2 hidden text-sm text-red-800', '');
+      error.setAttribute('role', 'alert');
+      errors.set(name, error);
+      controls.set(name, control);
+      const wrapper = document.createElement('div');
+      wrapper.append(label);
+      if (help) wrapper.append(element('p', 'mt-2 text-sm font-normal text-stone-600', help));
+      wrapper.append(error);
+      form.append(wrapper);
+    }
+    function input(type: string, extra: Partial<HTMLInputElement> = {}) {
+      const control = document.createElement('input');
+      control.type = type;
+      Object.assign(control, extra);
+      return control;
+    }
+    function textarea(rows: number, maxLength: number, placeholder = '') {
+      const control = document.createElement('textarea');
+      control.rows = rows;
+      control.maxLength = maxLength;
+      control.placeholder = placeholder;
+      return control;
+    }
+
+    const eighteenYearsAgo = new Date();
+    eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+    const maxDob = eighteenYearsAgo.toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    addField('applicantPhone', 'Phone number', input('tel', { autocomplete: 'tel', maxLength: 30, placeholder: '(404) 555-0142' }));
+    addField('applicantAddress', 'Mailing address', textarea(2, 300, 'Street, city, state, and ZIP code'));
+    addField('applicantDateOfBirth', 'Date of birth', input('date', { max: maxDob, min: '1900-01-01' }), 'You must be at least 18 years old to foster.');
+    addField('householdSummary', 'Tell us about your household and the care you can provide', textarea(5, 2000, 'For example: who lives with you, your home routine, and where the pet will stay.'));
+    addField('fosterExperience', 'Tell us about your pet-care or fostering experience', textarea(4, 1000, 'For example: pets you have cared for, fostering you have done, or how you will prepare.'));
+    addField('availableFrom', 'First day you can provide care', input('date', { min: today }));
+    addField('availableUntil', 'Last day you can provide care', input('date', { min: today }), 'Choose a care period of one year or less.');
+    addField('note', 'Anything else the shelter should know? (optional)', textarea(3, 1000));
+
+    const draftKey = `pawheaven:foster-draft:${user.id}:${pet.id}`;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(draftKey) || 'null') as Partial<FosterApplicationInput> | null;
+      if (saved) for (const [name, control] of controls) control.value = typeof saved[name] === 'string' ? saved[name] : '';
+    } catch { /* Ignore a malformed or unavailable session draft. */ }
+
+    const actions = document.createElement('div');
+    actions.className = 'flex flex-wrap items-center gap-3';
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.textContent = 'Submit foster application';
+    const message = document.createElement('p');
+    message.setAttribute('role', 'status');
+    actions.append(submit, message);
+    form.append(actions);
+    target.append(form);
+
+    function showFieldErrors(fieldErrors: FieldErrors) {
+      for (const [name, error] of errors) {
+        const text = fieldErrors[name];
+        error.textContent = text ?? '';
+        error.classList.toggle('hidden', !text);
+        controls.get(name)?.toggleAttribute('aria-invalid', Boolean(text));
+      }
+      const first = [...controls].find(([name]) => fieldErrors[name]);
+      first?.[1].focus();
+    }
+    function readPayload(): FosterApplicationInput {
+      const value = (name: FosterFieldName) => controls.get(name)?.value.trim() ?? '';
+      return {
+        applicantPhone: value('applicantPhone'),
+        applicantAddress: value('applicantAddress'),
+        applicantDateOfBirth: value('applicantDateOfBirth'),
+        householdSummary: value('householdSummary'),
+        fosterExperience: value('fosterExperience'),
+        availableFrom: value('availableFrom'),
+        availableUntil: value('availableUntil'),
+        note: value('note'),
+      };
+    }
+
+    form.addEventListener('input', () => {
+      try { sessionStorage.setItem(draftKey, JSON.stringify(readPayload())); } catch { /* Draft saving is best effort and never blocks the form. */ }
+    });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = readPayload();
+      const problems: FieldErrors = {};
+      if (payload.applicantPhone.replace(/\D/g, '').length < 10) problems.applicantPhone = 'Enter a phone number with at least 10 digits.';
+      if (payload.applicantAddress.length < 5) problems.applicantAddress = 'Enter your mailing address.';
+      if (!payload.applicantDateOfBirth) problems.applicantDateOfBirth = 'Enter your date of birth.';
+      else if (payload.applicantDateOfBirth > maxDob) problems.applicantDateOfBirth = 'Applicants must be at least 18 years old.';
+      if (payload.householdSummary.length < 20) problems.householdSummary = 'Tell us a little more about your household and the care you can provide.';
+      if (payload.fosterExperience.length < 20) problems.fosterExperience = 'Tell us about your pet-care or fostering experience, or how you will prepare.';
+      if (!payload.availableFrom) problems.availableFrom = 'Choose the first day you can provide care.';
+      if (!payload.availableUntil) problems.availableUntil = 'Choose the last day you can provide care.';
+      else if (payload.availableFrom && payload.availableUntil < payload.availableFrom) problems.availableUntil = 'The end date must be on or after the start date.';
+      showFieldErrors(problems);
+      if (Object.keys(problems).length) return applicationMessage(message, 'Please correct the highlighted fields.', true);
+      submit.disabled = true;
+      submit.textContent = 'Submitting…';
+      applicationMessage(message, '');
+      try {
+        const response = await fetch(`${apiBase}/foster-applications/pets/${encodeURIComponent(pet.id)}`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+        });
+        const result = await response.json().catch(() => null) as FosterApplication | { message?: unknown; fieldErrors?: FieldErrors } | null;
+        if (!response.ok) {
+          const failure = result as { message?: unknown; fieldErrors?: FieldErrors } | null;
+          if (failure?.fieldErrors) showFieldErrors(failure.fieldErrors);
+          throw new Error(typeof failure?.message === 'string' ? failure.message : 'We could not submit your foster application.');
+        }
+        try { sessionStorage.removeItem(draftKey); } catch { /* Submission still succeeded. */ }
+        existingFosterApplication(target, result as FosterApplication);
+      } catch (exception) {
+        applicationMessage(message, exception instanceof Error ? exception.message : 'We could not submit your foster application.', true);
+        submit.disabled = false;
+        submit.textContent = 'Submit foster application';
+      }
+    });
+  }
+
+  async function displayFosterForm(pet: Pet, target: HTMLElement, samplePet: boolean) {
+    if (!canStartApplication(pet, samplePet)) return target.remove();
+    const heading = () => element('h2', 'text-xl font-semibold tracking-tight text-stone-950', `Interested in fostering ${pet.name}?`);
+    try {
+      const identityResponse = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
+      if (identityResponse.status === 401) {
+        const login = document.createElement('a');
+        login.href = '/login';
+        login.className = 'mt-5 inline-block border border-[var(--color-moss)] px-5 py-3 font-semibold text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white';
+        login.textContent = 'Log in to foster';
+        return target.replaceChildren(heading(), element('p', 'mt-3 leading-7 text-stone-700', `${pet.name} is open to a temporary foster home. Log in or create an account to send a foster application.`), login);
+      }
+      if (!identityResponse.ok) throw new Error();
+      const identity = await identityResponse.json() as { user: ApiUser };
+      const applicationsResponse = await fetch(`${apiBase}/foster-applications`, { credentials: 'include' });
+      if (!applicationsResponse.ok) throw new Error();
+      const applications = await applicationsResponse.json() as FosterApplicationListResponse;
+      const existing = applications.applications.find((application) => application.petId === pet.id);
+      if (existing) return existingFosterApplication(target, existing);
+      fosterForm(target, pet, identity.user);
+    } catch {
+      target.replaceChildren(heading(), element('p', 'mt-3 leading-7 text-stone-700', 'Foster applications are unavailable right now. Please try again shortly, or contact the shelter directly.'));
     }
   }
 

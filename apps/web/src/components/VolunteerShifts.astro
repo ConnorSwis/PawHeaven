@@ -1,0 +1,244 @@
+<div class="mx-auto max-w-5xl px-6 py-12">
+  <section class="border border-stone-300 bg-white p-7 sm:p-9" data-volunteer-shifts aria-live="polite">
+    <p class="text-sm text-stone-600">Loading volunteer shifts…</p>
+  </section>
+</div>
+
+<script>
+  import type { ApiUser, FieldErrors, RegisterVolunteerInput, VolunteerRegistrationListResponse, VolunteerShift, VolunteerShiftListResponse } from '@pawheaven/contracts';
+  import { apiBase } from '../lib/api';
+
+  const shelterTimeZone = 'America/New_York';
+  const container = document.querySelector<HTMLElement>('[data-volunteer-shifts]');
+  let registrationByShift = new Map<string, string>();
+
+  function element(tag: string, className: string, content: string) {
+    const node = document.createElement(tag);
+    node.className = className;
+    node.textContent = content;
+    return node;
+  }
+
+  function shiftTime(startsAt: string, endsAt: string) {
+    const start = new Date(startsAt);
+    const end = new Date(endsAt);
+    if (Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf())) return 'Unknown shift time';
+    const date = new Intl.DateTimeFormat(undefined, { timeZone: shelterTimeZone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(start);
+    const range = new Intl.DateTimeFormat(undefined, { timeZone: shelterTimeZone, hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).formatRange(start, end);
+    return `${date} · ${range}`;
+  }
+
+  function status(target: HTMLElement, content: string, error = false) {
+    target.textContent = content;
+    target.className = `text-sm ${error ? 'text-red-800' : 'text-[var(--color-moss-dark)]'}`;
+  }
+
+  async function volunteerRequest<T>(path: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(`${apiBase}${path}`, { credentials: 'include', ...init });
+    const payload = await response.json().catch(() => null) as ({ message?: unknown; fieldErrors?: FieldErrors } & T) | null;
+    if (!response.ok) {
+      const failure = new Error(typeof payload?.message === 'string' ? payload.message : 'The request could not be completed.') as Error & { fieldErrors?: FieldErrors };
+      failure.fieldErrors = payload?.fieldErrors;
+      throw failure;
+    }
+    return payload as T;
+  }
+
+  function showSignedOut() {
+    if (!container) return;
+    container.replaceChildren(
+      element('h1', 'text-3xl font-semibold tracking-tight text-stone-950', 'Volunteer with PawHeaven'),
+      element('p', 'mt-4 max-w-2xl leading-7 text-stone-700', 'Log in to see open volunteer shifts, check their duties and requirements, and sign up.'),
+    );
+    const login = document.createElement('a');
+    login.href = '/login';
+    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    login.textContent = 'Log in to volunteer';
+    container.append(login);
+  }
+
+  function registrationForm(shift: VolunteerShift, card: HTMLElement, user: ApiUser) {
+    const form = document.createElement('form');
+    form.className = 'mt-5 grid gap-4 border-t border-stone-200 pt-5 sm:max-w-md';
+    form.noValidate = true;
+    const errors = new Map<string, HTMLElement>();
+    const controls = new Map<string, HTMLInputElement>();
+    const draftKey = `pawheaven:volunteer-contact:${user.id}`;
+    let draft: Partial<RegisterVolunteerInput> = {};
+    try { draft = JSON.parse(sessionStorage.getItem(draftKey) || '{}') as Partial<RegisterVolunteerInput>; } catch { /* Drafts are best effort. */ }
+
+    function field(name: 'phone' | 'dateOfBirth', labelText: string, control: HTMLInputElement, help?: string) {
+      const label = document.createElement('label');
+      label.className = 'block text-sm font-medium text-stone-900';
+      label.textContent = labelText;
+      control.name = name;
+      control.className = 'mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
+      control.value = draft[name] ?? '';
+      label.append(control);
+      const error = element('p', 'mt-2 hidden text-sm text-red-800', '');
+      error.setAttribute('role', 'alert');
+      errors.set(name, error);
+      controls.set(name, control);
+      const wrapper = document.createElement('div');
+      wrapper.append(label);
+      if (help) wrapper.append(element('p', 'mt-2 text-sm font-normal text-stone-600', help));
+      wrapper.append(error);
+      form.append(wrapper);
+    }
+    const phone = document.createElement('input');
+    phone.type = 'tel';
+    phone.autocomplete = 'tel';
+    phone.maxLength = 30;
+    phone.placeholder = '(404) 555-0142';
+    const dob = document.createElement('input');
+    dob.type = 'date';
+    dob.min = '1900-01-01';
+    dob.max = new Date().toISOString().slice(0, 10);
+    field('phone', 'Phone number', phone, `We’ll email ${user.email} to confirm, and may call if plans change.`);
+    field('dateOfBirth', 'Date of birth', dob, shift.minAge > 0 ? `This shift requires volunteers to be at least ${shift.minAge} years old.` : 'Used only to check each shift’s age requirement.');
+
+    const actions = document.createElement('div');
+    actions.className = 'flex flex-wrap items-center gap-3';
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.textContent = 'Confirm sign-up';
+    const cancel = element('button', 'px-2 py-2 text-sm font-medium text-stone-700 underline underline-offset-4', 'Never mind') as HTMLButtonElement;
+    cancel.type = 'button';
+    const result = document.createElement('p');
+    result.setAttribute('role', 'status');
+    actions.append(submit, cancel, result);
+    form.append(actions);
+    cancel.addEventListener('click', () => form.remove());
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload: RegisterVolunteerInput = { phone: phone.value.trim(), dateOfBirth: dob.value.trim() };
+      const problems: FieldErrors = {};
+      if (payload.phone.replace(/\D/g, '').length < 10) problems.phone = 'Enter a phone number with at least 10 digits.';
+      if (!payload.dateOfBirth) problems.dateOfBirth = 'Enter your date of birth.';
+      showErrors(problems);
+      if (Object.keys(problems).length) return status(result, 'Please correct the highlighted fields.', true);
+      submit.disabled = true;
+      submit.textContent = 'Signing up…';
+      try {
+        try { sessionStorage.setItem(draftKey, JSON.stringify(payload)); } catch { /* Best effort. */ }
+        await volunteerRequest(`/volunteer/shifts/${encodeURIComponent(shift.id)}/register`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+        });
+        await load(user, `You are signed up for “${shift.title}”. We emailed a confirmation, and you can cancel from this page or your account.`);
+      } catch (exception) {
+        const failure = exception as Error & { fieldErrors?: FieldErrors };
+        if (failure.fieldErrors) showErrors(failure.fieldErrors);
+        status(result, failure.message || 'We could not sign you up.', true);
+        submit.disabled = false;
+        submit.textContent = 'Confirm sign-up';
+        // A full, canceled, or conflicting shift changes the list, so refresh it while keeping the reason visible.
+        if (!failure.fieldErrors) window.setTimeout(() => void load(user, undefined, failure.message), 2500);
+      }
+    });
+    function showErrors(fieldErrors: FieldErrors) {
+      for (const [name, error] of errors) {
+        error.textContent = fieldErrors[name] ?? '';
+        error.classList.toggle('hidden', !fieldErrors[name]);
+        controls.get(name)?.toggleAttribute('aria-invalid', Boolean(fieldErrors[name]));
+      }
+    }
+    card.append(form);
+    phone.focus();
+  }
+
+  function shiftCard(shift: VolunteerShift, user: ApiUser) {
+    const card = document.createElement('article');
+    card.className = `border p-5 ${shift.registered ? 'border-[var(--color-moss)] bg-stone-50' : 'border-stone-300 bg-white'}`;
+    const full = shift.spotsRemaining === 0 && !shift.registered;
+    const badge = shift.registered ? 'You are signed up' : full ? 'Full' : `${shift.spotsRemaining} of ${shift.capacity} spots open`;
+    const header = document.createElement('div');
+    header.className = 'flex flex-wrap items-start justify-between gap-3';
+    header.append(
+      element('h3', 'text-lg font-semibold text-stone-950', shift.title),
+      element('span', `border px-2 py-1 text-sm ${shift.registered ? 'border-[var(--color-moss)] text-[var(--color-moss-dark)]' : full ? 'border-stone-400 text-stone-600' : 'border-stone-300 text-stone-800'}`, badge),
+    );
+    card.append(header, element('p', 'mt-1 text-sm font-medium text-stone-700', shiftTime(shift.startsAt, shift.endsAt)));
+    card.append(element('h4', 'mt-4 text-sm font-semibold text-stone-950', 'Duties'), element('p', 'mt-1 whitespace-pre-wrap leading-7 text-stone-800', shift.description));
+    const requirements = [shift.minAge > 0 ? `Volunteers must be at least ${shift.minAge} years old.` : '', shift.requirements].filter(Boolean).join(' ');
+    card.append(element('h4', 'mt-4 text-sm font-semibold text-stone-950', 'Requirements'), element('p', 'mt-1 whitespace-pre-wrap leading-7 text-stone-800', requirements || 'No special requirements.'));
+
+    const controls = document.createElement('div');
+    controls.className = 'mt-5 flex flex-wrap items-center gap-3';
+    const result = document.createElement('p');
+    result.setAttribute('role', 'status');
+    if (shift.registered) {
+      const cancel = element('button', 'border border-red-800 px-4 py-2 text-sm font-semibold text-red-800 transition-colors hover:bg-red-800 hover:text-white disabled:cursor-wait disabled:opacity-70', 'Cancel my sign-up') as HTMLButtonElement;
+      cancel.type = 'button';
+      cancel.addEventListener('click', async () => {
+        const registrationId = registrationByShift.get(shift.id);
+        if (!registrationId || !window.confirm('Cancel your volunteer sign-up? Your spot will open for someone else.')) return;
+        cancel.disabled = true;
+        cancel.textContent = 'Canceling…';
+        try {
+          await volunteerRequest(`/volunteer/registrations/${encodeURIComponent(registrationId)}/cancel`, { method: 'POST' });
+          await load(user, `Your sign-up for “${shift.title}” was canceled.`);
+        } catch (exception) {
+          status(result, exception instanceof Error ? exception.message : 'We could not cancel your sign-up.', true);
+          cancel.disabled = false;
+          cancel.textContent = 'Cancel my sign-up';
+        }
+      });
+      controls.append(cancel);
+    } else {
+      const join = element('button', 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-not-allowed disabled:opacity-60', full ? 'Shift is full' : 'Sign up') as HTMLButtonElement;
+      join.type = 'button';
+      join.disabled = full;
+      join.addEventListener('click', () => {
+        if (!card.querySelector('form')) registrationForm(shift, card, user);
+      });
+      controls.append(join);
+    }
+    controls.append(result);
+    card.append(controls);
+    return card;
+  }
+
+  function render(user: ApiUser, shifts: VolunteerShift[], confirmation?: string, notice?: string) {
+    if (!container) return;
+    container.replaceChildren(
+      element('h1', 'text-3xl font-semibold tracking-tight text-stone-950', 'Volunteer with PawHeaven'),
+      element('p', 'mt-4 max-w-2xl leading-7 text-stone-700', 'Choose an open shift to help care for the animals. We’ll check the shift’s spots, age requirement, and your other sign-ups before confirming.'),
+      element('p', 'mt-2 text-sm text-stone-600', 'All shift times are shown in America/New_York.'),
+    );
+    if (confirmation) container.append(element('p', 'mt-5 border border-[var(--color-moss)] bg-stone-50 px-4 py-3 text-sm text-[var(--color-moss-dark)]', confirmation));
+    if (notice) container.append(element('p', 'mt-5 border border-red-800 bg-red-50 px-4 py-3 text-sm text-red-900', notice));
+    const list = document.createElement('div');
+    list.className = 'mt-8 grid gap-4';
+    if (!shifts.length) list.append(element('p', 'leading-7 text-stone-700', 'There are no upcoming volunteer shifts right now. Please check back soon.'));
+    for (const shift of shifts) list.append(shiftCard(shift, user));
+    container.append(list);
+  }
+
+  async function load(knownUser?: ApiUser, confirmation?: string, notice?: string) {
+    try {
+      let user = knownUser;
+      if (!user) {
+        const response = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
+        if (response.status === 401) return showSignedOut();
+        if (!response.ok) throw new Error();
+        user = (await response.json() as { user: ApiUser }).user;
+      }
+      const [shiftPayload, registrationPayload] = await Promise.all([
+        volunteerRequest<VolunteerShiftListResponse>('/volunteer/shifts'),
+        volunteerRequest<VolunteerRegistrationListResponse>('/volunteer/registrations'),
+      ]);
+      registrationByShift = new Map(registrationPayload.registrations.filter((item) => item.status === 'registered').map((item) => [item.shiftId, item.id]));
+      render(user, shiftPayload.shifts, confirmation, notice);
+    } catch {
+      if (!container) return;
+      container.replaceChildren(
+        element('h1', 'text-3xl font-semibold tracking-tight text-stone-950', 'Volunteer shifts are unavailable'),
+        element('p', 'mt-4 leading-7 text-stone-700', 'We could not load volunteer shifts right now. Please try again shortly.'),
+      );
+    }
+  }
+
+  void load();
+</script>

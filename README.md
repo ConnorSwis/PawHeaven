@@ -55,6 +55,8 @@ verification and screenshot flow.
 
 Signed-in visitors can apply for an available pet with a phone number, mailing address, date of birth (18+), a short household/care summary, a pet-care experience or preparedness answer, and an optional note. PawHeaven uses the verified email attached to their account for follow-up; it does not collect driver's licenses, other identity documents, or payment details. Passwords must be at least 8 characters with uppercase, lowercase, a number, and a special character; match this in Supabase Auth → Providers → Email → password requirements. Staff can record an application outcome without changing the pet’s availability automatically.
 
+Pets flagged "open to foster" also accept foster applications: the same contact details plus household and experience answers and the period the applicant can provide care. Staff review them next to adoption applications; an outcome never changes pet availability. Staff can also publish volunteer shifts (duties, requirements, minimum age, capacity). Signed-in members sign up at `/volunteer`, and PawHeaven refuses a full shift, a duplicate, a volunteer below the minimum age, or an overlap with their other shifts, explaining why. Staff see each shift's participants and can cancel a shift, which cancels its registrations and emails the volunteers.
+
 One deployment owner must set these API Worker values outside source control before using invitations or user management:
 
 - `ADMIN_SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare Worker secret for server-side Auth administration.
