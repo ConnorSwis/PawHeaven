@@ -4,13 +4,52 @@ export type ApiUser = {
   email: string;
 };
 
-export type AdminRole = 'admin' | 'superuser';
+/** `staff` manages pets, applications, and the visit schedule; `admin` also manages members; `superuser` also invites administrators. */
+export type AdminRole = 'staff' | 'admin' | 'superuser';
 
 export type AdminUser = ApiUser & {
   role: AdminRole;
 };
 
 export type ManagedUserRole = AdminRole | 'member';
+
+/** Roles an administrator may assign to an ordinary account. Administrators are invited by a superuser. */
+export type AssignableUserRole = 'member' | 'staff';
+
+export type AdminUserRoleInput = {
+  role: AssignableUserRole;
+};
+
+/** A validation failure keyed by the form field that needs correcting. */
+export type FieldErrors = Record<string, string>;
+
+export type ApiErrorResponse = {
+  message: string;
+  fieldErrors?: FieldErrors;
+};
+
+export type ChangeEmailInput = {
+  email: string;
+  currentPassword: string;
+};
+
+export type ChangePasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+/** Returns a user-facing explanation when a password is too weak, or null when it is acceptable. */
+export function passwordProblem(password: string): string | null {
+  if (password.length > 1024) return 'Use 1,024 characters or fewer for your password.';
+  if (password.length < 8
+    || !/[a-z]/.test(password)
+    || !/[A-Z]/.test(password)
+    || !/[0-9]/.test(password)
+    || !/[^A-Za-z0-9]/.test(password)) {
+    return 'Use at least 8 characters, including an uppercase letter, a lowercase letter, a number, and a special character.';
+  }
+  return null;
+}
 
 export type ManagedUser = ApiUser & {
   role: ManagedUserRole;
@@ -49,7 +88,9 @@ export type AdminInvitationListResponse = {
   invitations: AdminInvitation[];
 };
 
-export type PetStatus = 'Available' | 'Pending' | 'Adopted';
+export type PetStatus = 'Available' | 'Pending' | 'Adopted' | 'Fostered' | 'Unavailable';
+
+export const PET_STATUSES: readonly PetStatus[] = ['Available', 'Pending', 'Adopted', 'Fostered', 'Unavailable'];
 
 export type Pet = {
   id: string;
@@ -62,10 +103,14 @@ export type Pet = {
   tags: string[];
   status: PetStatus;
   summary: string;
+  /** Public vaccination and health summary. */
+  medicalHistory: string;
+  /** True when an Available pet is also open to foster applications. */
+  fosterAvailable: boolean;
   imageUrl: string | null;
 };
 
-export type PetInput = Pick<Pet, 'name' | 'type' | 'breed' | 'age' | 'intakeDate' | 'tags' | 'status' | 'summary'>;
+export type PetInput = Pick<Pet, 'name' | 'type' | 'breed' | 'age' | 'intakeDate' | 'tags' | 'status' | 'summary' | 'medicalHistory' | 'fosterAvailable'>;
 
 export type AdminPetListResponse = {
   pets: Pet[];
@@ -74,6 +119,10 @@ export type AdminPetListResponse = {
 export type AdoptionApplicationStatus = 'Pending' | 'In review' | 'Approved' | 'Declined';
 
 export type AdoptionApplicationInput = {
+  applicantPhone: string;
+  applicantAddress: string;
+  /** ISO calendar date (YYYY-MM-DD). Applicants must be at least 18. */
+  applicantDateOfBirth: string;
   householdSummary: string;
   adoptionExperience: string;
   note: string;
@@ -85,6 +134,10 @@ export type AdoptionApplication = {
   petName: string;
   applicantName: string;
   applicantEmail: string;
+  /** Null on applications submitted before contact details were collected. */
+  applicantPhone: string | null;
+  applicantAddress: string | null;
+  applicantDateOfBirth: string | null;
   householdSummary: string;
   adoptionExperience: string;
   note: string;
@@ -197,6 +250,7 @@ export function matchesPetSearch(pet: Pet, search: string): boolean {
     pet.age,
     pet.summary,
     pet.tags.join(' '),
+    pet.fosterAvailable ? 'foster fostering' : '',
     pet.status,
     pet.intakeDate,
     String(pet.daysInShelter),

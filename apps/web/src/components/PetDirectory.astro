@@ -13,7 +13,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
   <section aria-labelledby="pet-directory-title">
     <p class="text-sm font-medium text-stone-600">PawHeaven</p>
     <h1 id="pet-directory-title" class="mt-3 text-3xl font-semibold tracking-tight text-stone-950">Pets available for adoption</h1>
-    <p class="mt-3 max-w-2xl leading-7 text-stone-700">Listings are kept in alphabetical order. Search by name, description, breed, age, type, or shelter tag to find a pet that fits your home.</p>
+    <p class="mt-3 max-w-2xl leading-7 text-stone-700">Listings are kept in alphabetical order. Search by name, description, breed, age, type, shelter tag, or “foster” to find a pet that fits your home.</p>
 
     <form class="mt-8 grid gap-4 border-y border-stone-300 py-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_13rem_11rem_11rem_auto] lg:items-end" data-pet-filters>
       <div>
@@ -113,7 +113,16 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
       const availability = document.createElement('span');
       availability.className = 'border border-stone-300 px-2 py-1 text-xs font-medium text-stone-700';
       availability.textContent = pet.status;
-      top.append(type, availability);
+      const badges = document.createElement('div');
+      badges.className = 'flex flex-wrap justify-end gap-2';
+      badges.append(availability);
+      if (pet.fosterAvailable) {
+        const foster = document.createElement('span');
+        foster.className = 'border border-[var(--color-moss)] px-2 py-1 text-xs font-medium text-[var(--color-moss-dark)]';
+        foster.textContent = 'Open to foster';
+        badges.append(foster);
+      }
+      top.append(type, badges);
       const title = document.createElement('h2');
       title.className = 'mt-7 text-xl font-semibold text-stone-950';
       const link = document.createElement('a');

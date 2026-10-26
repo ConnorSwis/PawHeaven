@@ -1,5 +1,5 @@
 begin;
-select plan(10);
+select plan(13);
 
 insert into public.pets (id, name, species, breed, age_label, intake_date, tags, status, summary)
 values
@@ -70,8 +70,29 @@ set local request.jwt.claims = '{"role":"authenticated","app_metadata":{"role":"
 
 select results_eq(
   $$select name from public.pets where id = '10000000-0000-0000-0000-000000000002'$$,
+  array['Pending pet'],
+  'staff can read a non-public pet'
+);
+
+select lives_ok(
+  $$update public.pets set status = 'Fostered', foster_available = false, medical_history = 'Vaccinations current.' where id = '10000000-0000-0000-0000-000000000002'$$,
+  'staff can mark a pet fostered and record its medical history'
+);
+
+select throws_ok(
+  $$update public.pets set status = 'Missing' where id = '10000000-0000-0000-0000-000000000002'$$,
+  '23514', null,
+  'an unknown pet status is rejected by the database'
+);
+
+set local role postgres;
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","app_metadata":{"role":"viewer"}}';
+
+select results_eq(
+  $$select name from public.pets where id = '10000000-0000-0000-0000-000000000002'$$,
   array[]::text[],
-  'the historical staff claim has no administrative access'
+  'an unrecognized role claim has no administrative access'
 );
 
 set local role postgres;

@@ -11,3 +11,8 @@ ADMIN_SUPABASE_SERVICE_ROLE_KEY="generated-by-npm-run-db-configure-api"
 ALLOWED_ORIGINS="http://localhost:4321,http://localhost:4322"
 BOOTSTRAP_SUPERUSER_EMAIL="you@example.com"
 ADMIN_INVITE_REDIRECT_URL="http://localhost:4322/accept-invite"
+# Optional. Transactional email uses Resend. Without a key, email is logged
+# instead of sent; with a key, local development still only logs unless
+# EMAIL_LOCAL_DELIVERY is "true" (seeded demo addresses are unreachable).
+RESEND_API_KEY="re_your_resend_key"
+EMAIL_LOCAL_DELIVERY="false"

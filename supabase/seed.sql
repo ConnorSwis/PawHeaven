@@ -30,6 +30,17 @@ values
     '{"provider":"email","providers":["email"],"role":"admin"}'::jsonb,
     '{"name":"Demo Administrator","email":"demo.admin@pawheaven.local","email_verified":true,"phone_verified":false,"sub":"a1000000-0000-0000-0000-000000000002"}'::jsonb,
     now(), now()
+  ),
+  (
+    'a1000000-0000-0000-0000-000000000003',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'demo.staff@pawheaven.local',
+    extensions.crypt('DemoStaff-2026!', extensions.gen_salt('bf')),
+    now(),
+    '', '', '', '', '', '', '', '',
+    '{"provider":"email","providers":["email"],"role":"staff"}'::jsonb,
+    '{"name":"Demo Staff","email":"demo.staff@pawheaven.local","email_verified":true,"phone_verified":false,"sub":"a1000000-0000-0000-0000-000000000003"}'::jsonb,
+    now(), now()
   );
 
 insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
@@ -44,6 +55,12 @@ values
     'a1000000-0000-0000-0000-000000000002',
     'a1000000-0000-0000-0000-000000000002',
     '{"sub":"a1000000-0000-0000-0000-000000000002","email":"demo.admin@pawheaven.local","email_verified":true,"phone_verified":false}'::jsonb,
+    'email', now(), now(), now()
+  ),
+  (
+    'a1000000-0000-0000-0000-000000000003',
+    'a1000000-0000-0000-0000-000000000003',
+    '{"sub":"a1000000-0000-0000-0000-000000000003","email":"demo.staff@pawheaven.local","email_verified":true,"phone_verified":false}'::jsonb,
     'email', now(), now(), now()
   );
 
@@ -78,6 +95,56 @@ values
     'b1000000-0000-0000-0000-000000000006', 'Wren', 'Dog', 'Beagle mix', '6 years', '2026-07-25',
     array['small-dog', 'friendly'], 'Available',
     'Wren is a friendly companion who likes neighborhood walks, familiar routines, and greeting new visitors.'
+  );
+
+-- Sprint 4 pet details: public medical summaries, foster eligibility, and the
+-- additional Fostered and Unavailable statuses.
+update public.pets set
+  medical_history = 'Vaccinations current. Neutered. Treated for seasonal skin allergies in 2026; no ongoing medication.',
+  foster_available = true
+where id = 'b1000000-0000-0000-0000-000000000001';
+update public.pets set
+  medical_history = 'Spayed and microchipped. Vaccinations current. Tested negative for FIV and FeLV.'
+where id = 'b1000000-0000-0000-0000-000000000002';
+update public.pets set
+  medical_history = 'Vaccinations current. Neutered. Completed basic obedience evaluation with staff.',
+  foster_available = true
+where id = 'b1000000-0000-0000-0000-000000000003';
+update public.pets set
+  medical_history = 'Spayed. Senior wellness exam complete; manages mild arthritis with a daily supplement.'
+where id = 'b1000000-0000-0000-0000-000000000006';
+
+insert into public.pets (id, name, species, breed, age_label, intake_date, tags, status, summary, medical_history, foster_available)
+values
+  (
+    'b1000000-0000-0000-0000-000000000007', 'Arlo', 'Dog', 'Labrador Retriever mix', '2 years', '2026-09-02',
+    array['big-dog', 'playful', 'good-with-kids'], 'Available',
+    'Arlo is an enthusiastic young Lab mix who loves fetch, water, and being part of whatever the family is doing.',
+    'Vaccinations current. Neutered. Healed fracture of the left foreleg in 2026; cleared for normal exercise.', true
+  ),
+  (
+    'b1000000-0000-0000-0000-000000000008', 'Miso', 'Cat', 'Orange tabby', '1 year', '2026-10-01',
+    array['playful', 'indoor'], 'Available',
+    'Miso is a curious kitten-at-heart who chases feather toys and curls up on laps once the play is over.',
+    'Vaccinations current. Neutered. Treated for ear mites; fully recovered.', true
+  ),
+  (
+    'b1000000-0000-0000-0000-000000000009', 'Poppy', 'Dog', 'Pug mix', '7 years', '2026-05-20',
+    array['small-dog', 'calm', 'senior'], 'Available',
+    'Poppy is a relaxed senior who is happiest on a soft bed near her people and enjoys short, slow walks.',
+    'Spayed. Vaccinations current. Dental cleaning completed in September 2026.', false
+  ),
+  (
+    'b1000000-0000-0000-0000-000000000010', 'Daisy', 'Dog', 'Border Collie mix', '3 years', '2026-08-28',
+    array['active', 'training', 'big-dog'], 'Fostered',
+    'Daisy is currently in a foster home and is not accepting new applications while she settles in.',
+    'Spayed. Vaccinations current.', false
+  ),
+  (
+    'b1000000-0000-0000-0000-000000000011', 'Pearl', 'Cat', 'Russian Blue mix', '4 years', '2026-09-15',
+    array['quiet', 'indoor'], 'Unavailable',
+    'Pearl is receiving veterinary care and will be listed again when she is ready for visitors.',
+    'Recovering from a dental procedure; recheck scheduled.', false
   );
 
 -- Relative future visit times keep the local scheduling demo usable after the

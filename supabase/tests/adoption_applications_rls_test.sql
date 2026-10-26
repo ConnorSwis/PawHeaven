@@ -1,5 +1,5 @@
 begin;
-select plan(14);
+select plan(17);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values
@@ -93,6 +93,36 @@ select results_eq(
   $$select status from public.adoption_applications where applicant_email = 'member@example.com'$$,
   array['In review'],
   'the recorded application outcome is visible to an administrator'
+);
+
+set local role postgres;
+insert into public.pets (id, name, species, breed, age_label, intake_date, tags, status, summary)
+values ('20000000-0000-0000-0000-000000000003', 'Third pet', 'Cat', 'Mixed', 'Young', current_date, '{}', 'Available', 'Ready to meet applicants');
+
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"30000000-0000-0000-0000-000000000002","email":"other@example.com","app_metadata":{}}';
+
+select throws_ok(
+  $$insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, applicant_phone, applicant_address, applicant_date_of_birth, pet_id, pet_name, household_summary, adoption_experience)
+    values ('30000000-0000-0000-0000-000000000002', 'Other member', 'other@example.com', '4045550142', '55 Park Place NE, Atlanta, GA', current_date - interval '16 years', '20000000-0000-0000-0000-000000000003', 'Third pet', 'Our household has discussed the responsibility and is ready for daily care.', 'We are first-time adopters and will use the shelter’s resources to prepare responsibly.')$$,
+  '42501', null,
+  'an applicant under 18 is rejected by the database'
+);
+
+select lives_ok(
+  $$insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, applicant_phone, applicant_address, applicant_date_of_birth, pet_id, pet_name, household_summary, adoption_experience)
+    values ('30000000-0000-0000-0000-000000000002', 'Other member', 'other@example.com', '4045550142', '55 Park Place NE, Atlanta, GA', current_date - interval '30 years', '20000000-0000-0000-0000-000000000003', 'Third pet', 'Our household has discussed the responsibility and is ready for daily care.', 'We are first-time adopters and will use the shelter’s resources to prepare responsibly.')$$,
+  'an adult applicant can submit contact details with an application'
+);
+
+set local role postgres;
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"50000000-0000-0000-0000-000000000009","email":"staff@example.com","app_metadata":{"role":"staff"}}';
+
+select results_eq(
+  $$select applicant_phone from public.adoption_applications where pet_id = '20000000-0000-0000-0000-000000000003'$$,
+  array['4045550142'],
+  'staff can read the contact details on an application'
 );
 
 set local role postgres;

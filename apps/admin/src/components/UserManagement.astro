@@ -29,7 +29,7 @@
           <select id="user-filter" data-filter class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
             <option value="all">All accounts</option>
             <option value="member">Users</option>
-            <option value="staff">Staff</option>
+            <option value="staff">Staff and administrators</option>
             <option value="blocked">Blocked</option>
           </select>
         </label>
@@ -77,6 +77,17 @@
             <div><dt class="font-medium text-stone-600">Last sign-in</dt><dd data-last-sign-in class="mt-1 text-stone-950"></dd></div>
             <div><dt class="font-medium text-stone-600">Email confirmed</dt><dd data-confirmed class="mt-1 text-stone-950"></dd></div>
           </dl>
+
+          <form data-role-form hidden class="mt-6 flex flex-wrap items-end gap-3 border-t border-stone-300 pt-6">
+            <label class="text-sm font-medium text-stone-900">Account role
+              <select data-role-select class="mt-2 block border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
+                <option value="member">Member (public site only)</option>
+                <option value="staff">Staff (pets, applications, visit schedule)</option>
+              </select>
+            </label>
+            <button data-role-save type="submit" class="bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70">Save role</button>
+            <p data-role-message class="hidden text-sm" role="status"></p>
+          </form>
 
           <section class="mt-8 border-t border-stone-300 pt-7" aria-labelledby="account-actions-title">
             <h3 id="account-actions-title" class="font-semibold text-stone-950">Account actions</h3>
@@ -133,6 +144,10 @@
   const blockButton = root?.querySelector<HTMLButtonElement>('[data-block]');
   const deleteButton = root?.querySelector<HTMLButtonElement>('[data-delete]');
   const actionMessage = root?.querySelector<HTMLElement>('[data-action-message]');
+  const roleForm = root?.querySelector<HTMLFormElement>('[data-role-form]');
+  const roleSelect = root?.querySelector<HTMLSelectElement>('[data-role-select]');
+  const roleSave = root?.querySelector<HTMLButtonElement>('[data-role-save]');
+  const roleMessage = root?.querySelector<HTMLElement>('[data-role-message]');
   const applicationCount = root?.querySelector<HTMLElement>('[data-application-count]');
   const applications = root?.querySelector<HTMLElement>('[data-applications]');
 
@@ -165,7 +180,8 @@
   function roleLabel(role: ManagedUser['role']) {
     if (role === 'superuser') return 'Superuser';
     if (role === 'admin') return 'Administrator';
-    return 'User';
+    if (role === 'staff') return 'Staff';
+    return 'Member';
   }
 
   function canManage(user: ManagedUser) {
@@ -275,7 +291,7 @@
       permissionNote.textContent = manageable
         ? user.role === 'admin'
           ? 'As a superuser, you can manage or completely delete this administrator account.'
-          : 'Administrators can manage this user account. Deleting it also removes its adoption applications.'
+          : 'Administrators can manage this account, including its role. Deleting it also removes its adoption applications.'
         : user.id === currentUser.id
           ? 'Your own account is protected from changes here.'
           : user.role === 'superuser'
@@ -285,6 +301,10 @@
     if (nameInput) { nameInput.value = user.name; nameInput.disabled = !manageable; }
     if (emailInput) { emailInput.value = user.email; emailInput.disabled = !manageable; }
     if (saveButton) saveButton.disabled = !manageable;
+    const roleAssignable = manageable && (user.role === 'member' || user.role === 'staff');
+    if (roleForm) roleForm.hidden = !roleAssignable;
+    if (roleSelect) roleSelect.value = user.role === 'staff' ? 'staff' : 'member';
+    if (roleMessage) { roleMessage.textContent = ''; roleMessage.className = 'hidden text-sm'; }
     if (roleValue) roleValue.textContent = roleLabel(user.role);
     if (createdValue) createdValue.textContent = formatDate(user.createdAt);
     if (lastSignInValue) lastSignInValue.textContent = formatDate(user.lastSignInAt);
@@ -337,6 +357,25 @@
     } finally {
       saveButton.textContent = 'Save account';
       saveButton.disabled = selected ? !canManage(selected.user) : true;
+    }
+  });
+
+  roleForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!selected || !canManage(selected.user) || !roleSelect || !roleSave) return;
+    roleSave.disabled = true;
+    roleSave.textContent = 'Saving…';
+    try {
+      const payload = await responseJson<{ user: ManagedUser }>(`/admin/users/${encodeURIComponent(selected.user.id)}/role`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: roleSelect.value }),
+      });
+      updateUser(payload.user);
+      setMessage(roleMessage, `Role changed to ${roleLabel(payload.user.role)}. It takes effect the next time they use the site.`, true);
+    } catch (exception) {
+      setMessage(roleMessage, exception instanceof Error ? exception.message : 'We could not change this role.');
+    } finally {
+      roleSave.disabled = false;
+      roleSave.textContent = 'Save role';
     }
   });
 

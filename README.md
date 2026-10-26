@@ -51,9 +51,9 @@ verification and screenshot flow.
 
 ## Administrator access
 
-`apps/admin` is a separate deployable app in this monorepo. Administrators can list, create, and update pet records, including a public JPEG, PNG, or WebP image up to 5 MB. They can also view ordinary user details and adoption applications, edit account information, send a password-reset email, block or restore sign-in, and permanently delete an account. A superuser can additionally send administrator invitations and perform those management actions on administrator accounts. Self-management and changes to superuser accounts are deliberately blocked in the portal.
+`apps/admin` is a separate deployable app in this monorepo. Staff, administrators, and superusers can list, create, and update pet records (including public medical history, availability status, and foster eligibility) and a public JPEG, PNG, or WebP image up to 5 MB. Staff (the `staff` role) are limited to pets, applications, and the visit schedule; administrators additionally manage user accounts and assign the staff role. They can also view ordinary user details and adoption applications, edit account information, send a password-reset email, block or restore sign-in, and permanently delete an account. A superuser can additionally send administrator invitations and perform those management actions on administrator accounts. Self-management and changes to superuser accounts are deliberately blocked in the portal.
 
-Signed-in visitors can apply for an available pet with a short household/care summary, a pet-care experience or preparedness answer, and an optional note. PawHeaven uses the verified email attached to their account for follow-up; it does not collect identity documents or payment details. Staff can record an application outcome without changing the pet’s availability automatically.
+Signed-in visitors can apply for an available pet with a phone number, mailing address, date of birth (18+), a short household/care summary, a pet-care experience or preparedness answer, and an optional note. PawHeaven uses the verified email attached to their account for follow-up; it does not collect driver's licenses, other identity documents, or payment details. Passwords must be at least 8 characters with uppercase, lowercase, a number, and a special character; match this in Supabase Auth → Providers → Email → password requirements. Staff can record an application outcome without changing the pet’s availability automatically.
 
 One deployment owner must set these API Worker values outside source control before using invitations or user management:
 
@@ -61,6 +61,8 @@ One deployment owner must set these API Worker values outside source control bef
 - `BOOTSTRAP_SUPERUSER_EMAIL` as the exact email address that should become the first superuser on its first successful login. Remove this value after that promotion.
 
 From `apps/api`, enter them with `npx wrangler secret put ADMIN_SUPABASE_SERVICE_ROLE_KEY --env production` and `npx wrangler secret put BOOTSTRAP_SUPERUSER_EMAIL --env production`. These commands do not write either value to the repository.
+
+Transactional email uses Resend. Set `RESEND_API_KEY` as a Cloudflare Worker secret with `npx wrangler secret put RESEND_API_KEY --env production` (from `apps/api`); the sender `notifications@pawheaven.online` requires `pawheaven.online` to be verified in Resend. Without the key the API logs email instead of sending it. Locally, email is logged unless `EMAIL_LOCAL_DELIVERY="true"` is set in `apps/api/.dev.vars`.
 
 For local testing, run `BOOTSTRAP_SUPERUSER_EMAIL=you@example.com npm run dev:api`; the local setup script retains that ignored value for later starts.
 

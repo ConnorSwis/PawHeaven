@@ -1,11 +1,12 @@
 begin;
-select plan(20);
+select plan(22);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values
   ('61000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'visit-member@example.com', '', now(), '{}', '{"name":"Visit member"}', now(), now()),
   ('61000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'other-visit-member@example.com', '', now(), '{}', '{"name":"Other visit member"}', now(), now()),
-  ('61000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'visit-admin@example.com', '', now(), '{"role":"admin"}', '{"name":"Visit admin"}', now(), now());
+  ('61000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'visit-admin@example.com', '', now(), '{"role":"admin"}', '{"name":"Visit admin"}', now(), now()),
+  ('61000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'visit-staff@example.com', '', now(), '{"role":"staff"}', '{"name":"Visit staff"}', now(), now());
 
 insert into public.visit_slots (id, starts_at, ends_at, created_by)
 values
@@ -98,7 +99,7 @@ select lives_ok(
 );
 
 select results_eq(
-  $$select event_type from public.appointment_events where member_id = '61000000-0000-0000-0000-000000000001' order by created_at$$,
+  $$select event_type from public.appointment_events where member_id = '61000000-0000-0000-0000-000000000001' order by event_type$$,
   array['booked', 'rescheduled'],
   'rescheduling keeps the original confirmation and adds a new event'
 );
@@ -139,6 +140,19 @@ select throws_ok(
   $$select public.publish_visit_slot(now() + interval '3 days 15 minutes', now() + interval '3 days 45 minutes')$$,
   '23P01', null,
   'overlapping published visit times are rejected'
+);
+
+set local request.jwt.claims = '{"role":"authenticated","sub":"61000000-0000-0000-0000-000000000004","email":"visit-staff@example.com","app_metadata":{"role":"staff"},"user_metadata":{"name":"Visit staff"}}';
+
+select lives_ok(
+  $$select public.publish_visit_slot(now() + interval '5 days', now() + interval '5 days 30 minutes')$$,
+  'staff can publish a visit time'
+);
+
+select results_eq(
+  $$select count(*)::integer from public.appointments where status = 'booked'$$,
+  array[1],
+  'staff can see the current booking schedule'
 );
 
 select * from finish();

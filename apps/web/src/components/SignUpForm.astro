@@ -18,7 +18,7 @@
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="password">Password</label>
         <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required aria-describedby="password-help password-error" />
-        <p id="password-help" class="mt-2 text-sm text-stone-600">Use 8 to 1,024 characters.</p>
+        <p id="password-help" class="mt-2 text-sm text-stone-600">At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.</p>
         <p id="password-error" class="mt-2 hidden text-sm text-red-800" data-field-error="password"></p>
       </div>
       <div>
@@ -42,6 +42,7 @@
 </div>
 
 <script>
+  import { passwordProblem } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
   const form = document.querySelector<HTMLFormElement>('[data-sign-up-form]');
   const error = document.querySelector<HTMLParagraphElement>('[data-form-error]');
@@ -91,8 +92,7 @@
     if (!email.value) { setFieldError(email, 'Enter your email address.'); invalid.push(email); }
     else if (!email.validity.valid) { setFieldError(email, 'Enter a valid email address, such as name@example.com.'); invalid.push(email); }
     if (!password.value) { setFieldError(password, 'Create a password.'); invalid.push(password); }
-    else if (password.value.length < 8) { setFieldError(password, 'Use at least 8 characters for your password.'); invalid.push(password); }
-    else if (password.value.length > 1024) { setFieldError(password, 'Your password is too long. Use 1,024 characters or fewer.'); invalid.push(password); }
+    else if (passwordProblem(password.value)) { setFieldError(password, passwordProblem(password.value) ?? ''); invalid.push(password); }
     if (!confirmation.value) { setFieldError(confirmation, 'Re-enter your password to confirm it.'); invalid.push(confirmation); }
     else if (confirmation.value !== password.value) { setFieldError(confirmation, 'The passwords do not match.'); invalid.push(confirmation); }
     return invalid;

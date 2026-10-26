@@ -5,7 +5,7 @@
 </div>
 
 <script>
-  import type { AdoptionApplicationListResponse, ApiUser, RescheduleVisitInput, VisitAppointmentListResponse, VisitSlotListResponse } from '@pawheaven/contracts';
+  import { passwordProblem, type AdoptionApplicationListResponse, type ApiUser, type ChangeEmailInput, type ChangePasswordInput, type FieldErrors, type RescheduleVisitInput, type VisitAppointmentListResponse, type VisitSlotListResponse } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
   const panel = document.querySelector<HTMLElement>('[data-account-panel]');
 
@@ -74,6 +74,29 @@
       } catch (exception) { profileMessage.textContent = exception instanceof Error ? exception.message : 'We could not save your profile.'; }
       finally { save.disabled = false; }
     });
+    const security = document.createElement('section');
+    security.className = 'mt-6 border-t border-stone-300 pt-6';
+    security.append(textElement('h2', 'text-lg font-semibold text-stone-950', 'Sign-in details'));
+    security.append(
+      accountForm('Change email address', 'Save new email', [
+        { name: 'email', label: 'New email address', type: 'email', autocomplete: 'email' },
+        { name: 'currentPassword', label: 'Current password', type: 'password', autocomplete: 'current-password' },
+      ], async (values) => {
+        const payload: ChangeEmailInput = { email: values.email.trim(), currentPassword: values.currentPassword };
+        const result = await accountRequest<{ message: string }>('/auth/email', 'PUT', payload);
+        return result.message;
+      }),
+      accountForm('Change password', 'Save new password', [
+        { name: 'currentPassword', label: 'Current password', type: 'password', autocomplete: 'current-password' },
+        { name: 'newPassword', label: 'New password', type: 'password', autocomplete: 'new-password', help: 'At least 8 characters, with an uppercase letter, a lowercase letter, a number, and a special character.' },
+      ], async (values) => {
+        const problem = passwordProblem(values.newPassword);
+        if (problem) throw new AccountError(problem, { newPassword: problem });
+        const payload: ChangePasswordInput = { currentPassword: values.currentPassword, newPassword: values.newPassword };
+        await accountRequest('/auth/change-password', 'POST', payload);
+        return 'Your password was changed.';
+      }),
+    );
     logout.addEventListener('click', async () => {
       logout.disabled = true;
       logout.textContent = 'Logging out…';
@@ -93,9 +116,86 @@
     const applications = document.createElement('section');
     applications.className = 'mt-8 border-t border-stone-300 pt-6';
     applications.setAttribute('aria-live', 'polite');
-    panel.append(profile, logout, visits, applications);
+    panel.append(profile, security, logout, visits, applications);
     void showAppointments(visits);
     void showApplications(applications);
+  }
+
+  class AccountError extends Error {
+    fieldErrors?: FieldErrors;
+    constructor(message: string, fieldErrors?: FieldErrors) { super(message); this.fieldErrors = fieldErrors; }
+  }
+
+  async function accountRequest<T>(path: string, method: string, body: unknown): Promise<T> {
+    const response = await fetch(`${apiBase}${path}`, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const payload = await response.json().catch(() => null) as ({ message?: unknown; fieldErrors?: FieldErrors } & T) | null;
+    if (!response.ok) throw new AccountError(typeof payload?.message === 'string' ? payload.message : 'The request could not be completed.', payload?.fieldErrors);
+    return payload as T;
+  }
+
+  type AccountFieldSpec = { name: string; label: string; type: string; autocomplete: string; help?: string };
+
+  /** A small disclosure form with per-field errors and a status message. */
+  function accountForm(title: string, submitLabel: string, fields: AccountFieldSpec[], onSubmit: (values: Record<string, string>) => Promise<string>) {
+    const details = document.createElement('details');
+    details.className = 'mt-4 border border-stone-300 bg-white px-4 py-3';
+    details.append(textElement('summary', 'cursor-pointer text-sm font-semibold text-stone-950', title));
+    const form = document.createElement('form');
+    form.className = 'mt-4 grid gap-4';
+    form.noValidate = true;
+    const inputs = new Map<string, HTMLInputElement>();
+    const errors = new Map<string, HTMLElement>();
+    for (const spec of fields) {
+      const label = textElement('label', 'block text-sm font-medium text-stone-900', spec.label);
+      const input = document.createElement('input');
+      input.name = spec.name;
+      input.type = spec.type;
+      input.setAttribute('autocomplete', spec.autocomplete);
+      input.maxLength = 1024;
+      input.required = true;
+      input.className = 'mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
+      label.append(input);
+      const error = textElement('p', 'mt-2 hidden text-sm text-red-800', '');
+      error.setAttribute('role', 'alert');
+      inputs.set(spec.name, input);
+      errors.set(spec.name, error);
+      const wrapper = document.createElement('div');
+      wrapper.append(label);
+      if (spec.help) wrapper.append(textElement('p', 'mt-2 text-sm text-stone-600', spec.help));
+      wrapper.append(error);
+      form.append(wrapper);
+    }
+    const submit = textElement('button', 'justify-self-start bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70', submitLabel) as HTMLButtonElement;
+    submit.type = 'submit';
+    const status = textElement('p', 'text-sm', '');
+    status.setAttribute('role', 'status');
+    form.append(submit, status);
+    function showErrors(fieldErrors: FieldErrors) {
+      for (const [name, error] of errors) {
+        error.textContent = fieldErrors[name] ?? '';
+        error.classList.toggle('hidden', !fieldErrors[name]);
+      }
+    }
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      showErrors({});
+      status.textContent = '';
+      const values = Object.fromEntries([...inputs].map(([name, input]) => [name, input.value]));
+      const missing = Object.fromEntries([...inputs].filter(([, input]) => !input.value).map(([name]) => [name, 'This field is required.']));
+      if (Object.keys(missing).length) return showErrors(missing);
+      submit.disabled = true;
+      try {
+        status.textContent = await onSubmit(values);
+        status.className = 'text-sm text-[var(--color-moss-dark)]';
+        for (const input of inputs.values()) input.value = '';
+      } catch (exception) {
+        if (exception instanceof AccountError && exception.fieldErrors) showErrors(exception.fieldErrors);
+        status.textContent = exception instanceof Error ? exception.message : 'We could not save that change.';
+        status.className = 'text-sm text-red-800';
+      } finally { submit.disabled = false; }
+    });
+    details.append(form);
+    return details;
   }
 
   const shelterTimeZone = 'America/New_York';

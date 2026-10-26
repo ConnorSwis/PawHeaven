@@ -65,6 +65,11 @@ writeFileSync(destination, [
   ...(typeof bootstrapSuperuserEmail === 'string' && bootstrapSuperuserEmail
     ? [`BOOTSTRAP_SUPERUSER_EMAIL=${JSON.stringify(bootstrapSuperuserEmail)}`]
     : ['# Set BOOTSTRAP_SUPERUSER_EMAIL to your own address before first local admin login.']),
+  // Optional email settings survive regeneration. Local development logs email
+  // unless EMAIL_LOCAL_DELIVERY is "true".
+  ...['RESEND_API_KEY', 'EMAIL_LOCAL_DELIVERY'].flatMap((name) => typeof existingValues[name] === 'string' && existingValues[name]
+    ? [`${name}=${JSON.stringify(existingValues[name])}`]
+    : []),
   '',
 ].join('\n'));
 
