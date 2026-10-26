@@ -409,7 +409,7 @@ export type LostPetMatchPet = Pick<Pet, 'id' | 'name' | 'type' | 'breed' | 'age'
 
 export type LostPetMatch = {
   pet: LostPetMatchPet;
-  /** Visual similarity from 0 to 100. It is never proof of ownership. */
+  /** The model's own 0 to 100 estimate, not a measurement. Show it with `matchStrength`, never as a percentage. It is never proof of ownership. */
   confidence: number;
   reason: string;
 };
@@ -465,6 +465,15 @@ export type AdminLostPetInquiryUpdateInput = {
   status: LostPetInquiryStatus;
   staffNote: string;
 };
+
+export type MatchStrength = 'Strong' | 'Likely' | 'Possible';
+
+/** Turns a model's confidence estimate into a band, so the interface does not claim precision it does not have. */
+export function matchStrength(confidence: number): MatchStrength {
+  if (confidence >= 85) return 'Strong';
+  if (confidence >= 65) return 'Likely';
+  return 'Possible';
+}
 
 function searchableWords(value: string): string[] {
   return value

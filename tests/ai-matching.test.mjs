@@ -8,6 +8,7 @@ import {
   quizUserPrompt,
   sniffImageType,
 } from '../apps/api/src/lib/ai-matching.ts';
+import { matchStrength } from '../packages/contracts/src/index.ts';
 import { AiFailureError, AiNotConfiguredError, chatJson, extractJson, modelsFor } from '../apps/api/src/lib/openrouter.ts';
 
 const validAnswers = {
@@ -125,4 +126,13 @@ test('openrouter: requests deny data collection, require structured output, and 
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('lost pet: a model estimate is shown as a band, never a precise percentage', () => {
+  assert.equal(matchStrength(100), 'Strong');
+  assert.equal(matchStrength(85), 'Strong');
+  assert.equal(matchStrength(84), 'Likely');
+  assert.equal(matchStrength(65), 'Likely');
+  assert.equal(matchStrength(64), 'Possible');
+  assert.equal(matchStrength(35), 'Possible');
 });
