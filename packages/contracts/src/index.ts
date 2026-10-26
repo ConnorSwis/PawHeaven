@@ -349,6 +349,123 @@ export type PublishVisitSlotInput = {
   endsAt: string;
 };
 
+export const QUIZ_QUESTIONS = {
+  livingSpace: { label: 'Where do you live?', options: { apartment: 'Apartment or condo', 'small-home': 'House with a small or no yard', 'large-yard': 'House with a large or fenced yard', farm: 'Farm or rural property' } },
+  household: { label: 'Who shares your home?', options: { adults: 'Adults only', children: 'Children under 12' } },
+  otherPets: { label: 'Which pets do you already have?', options: { none: 'None', dogs: 'Dogs', cats: 'Cats', both: 'Dogs and cats' } },
+  activityLevel: { label: 'How active are you?', options: { low: 'Mostly relaxed', moderate: 'A few walks or outings a week', high: 'Very active: runs, hikes, or daily adventures' } },
+  hoursAlone: { label: 'How long would the pet be alone on a typical day?', options: { 'under-4': 'Under 4 hours', '4-8': '4 to 8 hours', 'over-8': 'More than 8 hours' } },
+  experience: { label: 'How much pet-care experience do you have?', options: { 'first-time': 'This would be my first pet', some: 'Some experience', experienced: 'Very experienced' } },
+  species: { label: 'What kind of pet are you hoping for?', options: { dog: 'A dog', cat: 'A cat', either: 'Either is fine' } },
+  size: { label: 'What size do you prefer?', options: { small: 'Small', medium: 'Medium', large: 'Large', any: 'No preference' } },
+  age: { label: 'What age do you prefer?', options: { young: 'Young (puppy, kitten, or under 2 years)', adult: 'Adult', senior: 'Senior', any: 'No preference' } },
+} as const;
+
+export const QUIZ_TRAITS = {
+  calm: 'Calm and relaxed',
+  playful: 'Playful',
+  cuddly: 'Affectionate and cuddly',
+  independent: 'Independent',
+  active: 'Energetic',
+  trainable: 'Easy to train',
+} as const;
+
+export type QuizTrait = keyof typeof QUIZ_TRAITS;
+
+export type QuizAnswers = {
+  [Question in keyof typeof QUIZ_QUESTIONS]: keyof (typeof QUIZ_QUESTIONS)[Question]['options'];
+} & {
+  /** One to three traits the member wants in a pet. */
+  traits: QuizTrait[];
+  /** Optional free text, at most 500 characters. */
+  notes: string;
+};
+
+export type QuizRecommendation = {
+  pet: Pet;
+  /** Fit from 0 to 100. */
+  score: number;
+  /** One or two sentences explaining the fit. */
+  reason: string;
+};
+
+export type QuizResultResponse = {
+  id: string;
+  answers: QuizAnswers;
+  recommendations: QuizRecommendation[];
+  createdAt: string;
+  /** Set when there is nothing to recommend, such as no animals open to matching. */
+  notice: string | null;
+};
+
+export type LatestQuizResponse = {
+  result: QuizResultResponse | null;
+};
+
+export type LostPetSpecies = 'Dog' | 'Cat' | 'Other';
+
+/** The limited, public-safe view of a shelter animal that a lost-pet search may show. */
+export type LostPetMatchPet = Pick<Pet, 'id' | 'name' | 'type' | 'breed' | 'age' | 'status' | 'imageUrl'>;
+
+export type LostPetMatch = {
+  pet: LostPetMatchPet;
+  /** Visual similarity from 0 to 100. It is never proof of ownership. */
+  confidence: number;
+  reason: string;
+};
+
+export type LostPetSearchResponse = {
+  /** Null when nothing was kept: no animals to compare, or no possible matches. */
+  searchId: string | null;
+  matches: LostPetMatch[];
+  /** A message to show when there are no matches or no animals to compare against. */
+  notice: string | null;
+};
+
+export type LostPetInquiryInput = {
+  searchId: string;
+  petId: string;
+  phone: string;
+  message: string;
+};
+
+export type LostPetInquiryStatus = 'New' | 'In progress' | 'Resolved';
+
+export type LostPetInquiry = {
+  id: string;
+  petId: string | null;
+  petName: string;
+  message: string;
+  status: LostPetInquiryStatus;
+  createdAt: string;
+};
+
+export type LostPetInquiryListResponse = {
+  inquiries: LostPetInquiry[];
+};
+
+export type AdminLostPetInquiry = LostPetInquiry & {
+  memberName: string;
+  memberEmail: string;
+  memberPhone: string;
+  staffNote: string;
+  handledAt: string | null;
+  petImageUrl: string | null;
+  searchSpecies: LostPetSpecies;
+  searchDescription: string;
+  /** Short-lived signed links to the photos the member uploaded; null when the photos have expired. */
+  photoUrls: string[];
+};
+
+export type AdminLostPetInquiryListResponse = {
+  inquiries: AdminLostPetInquiry[];
+};
+
+export type AdminLostPetInquiryUpdateInput = {
+  status: LostPetInquiryStatus;
+  staffNote: string;
+};
+
 function searchableWords(value: string): string[] {
   return value
     .toLocaleLowerCase()
