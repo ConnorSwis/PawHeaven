@@ -1,0 +1,242 @@
+<div class="mx-auto max-w-5xl px-6 py-12">
+  <section class="border border-stone-300 bg-white p-7 sm:p-9" data-pet-quiz aria-live="polite">
+    <p class="text-sm text-stone-600">Checking your session…</p>
+  </section>
+</div>
+
+<script>
+  import { QUIZ_QUESTIONS, QUIZ_TRAITS, type FieldErrors, type LatestQuizResponse, type QuizAnswers, type QuizResultResponse, type QuizTrait } from '@pawheaven/contracts';
+  import { apiBase } from '../lib/api';
+
+  const container = document.querySelector<HTMLElement>('[data-pet-quiz]');
+
+  function element(tag: string, className: string, content: string) {
+    const node = document.createElement(tag);
+    node.className = className;
+    node.textContent = content;
+    return node;
+  }
+
+  function showSignedOut() {
+    if (!container) return;
+    container.replaceChildren(
+      element('h1', 'text-3xl font-semibold tracking-tight text-stone-950', 'Find your match'),
+      element('p', 'mt-4 max-w-2xl leading-7 text-stone-700', 'Log in to answer a few questions about your home and lifestyle and see which of our animals might suit you.'),
+    );
+    const login = document.createElement('a');
+    login.href = '/login';
+    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    login.textContent = 'Log in to take the quiz';
+    container.append(login);
+  }
+
+  function resultCard(recommendation: QuizResultResponse['recommendations'][number]) {
+    const card = document.createElement('article');
+    card.className = 'grid gap-4 border border-stone-300 bg-white p-5 sm:grid-cols-[9rem_minmax(0,1fr)]';
+    const image = document.createElement(recommendation.pet.imageUrl ? 'img' : 'div');
+    image.className = 'aspect-[4/3] w-full bg-stone-200 object-cover';
+    if (image instanceof HTMLImageElement && recommendation.pet.imageUrl) {
+      image.src = recommendation.pet.imageUrl;
+      image.alt = `${recommendation.pet.name} at PawHeaven`;
+    }
+    const body = document.createElement('div');
+    const header = document.createElement('div');
+    header.className = 'flex flex-wrap items-baseline justify-between gap-2';
+    header.append(
+      element('h3', 'text-lg font-semibold text-stone-950', recommendation.pet.name),
+      element('span', 'border border-[var(--color-moss)] px-2 py-1 text-sm text-[var(--color-moss-dark)]', `Fit ${recommendation.score}/100`),
+    );
+    const link = document.createElement('a');
+    link.href = `/pets/details?id=${encodeURIComponent(recommendation.pet.id)}`;
+    link.className = 'mt-3 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4';
+    link.textContent = `Meet ${recommendation.pet.name}`;
+    body.append(
+      header,
+      element('p', 'mt-1 text-sm text-stone-700', `${recommendation.pet.type} · ${recommendation.pet.breed} · ${recommendation.pet.age}`),
+      element('p', 'mt-3 leading-7 text-stone-800', recommendation.reason),
+      link,
+    );
+    card.append(image, body);
+    return card;
+  }
+
+  function renderResults(target: HTMLElement, result: QuizResultResponse) {
+    target.replaceChildren(element('h2', 'text-xl font-semibold tracking-tight text-stone-950', 'Your recommendations'));
+    if (!result.recommendations.length) {
+      const empty = element('p', 'mt-3 leading-7 text-stone-700', result.notice ?? 'No available animals fit those answers right now.');
+      const browse = document.createElement('a');
+      browse.href = '/pets';
+      browse.className = 'mt-4 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4';
+      browse.textContent = 'Browse all available pets';
+      target.append(empty, browse);
+      return;
+    }
+    target.append(element('p', 'mt-2 text-sm text-stone-600', 'Suggestions come from an AI model and are a starting point, not a decision. They do not reserve an animal or start an application. Change your answers above and submit again to update them.'));
+    const list = document.createElement('div');
+    list.className = 'mt-5 grid gap-4';
+    for (const recommendation of result.recommendations) list.append(resultCard(recommendation));
+    target.append(list);
+  }
+
+  function renderQuiz(previous: QuizResultResponse | null) {
+    if (!container) return;
+    container.replaceChildren(
+      element('h1', 'text-3xl font-semibold tracking-tight text-stone-950', 'Find your match'),
+      element('p', 'mt-4 max-w-2xl leading-7 text-stone-700', 'Answer these questions about your home and lifestyle. We compare your answers with the animals currently available and explain why each recommendation could fit.'),
+      element('p', 'mt-2 max-w-2xl text-sm leading-6 text-stone-600', 'Your answers are sent to an AI provider to produce recommendations, and your latest result is saved to your account. Do not include anything sensitive in the notes.'),
+    );
+    const form = document.createElement('form');
+    form.className = 'mt-8 grid gap-7 border-t border-stone-300 pt-7';
+    form.noValidate = true;
+    const errors = new Map<string, HTMLElement>();
+    const groups = new Map<string, HTMLFieldSetElement>();
+
+    function fieldset(name: string, legendText: string) {
+      const group = document.createElement('fieldset');
+      group.append(element('legend', 'text-base font-semibold text-stone-950', legendText));
+      const error = element('p', 'mt-2 hidden text-sm font-medium text-red-800', '');
+      error.setAttribute('role', 'alert');
+      errors.set(name, error);
+      groups.set(name, group);
+      return { group, error };
+    }
+
+    for (const [question, spec] of Object.entries(QUIZ_QUESTIONS)) {
+      const { group, error } = fieldset(question, spec.label);
+      const options = document.createElement('div');
+      options.className = 'mt-3 grid gap-2 sm:grid-cols-2';
+      for (const [value, label] of Object.entries(spec.options)) {
+        const option = document.createElement('label');
+        option.className = 'flex cursor-pointer items-start gap-3 border border-stone-300 px-3 py-3 hover:border-[var(--color-moss)]';
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = question;
+        radio.value = value;
+        radio.className = 'mt-1';
+        radio.checked = (previous?.answers as Record<string, unknown> | undefined)?.[question] === value;
+        option.append(radio, element('span', 'text-stone-900', label));
+        options.append(option);
+      }
+      group.append(options, error);
+      form.append(group);
+    }
+
+    const traits = fieldset('traits', 'Which traits matter most? Choose up to three.');
+    const traitOptions = document.createElement('div');
+    traitOptions.className = 'mt-3 grid gap-2 sm:grid-cols-2';
+    for (const [value, label] of Object.entries(QUIZ_TRAITS)) {
+      const option = document.createElement('label');
+      option.className = 'flex cursor-pointer items-start gap-3 border border-stone-300 px-3 py-3 hover:border-[var(--color-moss)]';
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.name = 'traits';
+      box.value = value;
+      box.className = 'mt-1';
+      box.checked = previous?.answers.traits.includes(value as QuizTrait) ?? false;
+      option.append(box, element('span', 'text-stone-900', label));
+      traitOptions.append(option);
+    }
+    traits.group.append(traitOptions, traits.error);
+    form.append(traits.group);
+
+    const notesLabel = element('label', 'block text-base font-semibold text-stone-950', 'Anything else we should know? (optional)');
+    const notes = document.createElement('textarea');
+    notes.name = 'notes';
+    notes.maxLength = 500;
+    notes.rows = 3;
+    notes.value = previous?.answers.notes ?? '';
+    notes.className = 'mt-2 block w-full resize-y border border-stone-400 bg-white px-3 py-2.5 font-normal text-stone-950';
+    notesLabel.append(notes);
+    const notesError = element('p', 'mt-2 hidden text-sm font-medium text-red-800', '');
+    notesError.setAttribute('role', 'alert');
+    errors.set('notes', notesError);
+    form.append(element('div', '', ''));
+    (form.lastElementChild as HTMLElement).append(notesLabel, notesError);
+
+    const actions = document.createElement('div');
+    actions.className = 'flex flex-wrap items-center gap-3';
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.textContent = previous ? 'Update my recommendations' : 'Show my matches';
+    const status = document.createElement('p');
+    status.setAttribute('role', 'status');
+    actions.append(submit, status);
+    form.append(actions);
+
+    const results = document.createElement('section');
+    results.className = 'mt-9 border-t border-stone-300 pt-7';
+    results.setAttribute('aria-live', 'polite');
+    container.append(form, results);
+    if (previous) renderResults(results, previous);
+
+    function showErrors(fieldErrors: FieldErrors) {
+      for (const [name, error] of errors) {
+        error.textContent = fieldErrors[name] ?? '';
+        error.classList.toggle('hidden', !fieldErrors[name]);
+      }
+      const first = [...errors.keys()].find((name) => fieldErrors[name]);
+      if (first === 'notes') notes.focus();
+      else if (first) groups.get(first)?.querySelector<HTMLElement>('input')?.focus();
+    }
+    function readAnswers() {
+      const answers: Record<string, unknown> = {};
+      for (const question of Object.keys(QUIZ_QUESTIONS)) {
+        answers[question] = form.querySelector<HTMLInputElement>(`input[name="${question}"]:checked`)?.value ?? '';
+      }
+      answers.traits = [...form.querySelectorAll<HTMLInputElement>('input[name="traits"]:checked')].map((box) => box.value);
+      answers.notes = notes.value.trim();
+      return answers;
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const answers = readAnswers();
+      const problems: FieldErrors = {};
+      for (const question of Object.keys(QUIZ_QUESTIONS)) if (!answers[question]) problems[question] = 'Answer this question.';
+      const traitCount = (answers.traits as string[]).length;
+      if (!traitCount) problems.traits = 'Choose at least one trait you want in a pet.';
+      else if (traitCount > 3) problems.traits = 'Choose up to three traits.';
+      showErrors(problems);
+      if (Object.keys(problems).length) { status.textContent = 'Please answer every question before continuing.'; status.className = 'text-sm text-red-800'; return; }
+      submit.disabled = true;
+      submit.textContent = 'Finding matches…';
+      status.textContent = '';
+      try {
+        const response = await fetch(`${apiBase}/quiz`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(answers as QuizAnswers) });
+        const payload = await response.json().catch(() => null) as (QuizResultResponse & { message?: unknown; fieldErrors?: FieldErrors }) | null;
+        if (!response.ok) {
+          if (payload?.fieldErrors) showErrors(payload.fieldErrors);
+          throw new Error(typeof payload?.message === 'string' ? payload.message : 'We could not find matches right now.');
+        }
+        renderResults(results, payload as QuizResultResponse);
+        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (exception) {
+        status.textContent = exception instanceof Error ? exception.message : 'We could not find matches right now.';
+        status.className = 'text-sm text-red-800';
+      } finally {
+        submit.disabled = false;
+        submit.textContent = 'Update my recommendations';
+      }
+    });
+  }
+
+  async function load() {
+    try {
+      const identityResponse = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
+      if (identityResponse.status === 401) return showSignedOut();
+      if (!identityResponse.ok) throw new Error();
+      const latestResponse = await fetch(`${apiBase}/quiz/latest`, { credentials: 'include' });
+      const latest = latestResponse.ok ? (await latestResponse.json() as LatestQuizResponse).result : null;
+      renderQuiz(latest);
+    } catch {
+      if (!container) return;
+      container.replaceChildren(
+        element('h1', 'text-3xl font-semibold tracking-tight text-stone-950', 'The quiz is unavailable'),
+        element('p', 'mt-4 leading-7 text-stone-700', 'We could not load the quiz right now. Please try again shortly, or browse the available pets.'),
+      );
+    }
+  }
+
+  void load();
+</script>

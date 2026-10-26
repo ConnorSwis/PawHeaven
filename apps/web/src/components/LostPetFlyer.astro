@@ -1,0 +1,190 @@
+<div class="mx-auto grid max-w-6xl gap-10 px-6 py-12 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+  <section class="flyer-controls border border-stone-300 bg-white p-7" aria-labelledby="flyer-title">
+    <h1 id="flyer-title" class="text-3xl font-semibold tracking-tight text-stone-950">Lost-pet flyer</h1>
+    <p class="mt-3 leading-7 text-stone-700">Fill out the template and print a flyer to post around your neighborhood. Everything stays in your browser: nothing here is uploaded or saved.</p>
+    <form data-flyer-form class="mt-6 grid gap-4" novalidate></form>
+  </section>
+  <section aria-label="Flyer preview">
+    <div class="flyer-controls mb-4 flex flex-wrap items-center gap-3">
+      <button data-print type="button" class="bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-not-allowed disabled:opacity-60">Print flyer</button>
+      <p data-print-message role="status" class="text-sm text-stone-700">Preview updates as you type.</p>
+    </div>
+    <article data-flyer id="lost-pet-flyer" class="mx-auto aspect-[8.5/11] w-full max-w-[34rem] overflow-hidden border-2 border-stone-900 bg-white p-6 text-stone-950"></article>
+  </section>
+</div>
+
+<style is:global>
+  @media print {
+    @page { size: letter portrait; margin: 0.4in; }
+    body * { visibility: hidden !important; }
+    #lost-pet-flyer, #lost-pet-flyer * { visibility: visible !important; }
+    #lost-pet-flyer { position: absolute; inset: 0; width: 100%; max-width: none; margin: 0; border: 0; padding: 0; aspect-ratio: auto; }
+  }
+</style>
+
+<script>
+  import type { ApiUser } from '@pawheaven/contracts';
+  import { apiBase } from '../lib/api';
+
+  const form = document.querySelector<HTMLFormElement>('[data-flyer-form]');
+  const flyer = document.querySelector<HTMLElement>('[data-flyer]');
+  const printButton = document.querySelector<HTMLButtonElement>('[data-print]');
+  const printMessage = document.querySelector<HTMLElement>('[data-print-message]');
+  const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+  let photoUrl: string | null = null;
+
+  const fields = [
+    { name: 'species', label: 'Kind of animal', required: true, placeholder: 'Dog, cat, rabbit…', max: 40 },
+    { name: 'petName', label: 'Pet’s name', required: false, placeholder: 'Biscuit', max: 60 },
+    { name: 'breed', label: 'Breed (optional)', required: false, placeholder: 'Beagle mix', max: 80 },
+    { name: 'appearance', label: 'Color, size, and markings', required: true, placeholder: 'Brown and white, medium size, white patch on the chest', max: 200 },
+    { name: 'distinguishing', label: 'Collar, microchip, or other identifying details (optional)', required: false, placeholder: 'Red collar, microchipped, limps slightly on the left rear leg', max: 200 },
+    { name: 'lastSeenWhere', label: 'Last seen where', required: true, placeholder: 'Near Maple St and 5th Ave', max: 120 },
+    { name: 'lastSeenWhen', label: 'Last seen when', required: true, placeholder: '', max: 20, type: 'date' },
+    { name: 'contactName', label: 'Your name', required: true, placeholder: '', max: 60 },
+    { name: 'contactPhone', label: 'Phone number', required: true, placeholder: '(404) 555-0142', max: 30, type: 'tel' },
+    { name: 'contactEmail', label: 'Email (optional)', required: false, placeholder: '', max: 100, type: 'email' },
+    { name: 'note', label: 'Extra note, such as a reward (optional)', required: false, placeholder: 'Reward offered. Please call, do not chase.', max: 120 },
+  ] as const;
+  type FieldName = (typeof fields)[number]['name'];
+  const inputs = new Map<FieldName, HTMLInputElement>();
+  const errors = new Map<FieldName, HTMLElement>();
+
+  function node(tag: string, className: string, content = '') {
+    const element = document.createElement(tag);
+    element.className = className;
+    if (content) element.textContent = content;
+    return element;
+  }
+
+  function buildForm() {
+    if (!form) return;
+    for (const field of fields) {
+      const wrapper = document.createElement('div');
+      const label = node('label', 'block text-sm font-medium text-stone-900', field.label);
+      const input = document.createElement('input');
+      input.type = 'type' in field ? field.type : 'text';
+      input.name = field.name;
+      input.maxLength = field.max;
+      input.placeholder = field.placeholder;
+      input.className = 'mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 font-normal text-stone-950';
+      if (field.name === 'lastSeenWhen') input.max = new Date().toISOString().slice(0, 10);
+      label.append(input);
+      const error = node('p', 'mt-2 hidden text-sm text-red-800');
+      error.setAttribute('role', 'alert');
+      wrapper.append(label, error);
+      form.append(wrapper);
+      inputs.set(field.name, input);
+      errors.set(field.name, error);
+      input.addEventListener('input', render);
+    }
+    const photoWrapper = document.createElement('div');
+    const photoLabel = node('label', 'block text-sm font-medium text-stone-900', 'Photo of your pet (optional)');
+    const photo = document.createElement('input');
+    photo.type = 'file';
+    photo.accept = 'image/jpeg,image/png,image/webp';
+    photo.className = 'mt-2 block w-full text-sm text-stone-700 file:mr-4 file:border-0 file:bg-stone-200 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-stone-900';
+    photoLabel.append(photo);
+    const photoError = node('p', 'mt-2 hidden text-sm text-red-800');
+    photoError.setAttribute('role', 'alert');
+    photoWrapper.append(photoLabel, photoError);
+    form.append(photoWrapper);
+    photo.addEventListener('change', () => {
+      const file = photo.files?.[0];
+      if (photoUrl) { URL.revokeObjectURL(photoUrl); photoUrl = null; }
+      photoError.classList.add('hidden');
+      if (file) {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > MAX_PHOTO_BYTES) {
+          photoError.textContent = 'Choose a JPEG, PNG, or WebP photo smaller than 10 MB.';
+          photoError.classList.remove('hidden');
+          photo.value = '';
+        } else photoUrl = URL.createObjectURL(file);
+      }
+      render();
+    });
+  }
+
+  function value(name: FieldName) { return inputs.get(name)?.value.trim() ?? ''; }
+
+  function problems(): Partial<Record<FieldName, string>> {
+    const found: Partial<Record<FieldName, string>> = {};
+    for (const field of fields) if (field.required && !value(field.name)) found[field.name] = 'This is needed on the flyer.';
+    if (value('contactPhone') && value('contactPhone').replace(/\D/g, '').length < 10) found.contactPhone = 'Enter a phone number with at least 10 digits.';
+    if (value('contactEmail') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value('contactEmail'))) found.contactEmail = 'Enter a valid email address.';
+    return found;
+  }
+
+  function line(label: string, text: string) {
+    const row = node('p', 'mt-1.5 text-base leading-snug');
+    row.append(node('span', 'font-bold', `${label}: `), document.createTextNode(text));
+    return row;
+  }
+
+  function render() {
+    if (!flyer) return;
+    const species = value('species') || 'pet';
+    const when = value('lastSeenWhen') ? new Date(`${value('lastSeenWhen')}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '';
+    const body = node('div', 'flex h-full flex-col');
+    body.append(node('p', 'text-center text-5xl font-black uppercase leading-none tracking-tight', 'Lost'));
+    body.append(node('p', 'mt-1 text-center text-2xl font-extrabold uppercase', species));
+    if (value('petName')) body.append(node('p', 'mt-2 text-center text-3xl font-bold', `Answers to “${value('petName')}”`));
+    if (photoUrl) {
+      const frame = node('div', 'mt-4 flex min-h-[5rem] flex-1 items-center justify-center overflow-hidden');
+      const image = document.createElement('img');
+      image.src = photoUrl;
+      image.alt = 'Photo of the lost pet';
+      image.className = 'max-h-full max-w-full border border-stone-400 object-contain';
+      frame.append(image);
+      body.append(frame);
+    }
+    const details = node('div', 'mt-3');
+    if (value('breed')) details.append(line('Breed', value('breed')));
+    if (value('appearance')) details.append(line('Looks like', value('appearance')));
+    if (value('distinguishing')) details.append(line('Identifying details', value('distinguishing')));
+    if (value('lastSeenWhere')) details.append(line('Last seen', `${value('lastSeenWhere')}${when ? `, ${when}` : ''}`));
+    body.append(details);
+    if (value('note')) body.append(node('p', 'mt-2 text-center text-lg font-bold', value('note')));
+    const contact = node('div', 'mt-auto border-t-4 border-stone-950 pt-3 text-center');
+    contact.append(node('p', 'text-base font-bold uppercase', 'If you have seen this pet, please call'));
+    contact.append(node('p', 'mt-1 text-3xl font-black', value('contactPhone') || '(phone number)'));
+    contact.append(node('p', 'mt-1 text-base', [value('contactName'), value('contactEmail')].filter(Boolean).join(' · ') || '(your name)'));
+    body.append(contact);
+    flyer.replaceChildren(body);
+    const current = problems();
+    if (printButton) printButton.disabled = false;
+    if (printMessage) printMessage.textContent = Object.keys(current).length ? 'Fill in the highlighted details before printing.' : 'Ready to print.';
+  }
+
+  function showProblems(found: Partial<Record<FieldName, string>>) {
+    for (const [name, error] of errors) {
+      error.textContent = found[name] ?? '';
+      error.classList.toggle('hidden', !found[name]);
+    }
+    const first = fields.find((field) => found[field.name]);
+    if (first) inputs.get(first.name)?.focus();
+  }
+
+  printButton?.addEventListener('click', () => {
+    const found = problems();
+    showProblems(found);
+    if (Object.keys(found).length) { if (printMessage) printMessage.textContent = 'Fill in the highlighted details before printing.'; return; }
+    window.print();
+  });
+
+  async function prefillFromAccount() {
+    try {
+      const response = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
+      if (!response.ok) return;
+      const { user } = await response.json() as { user: ApiUser };
+      const name = inputs.get('contactName');
+      const email = inputs.get('contactEmail');
+      if (name && !name.value) name.value = user.name;
+      if (email && !email.value) email.value = user.email;
+      render();
+    } catch { /* The flyer works without an account. */ }
+  }
+
+  buildForm();
+  render();
+  void prefillFromAccount();
+</script>
