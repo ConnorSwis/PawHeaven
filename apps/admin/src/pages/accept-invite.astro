@@ -12,6 +12,7 @@ import AdminShell from '../layouts/AdminShell.astro';
 </AdminShell>
 
 <script>
+  import { passwordProblem } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
   const panel = document.querySelector<HTMLElement>('[data-invite-panel]');
 
@@ -52,7 +53,8 @@ import AdminShell from '../layouts/AdminShell.astro';
     panel.append(form);
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (!input.validity.valid) return message('Choose a password with at least 8 characters.', true);
+      const problem = passwordProblem(input.value);
+      if (problem) return message(problem, true);
       submit.disabled = true;
       submit.textContent = 'Saving…';
       try {

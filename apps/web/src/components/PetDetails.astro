@@ -14,7 +14,7 @@ const seedPets = [
 </div>
 
 <script>
-  import type { AdoptionApplication, AdoptionApplicationInput, AdoptionApplicationListResponse, ApiUser, Pet } from '@pawheaven/contracts';
+  import type { AdoptionApplication, AdoptionApplicationInput, AdoptionApplicationListResponse, ApiUser, FieldErrors, Pet } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
   import { canStartApplication, hasPetImage } from '../lib/pet-discovery';
   const container = document.querySelector<HTMLElement>('[data-pet-detail]');
@@ -31,7 +31,7 @@ const seedPets = [
   function displayPet(pet: Pet, note?: string) {
     if (!container) return;
     container.replaceChildren();
-    const category = element('p', 'text-sm font-medium text-[var(--color-moss-dark)]', `${pet.type} · ${pet.status}`);
+    const category = element('p', 'text-sm font-medium text-[var(--color-moss-dark)]', `${pet.type} · ${pet.status}${pet.fosterAvailable ? ' · Open to foster' : ''}`);
     const name = element('h1', 'mt-3 text-3xl font-semibold tracking-tight text-stone-950', pet.name);
     const description = element('p', 'mt-5 max-w-xl leading-7 text-stone-700', pet.summary);
     const details = document.createElement('dl');
@@ -46,6 +46,8 @@ const seedPets = [
     const tags = document.createElement('div');
     tags.className = 'mt-3 flex flex-wrap gap-2';
     pet.tags.forEach((tag) => tags.append(element('span', 'border border-stone-300 px-2 py-1 text-sm text-stone-700', tag.replaceAll('-', ' '))));
+    const medicalHeading = element('h2', 'mt-7 text-base font-semibold text-stone-950', 'Medical history');
+    const medical = element('p', 'mt-3 max-w-xl whitespace-pre-wrap leading-7 text-stone-700', pet.medicalHistory?.trim() || 'No medical history has been recorded for this animal yet. Ask the shelter team for details.');
     const back = document.createElement('a');
     back.href = '/pets';
     back.className = 'mt-8 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4';
@@ -61,7 +63,7 @@ const seedPets = [
     const application = document.createElement('section');
     application.className = 'mt-9 border-t border-stone-300 pt-7';
     application.setAttribute('aria-live', 'polite');
-    container.append(description, details, tagHeading, tags, application, back);
+    container.append(description, details, medicalHeading, medical, tagHeading, tags, application, back);
     if (note) container.append(element('p', 'mt-5 text-sm text-stone-600', note));
     void displayApplicationForm(pet, application, Boolean(note));
   }
@@ -74,7 +76,7 @@ const seedPets = [
   function existingApplication(target: HTMLElement, application: AdoptionApplication) {
     target.replaceChildren(
       element('h2', 'text-xl font-semibold tracking-tight text-stone-950', 'Application submitted'),
-      element('p', 'mt-3 leading-7 text-stone-700', `Your application for ${application.petName} is ${application.status.toLowerCase()}. The shelter will contact you at the email on your account.`),
+      element('p', 'mt-3 leading-7 text-stone-700', `Your application for ${application.petName} is ${application.status.toLowerCase()}. We emailed a confirmation, and the shelter will contact you using the details you provided.`),
     );
   }
 
@@ -90,86 +92,128 @@ const seedPets = [
     target.append(login);
   }
 
+  type ApplicationFieldName = keyof AdoptionApplicationInput;
+
   function applicationForm(target: HTMLElement, pet: Pet, user: ApiUser) {
     target.replaceChildren(
       element('h2', 'text-xl font-semibold tracking-tight text-stone-950', `Apply to adopt ${pet.name}`),
-      element('p', 'mt-3 max-w-xl leading-7 text-stone-700', `We’ll use the email on your PawHeaven account (${user.email}) to follow up. An application does not reserve ${pet.name}.`),
+      element('p', 'mt-3 max-w-xl leading-7 text-stone-700', `We’ll email you at your PawHeaven account address (${user.email}) and may call or write using the details below. An application does not reserve ${pet.name}. We never ask for a driver’s license or payment information here.`),
     );
     const form = document.createElement('form');
     form.className = 'mt-6 space-y-5';
     form.noValidate = true;
-    const householdLabel = document.createElement('label');
-    householdLabel.className = 'block text-sm font-medium text-stone-900';
-    householdLabel.textContent = 'Tell us about your household and the care you can provide';
-    const household = document.createElement('textarea');
-    household.name = 'householdSummary';
-    household.required = true;
-    household.minLength = 20;
-    household.maxLength = 2000;
-    household.className = 'mt-2 block min-h-36 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
-    household.placeholder = 'For example: who lives with you, your home routine, and how you plan to care for a pet.';
-    householdLabel.append(household);
-    const experienceLabel = document.createElement('label');
-    experienceLabel.className = 'block text-sm font-medium text-stone-900';
-    experienceLabel.textContent = 'Tell us about your pet-care experience or how you will prepare';
-    const experience = document.createElement('textarea');
-    experience.name = 'adoptionExperience';
-    experience.required = true;
-    experience.minLength = 20;
-    experience.maxLength = 1000;
-    experience.className = 'mt-2 block min-h-32 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
-    experience.placeholder = 'For example: pets you have cared for, support you have in place, and how you will learn what this pet needs.';
-    experienceLabel.append(experience);
-    const noteLabel = document.createElement('label');
-    noteLabel.className = 'block text-sm font-medium text-stone-900';
-    noteLabel.textContent = 'Anything else the shelter should know? (optional)';
-    const note = document.createElement('textarea');
-    note.name = 'note';
-    note.maxLength = 1000;
-    note.className = 'mt-2 block min-h-24 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
-    noteLabel.append(note);
+    const controls = new Map<ApplicationFieldName, HTMLInputElement | HTMLTextAreaElement>();
+    const errors = new Map<ApplicationFieldName, HTMLElement>();
+    const inputClass = 'mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
+
+    function addField(name: ApplicationFieldName, labelText: string, control: HTMLInputElement | HTMLTextAreaElement, help?: string) {
+      const label = document.createElement('label');
+      label.className = 'block text-sm font-medium text-stone-900';
+      label.textContent = labelText;
+      control.name = name;
+      control.className = control instanceof HTMLTextAreaElement ? `${inputClass} resize-y` : inputClass;
+      label.append(control);
+      const error = element('p', 'mt-2 hidden text-sm text-red-800', '');
+      error.setAttribute('role', 'alert');
+      errors.set(name, error);
+      controls.set(name, control);
+      const wrapper = document.createElement('div');
+      wrapper.append(label);
+      if (help) wrapper.append(element('p', 'mt-2 text-sm font-normal text-stone-600', help));
+      wrapper.append(error);
+      form.append(wrapper);
+    }
+    function input(type: string, extra: Partial<HTMLInputElement> = {}) {
+      const control = document.createElement('input');
+      control.type = type;
+      Object.assign(control, extra);
+      return control;
+    }
+    function textarea(rows: number, maxLength: number, placeholder = '') {
+      const control = document.createElement('textarea');
+      control.rows = rows;
+      control.maxLength = maxLength;
+      control.placeholder = placeholder;
+      return control;
+    }
+
+    const eighteenYearsAgo = new Date();
+    eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+    addField('applicantPhone', 'Phone number', input('tel', { autocomplete: 'tel', maxLength: 30, placeholder: '(404) 555-0142' }));
+    addField('applicantAddress', 'Mailing address', textarea(2, 300, 'Street, city, state, and ZIP code'));
+    addField('applicantDateOfBirth', 'Date of birth', input('date', { max: eighteenYearsAgo.toISOString().slice(0, 10), min: '1900-01-01' }), 'You must be at least 18 years old to apply.');
+    addField('householdSummary', 'Tell us about your household and the care you can provide', textarea(5, 2000, 'For example: who lives with you, your home routine, and how you plan to care for a pet.'));
+    addField('adoptionExperience', 'Tell us about your pet-care experience or how you will prepare', textarea(4, 1000, 'For example: pets you have cared for, support you have in place, and how you will learn what this pet needs.'));
+    addField('note', 'Anything else the shelter should know? (optional)', textarea(3, 1000));
+
     const draftKey = `pawheaven:application-draft:${user.id}:${pet.id}`;
     try {
       const saved = JSON.parse(sessionStorage.getItem(draftKey) || 'null') as Partial<AdoptionApplicationInput> | null;
-      if (saved) {
-        household.value = typeof saved.householdSummary === 'string' ? saved.householdSummary : '';
-        experience.value = typeof saved.adoptionExperience === 'string' ? saved.adoptionExperience : '';
-        note.value = typeof saved.note === 'string' ? saved.note : '';
-      }
+      if (saved) for (const [name, control] of controls) control.value = typeof saved[name] === 'string' ? saved[name] : '';
     } catch { /* Ignore a malformed or unavailable session draft. */ }
-    const controls = document.createElement('div');
-    controls.className = 'flex flex-wrap items-center gap-3';
+
+    const actions = document.createElement('div');
+    actions.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
     submit.type = 'submit';
     submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
     submit.textContent = 'Submit application';
     const message = document.createElement('p');
     message.setAttribute('role', 'status');
-    controls.append(submit, message);
-    form.append(householdLabel, experienceLabel, noteLabel, controls);
+    actions.append(submit, message);
+    form.append(actions);
     target.append(form);
+
+    function showFieldErrors(fieldErrors: FieldErrors) {
+      for (const [name, error] of errors) {
+        const text = fieldErrors[name];
+        error.textContent = text ?? '';
+        error.classList.toggle('hidden', !text);
+        controls.get(name)?.toggleAttribute('aria-invalid', Boolean(text));
+      }
+      const first = [...controls].find(([name]) => fieldErrors[name]);
+      first?.[1].focus();
+    }
+    function readPayload(): AdoptionApplicationInput {
+      const value = (name: ApplicationFieldName) => controls.get(name)?.value.trim() ?? '';
+      return {
+        applicantPhone: value('applicantPhone'),
+        applicantAddress: value('applicantAddress'),
+        applicantDateOfBirth: value('applicantDateOfBirth'),
+        householdSummary: value('householdSummary'),
+        adoptionExperience: value('adoptionExperience'),
+        note: value('note'),
+      };
+    }
+
     form.addEventListener('input', () => {
-      try {
-        sessionStorage.setItem(draftKey, JSON.stringify({ householdSummary: household.value, adoptionExperience: experience.value, note: note.value }));
-      } catch { /* Draft saving is best effort and never blocks the form. */ }
+      try { sessionStorage.setItem(draftKey, JSON.stringify(readPayload())); } catch { /* Draft saving is best effort and never blocks the form. */ }
     });
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const payload: AdoptionApplicationInput = {
-        householdSummary: household.value.trim(),
-        adoptionExperience: experience.value.trim(),
-        note: note.value.trim(),
-      };
-      if (payload.householdSummary.length < 20) return applicationMessage(message, 'Tell us a little more about your household and the care you can provide.', true);
-      if (payload.adoptionExperience.length < 20) return applicationMessage(message, 'Tell us about your pet-care experience or how you will prepare for the responsibility.', true);
+      const payload = readPayload();
+      const problems: FieldErrors = {};
+      if (payload.applicantPhone.replace(/\D/g, '').length < 10) problems.applicantPhone = 'Enter a phone number with at least 10 digits.';
+      if (payload.applicantAddress.length < 5) problems.applicantAddress = 'Enter your mailing address.';
+      if (!payload.applicantDateOfBirth) problems.applicantDateOfBirth = 'Enter your date of birth.';
+      else if (payload.applicantDateOfBirth > eighteenYearsAgo.toISOString().slice(0, 10)) problems.applicantDateOfBirth = 'Applicants must be at least 18 years old.';
+      if (payload.householdSummary.length < 20) problems.householdSummary = 'Tell us a little more about your household and the care you can provide.';
+      if (payload.adoptionExperience.length < 20) problems.adoptionExperience = 'Tell us about your pet-care experience or how you will prepare for the responsibility.';
+      showFieldErrors(problems);
+      if (Object.keys(problems).length) return applicationMessage(message, 'Please correct the highlighted fields.', true);
       submit.disabled = true;
       submit.textContent = 'Submitting…';
+      applicationMessage(message, '');
       try {
         const response = await fetch(`${apiBase}/applications/pets/${encodeURIComponent(pet.id)}`, {
           method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
         });
-        const result = await response.json().catch(() => null) as AdoptionApplication | { message?: unknown } | null;
-        if (!response.ok) throw new Error(typeof (result as { message?: unknown } | null)?.message === 'string' ? (result as { message: string }).message : 'We could not submit your application.');
+        const result = await response.json().catch(() => null) as AdoptionApplication | { message?: unknown; fieldErrors?: FieldErrors } | null;
+        if (!response.ok) {
+          const failure = result as { message?: unknown; fieldErrors?: FieldErrors } | null;
+          if (failure?.fieldErrors) showFieldErrors(failure.fieldErrors);
+          throw new Error(typeof failure?.message === 'string' ? failure.message : 'We could not submit your application.');
+        }
         try { sessionStorage.removeItem(draftKey); } catch { /* Submission still succeeded. */ }
         existingApplication(target, result as AdoptionApplication);
       } catch (exception) {

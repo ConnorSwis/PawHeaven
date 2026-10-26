@@ -21,9 +21,11 @@ npm run dev:web
 npm run dev:admin
 ```
 
-The reset loads six varied listings: four available pets, Baxter with the
-`big-dog` tag, Rosie in `Pending`, and Theo in `Adopted`. The latter two are
-visible to the administrator only and prove public availability boundaries. It
+The reset loads eleven varied listings: eight available pets (including Baxter
+with the `big-dog` tag and several open to foster), Rosie in `Pending`, Theo in
+`Adopted`, Daisy `Fostered`, and Pearl `Unavailable`. Everything except the
+available pets is visible to staff only and proves public availability
+boundaries. Each listing carries a public medical summary. It
 also loads three future America/New_York shelter visit times for scheduling.
 
 ## Local-only demo accounts
@@ -31,7 +33,12 @@ also loads three future America/New_York shelter visit times for scheduling.
 | Role | Email | Password |
 | --- | --- | --- |
 | Applicant | `demo.applicant@pawheaven.local` | `DemoApplicant-2026!` |
-| Administrator | `demo.admin@pawheaven.local` | `DemoAdmin-2026!` |
+| Staff | `demo.staff@pawheaven.local` | `DemoStaff-2026!` |
+| Superuser | `demo.superuser@pawheaven.local` | `DemoSuperuser-2026!` |
+
+Staff manage pets, applications, the visit schedule, and member accounts.
+The superuser can also manage staff accounts, invite staff, and assign the
+staff role from the Users page.
 
 These accounts exist only in the local database created by `npm run db:reset`.
 Do not reuse the email addresses or passwords outside this demo.

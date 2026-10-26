@@ -1,9 +1,9 @@
 <section data-admin-dashboard aria-live="polite">
-  <p data-loading class="text-sm text-stone-700">Checking administrator access…</p>
+  <p data-loading class="text-sm text-stone-700">Checking staff access…</p>
 
   <section data-denied hidden>
-    <h1 class="text-2xl font-semibold tracking-tight text-stone-950">Administrator access required</h1>
-    <p class="mt-3 max-w-xl leading-7 text-stone-700">This account is signed in but does not have access to the administrator portal.</p>
+    <h1 class="text-2xl font-semibold tracking-tight text-stone-950">Staff access required</h1>
+    <p class="mt-3 max-w-xl leading-7 text-stone-700">This account is signed in but does not have access to the staff portal.</p>
     <button data-logout type="button" class="mt-7 border border-stone-400 px-4 py-2 text-sm font-semibold text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-wait disabled:opacity-70">Log out</button>
   </section>
 
@@ -36,7 +36,10 @@
                 <option value="Available">Available</option>
                 <option value="Pending">Pending</option>
                 <option value="Adopted">Adopted</option>
+                <option value="Fostered">Fostered</option>
+                <option value="Unavailable">Unavailable</option>
               </select>
+              <span class="mt-2 block text-sm font-normal text-stone-600">Only Available pets appear on the public site.</span>
             </label>
             <label class="block text-sm font-medium text-stone-900">Species
               <input data-field="type" name="type" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="60" placeholder="Dog" required />
@@ -61,6 +64,16 @@
             <textarea data-field="summary" name="summary" class="mt-2 block min-h-32 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="2000" required></textarea>
           </label>
 
+          <label class="block text-sm font-medium text-stone-900">Medical history
+            <textarea data-field="medicalHistory" name="medicalHistory" class="mt-2 block min-h-24 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="4000" placeholder="Vaccinations, spay/neuter, treatments, ongoing care"></textarea>
+            <span class="mt-2 block text-sm font-normal text-stone-600">Shown publicly on the pet’s page. Do not include private staff notes.</span>
+          </label>
+
+          <label class="flex items-start gap-3 text-sm font-medium text-stone-900">
+            <input data-field="fosterAvailable" name="fosterAvailable" type="checkbox" class="mt-1 size-4" />
+            <span>Open to foster applications<span class="mt-1 block font-normal text-stone-600">Show an “Open to foster” badge on this Available pet.</span></span>
+          </label>
+
           <label class="block text-sm font-medium text-stone-900">Photo
             <input data-field="image" name="image" class="mt-2 block w-full text-sm text-stone-700 file:mr-4 file:border-0 file:bg-stone-200 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-stone-900 hover:file:bg-stone-300" type="file" accept="image/jpeg,image/png,image/webp" />
             <span class="mt-2 block text-sm font-normal text-stone-600">JPEG, PNG, or WebP; 5 MB maximum.</span>
@@ -81,7 +94,7 @@
     </div>
 
     <section data-invitations hidden class="mt-10 border-t border-stone-300 pt-8">
-      <h2 class="text-lg font-semibold text-stone-950">Invite an administrator</h2>
+      <h2 class="text-lg font-semibold text-stone-950">Invite a staff member</h2>
       <p class="mt-2 leading-6 text-stone-700">They will receive a Supabase email invitation and choose a password before their first sign-in.</p>
       <form data-invite-form class="mt-5 flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end" novalidate>
         <label class="min-w-0 flex-1 text-sm font-medium text-stone-900">Email address
@@ -91,8 +104,8 @@
       </form>
       <p data-invite-message class="mt-3 hidden text-sm" role="status"></p>
       <div class="mt-8 border-t border-stone-200 pt-6">
-        <h3 class="font-semibold text-stone-950">Administrator invitations</h3>
-        <p class="mt-2 text-sm leading-6 text-stone-700">Resending gives an administrator a fresh password-setup email. They should use the newest message.</p>
+        <h3 class="font-semibold text-stone-950">Staff invitations</h3>
+        <p class="mt-2 text-sm leading-6 text-stone-700">Resending gives a staff member a fresh password-setup email. They should use the newest message.</p>
         <div data-invitation-list class="mt-4 grid gap-3"></div>
       </div>
     </section>
@@ -124,7 +137,7 @@
 </section>
 
 <script>
-  import type { AdminAdoptionApplicationListResponse, AdminInvitation, AdminInvitationListResponse, AdminPetListResponse, AdminUser, AdminVisitScheduleResponse, AdminVisitSlot, AdoptionApplication, AdoptionApplicationStatus, Pet, PetInput, PublishVisitSlotInput } from '@pawheaven/contracts';
+  import type { AdminAdoptionApplicationListResponse, AdminInvitation, FieldErrors, AdminInvitationListResponse, AdminPetListResponse, AdminUser, AdminVisitScheduleResponse, AdminVisitSlot, AdoptionApplication, AdoptionApplicationStatus, Pet, PetInput, PublishVisitSlotInput } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
 
   const dashboard = document.querySelector<HTMLElement>('[data-admin-dashboard]');
@@ -177,6 +190,7 @@
     if (saveButton) saveButton.textContent = 'Save pet';
     cancelEdit?.classList.add('hidden');
     if (formMessage) { formMessage.textContent = ''; formMessage.className = 'hidden text-sm'; }
+    showFieldErrors();
     renderPets();
   }
 
@@ -190,6 +204,9 @@
     (field('tags') as HTMLInputElement).value = pet.tags.join(', ');
     (field('status') as HTMLSelectElement).value = pet.status;
     (field('summary') as HTMLTextAreaElement).value = pet.summary;
+    (field('medicalHistory') as HTMLTextAreaElement).value = pet.medicalHistory;
+    (field('fosterAvailable') as HTMLInputElement).checked = pet.fosterAvailable;
+    showFieldErrors();
     if (formTitle) formTitle.textContent = `Edit ${pet.name}`;
     if (saveButton) saveButton.textContent = 'Save changes';
     cancelEdit?.classList.remove('hidden');
@@ -218,7 +235,7 @@
       name.textContent = pet.name;
       const details = document.createElement('span');
       details.className = 'mt-1 block text-sm text-stone-700';
-      details.textContent = `${pet.type} · ${pet.status}`;
+      details.textContent = `${pet.type} · ${pet.status}${pet.fosterAvailable ? ' · Open to foster' : ''}`;
       button.append(name, details);
       button.addEventListener('click', () => editPet(pet));
       const remove = document.createElement('button');
@@ -245,12 +262,41 @@
     }
   }
 
+  class ApiError extends Error {
+    fieldErrors?: FieldErrors;
+    constructor(message: string, fieldErrors?: FieldErrors) { super(message); this.fieldErrors = fieldErrors; }
+  }
+
   async function responseJson<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${apiBase}${path}`, { credentials: 'include', ...init });
     if (response.status === 401) { window.location.assign('/login'); throw new Error('Your session has expired.'); }
-    const payload = await response.json().catch(() => null) as { message?: unknown } | T | null;
-    if (!response.ok) throw new Error(typeof (payload as { message?: unknown } | null)?.message === 'string' ? (payload as { message: string }).message : 'The request could not be completed.');
+    const payload = await response.json().catch(() => null) as { message?: unknown; fieldErrors?: FieldErrors } | T | null;
+    if (!response.ok) {
+      const failure = payload as { message?: unknown; fieldErrors?: FieldErrors } | null;
+      throw new ApiError(typeof failure?.message === 'string' ? failure.message : 'The request could not be completed.', failure?.fieldErrors);
+    }
     return payload as T;
+  }
+
+  /** Shows one message beneath each pet form field the API reported as incorrect. */
+  function showFieldErrors(fieldErrors: FieldErrors = {}) {
+    for (const input of form?.querySelectorAll<HTMLElement>('[data-field]') ?? []) {
+      const name = input.dataset.field ?? '';
+      const container = input.closest('label') ?? input.parentElement;
+      let error = container?.querySelector<HTMLElement>(`[data-field-error="${name}"]`);
+      if (!error && container) {
+        error = document.createElement('span');
+        error.dataset.fieldError = name;
+        error.setAttribute('role', 'alert');
+        container.append(error);
+      }
+      if (!error) continue;
+      error.textContent = fieldErrors[name] ?? '';
+      error.className = fieldErrors[name] ? 'mt-2 block text-sm font-medium text-red-800' : 'hidden';
+      if (fieldErrors[name]) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+    }
+    const firstInvalid = form?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    firstInvalid?.focus();
   }
 
   function upsertPet(pet: Pet) {
@@ -296,13 +342,18 @@
       const detail = document.createElement('p');
       detail.className = 'mt-1 text-sm text-stone-700';
       detail.textContent = `${application.applicantEmail} · Submitted ${formatDate(application.submittedAt)} · ${applicationStatusLabel(application.status)}`;
+      const contact = document.createElement('p');
+      contact.className = 'mt-2 text-sm leading-6 text-stone-700';
+      contact.textContent = application.applicantPhone
+        ? `Phone: ${application.applicantPhone} · Address: ${application.applicantAddress ?? 'Not provided'} · Date of birth: ${application.applicantDateOfBirth ?? 'Not provided'}`
+        : 'Contact details were not collected for this earlier application.';
       const household = document.createElement('p');
       household.className = 'mt-4 whitespace-pre-wrap leading-7 text-stone-800';
       household.textContent = application.householdSummary;
       const experience = document.createElement('p');
       experience.className = 'mt-3 whitespace-pre-wrap leading-7 text-stone-800';
       experience.textContent = `Pet-care experience: ${application.adoptionExperience}`;
-      card.append(heading, detail, household, experience);
+      card.append(heading, detail, contact, household, experience);
       if (application.note) {
         const note = document.createElement('p');
         note.className = 'mt-3 whitespace-pre-wrap border-l-2 border-stone-300 pl-3 text-sm leading-6 text-stone-700';
@@ -477,7 +528,7 @@
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (!form.reportValidity()) return;
+    showFieldErrors();
     const image = (field('image') as HTMLInputElement).files?.[0];
     const payload: PetInput = {
       name: (field('name') as HTMLInputElement).value.trim(),
@@ -488,6 +539,8 @@
       tags: (field('tags') as HTMLInputElement).value.split(',').map((tag) => tag.trim()).filter(Boolean),
       status: (field('status') as HTMLSelectElement).value as Pet['status'],
       summary: (field('summary') as HTMLTextAreaElement).value.trim(),
+      medicalHistory: (field('medicalHistory') as HTMLTextAreaElement).value.trim(),
+      fosterAvailable: (field('fosterAvailable') as HTMLInputElement).checked,
     };
     if (image && (!['image/jpeg', 'image/png', 'image/webp'].includes(image.type) || image.size > 5 * 1024 * 1024)) {
       message(formMessage, 'Choose a JPEG, PNG, or WebP image smaller than 5 MB.');
@@ -505,6 +558,7 @@
       editPet(saved);
       message(formMessage, 'Pet record saved.', true);
     } catch (exception) {
+      if (exception instanceof ApiError && exception.fieldErrors) showFieldErrors(exception.fieldErrors);
       message(formMessage, exception instanceof Error ? exception.message : 'We could not save this pet.');
     } finally {
       if (saveButton) { saveButton.disabled = false; saveButton.textContent = selectedPetId ? 'Save changes' : 'Save pet'; }
@@ -579,7 +633,7 @@
     if (!administratorInvitations.length) {
       const empty = document.createElement('p');
       empty.className = 'text-sm leading-6 text-stone-700';
-      empty.textContent = 'No administrator invitations have been sent.';
+      empty.textContent = 'No staff invitations have been sent.';
       invitationList.append(empty);
       return;
     }
@@ -628,7 +682,8 @@
   async function load() {
     try {
       const identity = await responseJson<{ user: AdminUser }>('/admin/me');
-      if (userDetail) userDetail.textContent = `Signed in as ${identity.user.email} · ${identity.user.role === 'superuser' ? 'Superuser' : 'Administrator'}`;
+      const roleName = { superuser: 'Superuser', staff: 'Staff' }[identity.user.role];
+      if (userDetail) userDetail.textContent = `Signed in as ${identity.user.email} · ${roleName}`;
       if (identity.user.role === 'superuser') {
         invitations?.removeAttribute('hidden');
         await Promise.all([loadPets(), loadApplications(), loadVisitSlots(), loadAdministratorInvitations()]);

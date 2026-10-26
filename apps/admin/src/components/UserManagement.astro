@@ -2,8 +2,8 @@
   <p data-loading class="text-sm text-stone-700">Loading user accounts…</p>
 
   <section data-denied hidden>
-    <h1 class="text-2xl font-semibold tracking-tight text-stone-950">Administrator access required</h1>
-    <p class="mt-3 max-w-xl leading-7 text-stone-700">Log in with an administrator account to manage users.</p>
+    <h1 class="text-2xl font-semibold tracking-tight text-stone-950">Staff access required</h1>
+    <p class="mt-3 max-w-xl leading-7 text-stone-700">Log in with a staff account to manage users.</p>
     <a class="mt-7 inline-block bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-moss-dark)]" href="/login">Go to login</a>
   </section>
 
@@ -78,6 +78,17 @@
             <div><dt class="font-medium text-stone-600">Email confirmed</dt><dd data-confirmed class="mt-1 text-stone-950"></dd></div>
           </dl>
 
+          <form data-role-form hidden class="mt-6 flex flex-wrap items-end gap-3 border-t border-stone-300 pt-6">
+            <label class="text-sm font-medium text-stone-900">Account role
+              <select data-role-select class="mt-2 block border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
+                <option value="member">Member (public site only)</option>
+                <option value="staff">Staff (manages pets, applications, visits, members)</option>
+              </select>
+            </label>
+            <button data-role-save type="submit" class="bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70">Save role</button>
+            <p data-role-message class="hidden text-sm" role="status"></p>
+          </form>
+
           <section class="mt-8 border-t border-stone-300 pt-7" aria-labelledby="account-actions-title">
             <h3 id="account-actions-title" class="font-semibold text-stone-950">Account actions</h3>
             <div class="mt-4 flex flex-wrap gap-3">
@@ -133,6 +144,10 @@
   const blockButton = root?.querySelector<HTMLButtonElement>('[data-block]');
   const deleteButton = root?.querySelector<HTMLButtonElement>('[data-delete]');
   const actionMessage = root?.querySelector<HTMLElement>('[data-action-message]');
+  const roleForm = root?.querySelector<HTMLFormElement>('[data-role-form]');
+  const roleSelect = root?.querySelector<HTMLSelectElement>('[data-role-select]');
+  const roleSave = root?.querySelector<HTMLButtonElement>('[data-role-save]');
+  const roleMessage = root?.querySelector<HTMLElement>('[data-role-message]');
   const applicationCount = root?.querySelector<HTMLElement>('[data-application-count]');
   const applications = root?.querySelector<HTMLElement>('[data-applications]');
 
@@ -164,13 +179,13 @@
 
   function roleLabel(role: ManagedUser['role']) {
     if (role === 'superuser') return 'Superuser';
-    if (role === 'admin') return 'Administrator';
-    return 'User';
+    if (role === 'staff') return 'Staff';
+    return 'Member';
   }
 
   function canManage(user: ManagedUser) {
     if (!currentUser || user.id === currentUser.id || user.role === 'superuser') return false;
-    return user.role !== 'admin' || currentUser.role === 'superuser';
+    return user.role !== 'staff' || currentUser.role === 'superuser';
   }
 
   function updateUser(user: ManagedUser) {
@@ -273,18 +288,22 @@
     }
     if (permissionNote) {
       permissionNote.textContent = manageable
-        ? user.role === 'admin'
-          ? 'As a superuser, you can manage or completely delete this administrator account.'
-          : 'Administrators can manage this user account. Deleting it also removes its adoption applications.'
+        ? user.role === 'staff'
+          ? 'As a superuser, you can manage, change the role of, or completely delete this staff account.'
+          : 'Staff can manage this member account. Deleting it also removes its adoption applications.'
         : user.id === currentUser.id
           ? 'Your own account is protected from changes here.'
           : user.role === 'superuser'
             ? 'Superuser accounts are protected from changes in this portal.'
-            : 'Only a superuser can manage another administrator account.';
+            : 'Only a superuser can manage another staff account.';
     }
     if (nameInput) { nameInput.value = user.name; nameInput.disabled = !manageable; }
     if (emailInput) { emailInput.value = user.email; emailInput.disabled = !manageable; }
     if (saveButton) saveButton.disabled = !manageable;
+    const roleAssignable = manageable && currentUser.role === 'superuser' && (user.role === 'member' || user.role === 'staff');
+    if (roleForm) roleForm.hidden = !roleAssignable;
+    if (roleSelect) roleSelect.value = user.role === 'staff' ? 'staff' : 'member';
+    if (roleMessage) { roleMessage.textContent = ''; roleMessage.className = 'hidden text-sm'; }
     if (roleValue) roleValue.textContent = roleLabel(user.role);
     if (createdValue) createdValue.textContent = formatDate(user.createdAt);
     if (lastSignInValue) lastSignInValue.textContent = formatDate(user.lastSignInAt);
@@ -340,6 +359,25 @@
     }
   });
 
+  roleForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!selected || !canManage(selected.user) || !roleSelect || !roleSave) return;
+    roleSave.disabled = true;
+    roleSave.textContent = 'Saving…';
+    try {
+      const payload = await responseJson<{ user: ManagedUser }>(`/admin/users/${encodeURIComponent(selected.user.id)}/role`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: roleSelect.value }),
+      });
+      updateUser(payload.user);
+      setMessage(roleMessage, `Role changed to ${roleLabel(payload.user.role)}. It takes effect the next time they use the site.`, true);
+    } catch (exception) {
+      setMessage(roleMessage, exception instanceof Error ? exception.message : 'We could not change this role.');
+    } finally {
+      roleSave.disabled = false;
+      roleSave.textContent = 'Save role';
+    }
+  });
+
   resetButton?.addEventListener('click', async () => {
     if (!selected || !canManage(selected.user) || selected.user.blocked || !resetButton) return;
     resetButton.disabled = true;
@@ -376,8 +414,8 @@
   deleteButton?.addEventListener('click', async () => {
     if (!selected || !canManage(selected.user) || !deleteButton) return;
     const user = selected.user;
-    const warning = user.role === 'admin'
-      ? `Permanently delete administrator ${user.email}? This cannot be undone.`
+    const warning = user.role === 'staff'
+      ? `Permanently delete staff member ${user.email}? This cannot be undone.`
       : `Permanently delete ${user.email}? Their ${selected.applications.length} adoption application${selected.applications.length === 1 ? '' : 's'} will also be deleted. This cannot be undone.`;
     if (!window.confirm(warning)) return;
     deleteButton.disabled = true;
