@@ -6,6 +6,8 @@ interface Props {
   description?: string;
   showNavigation?: boolean;
   showFooter?: boolean;
+  /** Keeps pages that make no sense out of context, such as a donation receipt, out of search results. */
+  noindex?: boolean;
 }
 
 const {
@@ -13,6 +15,7 @@ const {
   description = 'PawHeaven animal shelter portal',
   showNavigation = true,
   showFooter = true,
+  noindex = false,
 } = Astro.props;
 const pathname = Astro.url.pathname;
 const navItems = [
@@ -22,6 +25,7 @@ const navItems = [
   { href: '/visits', label: 'Schedule a visit' },
   { href: '/volunteer', label: 'Volunteer' },
   { href: '/lost-pet', label: 'Lost a pet?' },
+  { href: '/donate', label: 'Donate' },
   { href: '/account', label: 'Account' },
 ];
 ---
@@ -32,6 +36,7 @@ const navItems = [
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
     <title>{title} | PawHeaven</title>
   </head>
   <body class="flex min-h-dvh flex-col bg-[var(--color-page)] text-stone-900 antialiased">
@@ -70,6 +75,7 @@ const navItems = [
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/quiz">Pet quiz</a>
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/volunteer">Volunteer</a>
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/lost-pet">Lost a pet?</a>
+            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/donate">Donate</a>
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/sign-up">Create an account</a>
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/account">Your account</a>
           </nav>
