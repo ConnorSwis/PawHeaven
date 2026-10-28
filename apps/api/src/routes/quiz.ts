@@ -73,6 +73,7 @@ export async function quizRoutes(context: RouteContext): Promise<ApiResponse> {
       const candidates = new Map<string, DatabasePet>(pets.map((pet) => [pet.id, pet]));
       const candidateList: QuizCandidate[] = pets.map((pet) => ({
         id: pet.id, name: pet.name, type: pet.species, breed: pet.breed, age: pet.age_label, tags: pet.tags, summary: pet.summary, medicalHistory: pet.medical_history ?? '',
+        attributes: { sex: pet.sex ?? '', size: pet.size ?? '', color: pet.color ?? '', weightLbs: pet.weight_lbs ?? null, spayedNeutered: pet.spayed_neutered ?? 'Unknown', goodWithKids: pet.good_with_kids ?? 'Unknown', goodWithDogs: pet.good_with_dogs ?? 'Unknown', goodWithCats: pet.good_with_cats ?? 'Unknown', energyLevel: pet.energy_level ?? '' },
       }));
       const refs = quizCandidateRefs(candidateList);
       try {

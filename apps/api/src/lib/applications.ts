@@ -95,3 +95,17 @@ export function applicationReviewStatus(body: unknown): AdoptionApplicationStatu
   const status = (body as Record<string, unknown> | null)?.status;
   return status === 'In review' || status === 'Approved' || status === 'Declined' ? status : null;
 }
+
+const SHORTCUT_PET_STATUSES = ['Pending', 'Adopted', 'Fostered', 'Unavailable'] as const;
+
+/**
+ * The optional pet status a reviewer asked an approval to also apply. It only
+ * counts when the outcome is Approved, and Available is never a valid choice
+ * (an approval cannot make a pet more available).
+ */
+export function reviewPetStatus(body: unknown, status: string): (typeof SHORTCUT_PET_STATUSES)[number] | null {
+  const requested = (body as Record<string, unknown> | null)?.markPetStatus;
+  return status === 'Approved' && typeof requested === 'string' && (SHORTCUT_PET_STATUSES as readonly string[]).includes(requested)
+    ? requested as (typeof SHORTCUT_PET_STATUSES)[number]
+    : null;
+}

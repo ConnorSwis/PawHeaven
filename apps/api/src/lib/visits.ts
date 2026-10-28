@@ -6,7 +6,7 @@ import type {
   VisitAppointment,
   VisitSlot,
 } from '@pawheaven/contracts';
-import { errorResponse, isoInstant, UUID_PATTERN, type ApiResponse } from './http';
+import { isoInstant, rpcErrorResponse, UUID_PATTERN, type ApiResponse } from './http';
 
 export type DatabaseVisitSlot = {
   id: string;
@@ -100,10 +100,5 @@ export function rescheduleVisitInput(body: unknown): { value: RescheduleVisitInp
 }
 
 export function visitMutationError(operation: string, error: { message: string; code?: string }): ApiResponse {
-  console.error(JSON.stringify({ operation, error: error.message, code: error.code }));
-  if (error.code === '22023') return errorResponse(error.message, 400);
-  if (error.code === '28000') return errorResponse('Your session has expired. Log in again to manage visits.', 401);
-  if (error.code === '42501') return errorResponse(error.message, 403);
-  if (error.code === 'P0001' || error.code === '23505' || error.code === '23P01') return errorResponse(error.message, 409);
-  return errorResponse('The shelter database is unavailable. Please try again.', 503);
+  return rpcErrorResponse(operation, error, { expired: 'Your session has expired. Log in again to manage visits.' });
 }
