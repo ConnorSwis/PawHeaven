@@ -475,6 +475,34 @@ export function matchStrength(confidence: number): MatchStrength {
   return 'Possible';
 }
 
+export type DonationStatus = 'pending' | 'succeeded' | 'failed';
+
+export type AdminDonation = {
+  id: string;
+  amountCents: number;
+  /** Lowercase ISO 4217 code, such as `usd`. */
+  currency: string;
+  status: DonationStatus;
+  donorName: string | null;
+  donorEmail: string | null;
+  /** False for Stripe test-mode payments, which move no real money. */
+  livemode: boolean;
+  createdAt: string;
+};
+
+export type DonationTotal = {
+  livemode: boolean;
+  currency: string;
+  count: number;
+  totalCents: number;
+};
+
+export type AdminDonationsResponse = {
+  /** Succeeded donations only, with test and live kept apart. */
+  totals: DonationTotal[];
+  donations: AdminDonation[];
+};
+
 function searchableWords(value: string): string[] {
   return value
     .toLocaleLowerCase()

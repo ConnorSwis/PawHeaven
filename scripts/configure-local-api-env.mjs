@@ -68,9 +68,12 @@ writeFileSync(destination, [
   // Optional settings and secrets survive regeneration. Local development logs
   // email unless EMAIL_LOCAL_DELIVERY is "true"; AI matching is unavailable
   // without OPENROUTER_API_KEY.
-  ...['RESEND_API_KEY', 'EMAIL_LOCAL_DELIVERY', 'OPENROUTER_API_KEY', 'OPENROUTER_QUIZ_MODEL', 'OPENROUTER_VISION_MODEL', 'SHELTER_NOTIFICATION_EMAIL'].flatMap((name) => typeof existingValues[name] === 'string' && existingValues[name]
+  ...['RESEND_API_KEY', 'EMAIL_LOCAL_DELIVERY', 'OPENROUTER_API_KEY', 'OPENROUTER_QUIZ_MODEL', 'OPENROUTER_VISION_MODEL', 'SHELTER_NOTIFICATION_EMAIL', 'STRIPE_WEBHOOK_SECRET'].flatMap((name) => typeof existingValues[name] === 'string' && existingValues[name]
     ? [`${name}=${JSON.stringify(existingValues[name])}`]
     : []),
+  // Local-only placeholder so the webhook can be exercised by npm run qa:demo. It is not a real
+  // Stripe secret. Replace it with the `whsec_` value from `stripe listen` to test real events.
+  ...(typeof existingValues.STRIPE_WEBHOOK_SECRET === 'string' && existingValues.STRIPE_WEBHOOK_SECRET ? [] : ['STRIPE_WEBHOOK_SECRET="whsec_local_demo_secret"']),
   '',
 ].join('\n'));
 
