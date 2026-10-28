@@ -18,7 +18,7 @@ const { title, description = `${SITE.name} staff portal` } = Astro.props;
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
     <title>{title} | {SITE.adminName}</title>
-    {themeSwitcher && <script is:inline define:vars={{ ids: THEMES.map((theme) => theme.id) }}>try { const saved = localStorage.getItem('ph-theme'); if (saved !== null && ids.includes(saved)) { if (saved) document.documentElement.dataset.theme = saved; else delete document.documentElement.dataset.theme; } } catch { /* Storage blocked. */ }</script>}
+    <script is:inline define:vars={{ ids: THEMES.map((theme) => theme.id) }}>try { const root = document.documentElement; const saved = localStorage.getItem('ph-theme'); if (saved !== null && ids.includes(saved)) { if (saved) root.dataset.theme = saved; else delete root.dataset.theme; } const vars = JSON.parse(localStorage.getItem('ph-theme-vars') || '{}'); for (const [name, value] of Object.entries(vars)) if (/^--ph-[a-z-]+$/.test(name) && typeof value === 'string' && /^[#\w\s.,%()"'-]+$/.test(value)) root.style.setProperty(name, value); } catch { /* Storage blocked or unreadable. */ }</script>
   </head>
   <body class="min-h-dvh bg-[var(--color-page)] text-stone-900 antialiased">
     <header class="border-b border-stone-300 bg-white">
