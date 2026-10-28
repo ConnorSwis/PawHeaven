@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import { SITE, THEMES } from '@pawheaven/contracts/site';
+import DebugMenu from '../components/DebugMenu.astro';
 
 interface Props {
   title: string;
@@ -55,6 +56,7 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
     <script is:inline define:vars={{ ids: THEMES.map((theme) => theme.id) }}>try { const root = document.documentElement; const saved = localStorage.getItem('ph-theme'); if (saved !== null && ids.includes(saved)) { if (saved) root.dataset.theme = saved; else delete root.dataset.theme; } const vars = JSON.parse(localStorage.getItem('ph-theme-vars') || '{}'); for (const [name, value] of Object.entries(vars)) if (/^--ph-[a-z-]+$/.test(name) && typeof value === 'string' && /^[#\w\s.,%()"'-]+$/.test(value)) root.style.setProperty(name, value); } catch { /* Storage blocked or unreadable. */ }</script>
+    <script is:inline>try { const flag = new URLSearchParams(location.search).get('debug'); if (flag === '0' || flag === '1') localStorage.setItem('ph-debug', flag); } catch { /* Storage blocked. */ }</script>
     <title>{title} | {SITE.name}</title>
   </head>
   <body class="flex min-h-dvh flex-col bg-[var(--color-page)] text-stone-900 antialiased">
@@ -112,6 +114,7 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
         </div>
       </footer>
     )}
+    <DebugMenu />
   </body>
 </html>
 

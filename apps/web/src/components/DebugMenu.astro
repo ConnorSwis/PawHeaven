@@ -1,0 +1,131 @@
+---
+import { THEMES } from '@pawheaven/contracts/site';
+
+// Demo helper. Shown when PUBLIC_DEBUG_MENU=true, or in a browser where it was switched on by
+// opening any page with ?debug=1 (?debug=0 turns it off). Nothing here is privileged: it only
+// changes this browser's look and links to pages.
+const alwaysOn = import.meta.env.PUBLIC_DEBUG_MENU === 'true';
+const adminUrl = import.meta.env.PUBLIC_ADMIN_URL || 'https://admin.pawheaven.online';
+const jumps: [string, string][] = [
+  ['/pets', 'Browse pets'], ['/quiz', 'Matching quiz'], ['/lost-pet', 'Lost a pet'], ['/visits', 'Visits'],
+  ['/volunteer', 'Volunteer'], ['/donate', 'Donate'], ['/me', 'My PawHeaven'], ['/login', 'Log in'], ['/sign-up', 'Sign up'],
+];
+---
+
+<button type="button" data-debug-open hidden class="fixed bottom-4 right-4 z-40 border border-stone-400 bg-white px-3 py-2 text-sm font-semibold text-stone-900 shadow-md hover:bg-stone-100">Debug</button>
+
+<dialog data-debug-dialog aria-labelledby="debug-title" class="m-auto w-[min(34rem,calc(100vw-2rem))] max-h-[calc(100dvh-2rem)] overflow-y-auto border border-stone-400 bg-white p-0 text-stone-900 shadow-md backdrop:bg-black/50">
+  <div class="flex items-center justify-between border-b border-stone-300 px-5 py-4">
+    <h2 id="debug-title" class="text-lg font-semibold text-stone-950">Demo tools</h2>
+    <button type="button" data-debug-close class="border border-stone-400 px-3 py-1.5 text-sm hover:bg-stone-100">Close</button>
+  </div>
+  <div class="grid gap-6 px-5 py-5 text-sm" data-debug-body data-themes={JSON.stringify(THEMES)} data-always={String(alwaysOn)} data-admin={adminUrl} data-jumps={JSON.stringify(jumps)}></div>
+</dialog>
+
+<script>
+  import { el, saveTheme } from '@pawheaven/contracts/ui';
+  import { apiBase } from '../lib/api';
+
+  const FLAG = 'ph-debug';
+  const button = document.querySelector<HTMLButtonElement>('[data-debug-open]');
+  const dialog = document.querySelector<HTMLDialogElement>('[data-debug-dialog]');
+  const body = document.querySelector<HTMLElement>('[data-debug-body]');
+  const root = document.documentElement;
+
+  const store = {
+    get: (key: string) => { try { return localStorage.getItem(key); } catch { return null; } },
+    set: (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { /* Storage blocked. */ } },
+  };
+
+  // The page shell has already saved ?debug=1 or ?debug=0 (some pages rewrite their address bar), so read the saved flag.
+  const saved = store.get(FLAG);
+  const enabled = saved !== '0' && (body?.dataset.always === 'true' || saved === '1');
+
+  if (button && dialog && body && enabled) {
+    const openButton = button;
+    const panel = dialog;
+    const themes: { id: string; label: string }[] = JSON.parse(body.dataset.themes || '[]');
+    const jumps: [string, string][] = JSON.parse(body.dataset.jumps || '[]');
+    button.hidden = false;
+    button.addEventListener('click', () => { build(); dialog.showModal(); });
+    dialog.querySelector('[data-debug-close]')?.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+
+    const section = (title: string) => { const box = el('section', 'grid gap-3'); box.append(el('h3', 'font-semibold text-stone-950', title)); return box; };
+    const linkClass = 'border border-stone-300 px-3 py-2 text-center font-medium text-[var(--color-moss-dark)] hover:bg-stone-100';
+    const buttonClass = 'border border-stone-400 px-3 py-2 font-medium hover:bg-stone-100';
+
+    function clearThemeVars() {
+      try {
+        for (const name of Object.keys(JSON.parse(localStorage.getItem('ph-theme-vars') || '{}'))) root.style.removeProperty(name);
+      } catch { /* Nothing saved. */ }
+    }
+
+    function build() {
+      if (!body) return;
+      body.replaceChildren();
+
+      const look = section('Look');
+      const label = el('label', 'grid gap-1 font-medium text-stone-900', 'Theme');
+      const select = el('select', 'border border-stone-400 bg-white px-3 py-2 font-normal text-stone-950');
+      for (const theme of themes) select.append(Object.assign(el('option', '', theme.label), { value: theme.id, selected: theme.id === (root.dataset.theme ?? '') }));
+      select.addEventListener('change', () => {
+        clearThemeVars();
+        if (select.value) root.dataset.theme = select.value; else delete root.dataset.theme;
+        saveTheme(select.value);
+      });
+      label.append(select);
+      const editor = Object.assign(el('a', linkClass, 'Open the theme editor (colors, fonts, sizes)'), { href: '/theme' });
+      const resetTheme = el('button', buttonClass, 'Reset to the default theme');
+      resetTheme.type = 'button';
+      resetTheme.addEventListener('click', () => { clearThemeVars(); delete root.dataset.theme; saveTheme(''); select.value = ''; });
+      look.append(label, editor, resetTheme);
+
+      const jump = section('Jump to');
+      const grid = el('div', 'grid grid-cols-2 gap-2 sm:grid-cols-3');
+      for (const [href, text] of jumps) grid.append(Object.assign(el('a', linkClass, text), { href }));
+      jump.append(grid, Object.assign(el('a', linkClass, 'Staff portal'), { href: body.dataset.admin ?? '#', target: '_blank', rel: 'noopener' }));
+
+      const status = section('Status');
+      const list = el('dl', 'grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-stone-800');
+      const row = (name: string, value: string) => { const dd = el('dd', 'break-all text-stone-950', value); list.append(el('dt', 'text-stone-600', name), dd); return dd; };
+      row('Page', location.pathname);
+      row('API', apiBase);
+      const health = row('API health', 'Checking…');
+      const account = row('Signed in as', 'Checking…');
+      row('Screen', `${innerWidth} × ${innerHeight}`);
+      const themeRow = row('Theme', root.dataset.theme || 'moss (default)');
+      const showTheme = () => { themeRow.textContent = root.dataset.theme || 'moss (default)'; };
+      select.addEventListener('change', showTheme);
+      resetTheme.addEventListener('click', showTheme);
+      status.append(list);
+
+      const t0 = performance.now();
+      fetch(`${apiBase}/health`).then((response) => { health.textContent = response.ok ? `OK (${Math.round(performance.now() - t0)} ms)` : `Error ${response.status}`; }).catch(() => { health.textContent = 'Unreachable'; });
+      fetch(`${apiBase}/auth/me`, { credentials: 'include' })
+        .then(async (response) => {
+          if (!response.ok) { account.textContent = 'Nobody (signed out)'; return; }
+          const { user } = await response.json() as { user?: { email?: string; name?: string; role?: string } };
+          account.textContent = [user?.name, user?.email && `<${user.email}>`, user?.role].filter(Boolean).join(' ') || 'Signed in';
+        })
+        .catch(() => { account.textContent = 'Unknown'; });
+
+      const actions = section('This browser');
+      const clear = el('button', buttonClass, 'Clear saved theme and debug settings');
+      clear.type = 'button';
+      clear.addEventListener('click', () => {
+        clearThemeVars();
+        delete root.dataset.theme;
+        try { for (const key of Object.keys(localStorage).filter((name) => name.startsWith('ph-') && name !== FLAG)) localStorage.removeItem(key); } catch { /* Storage blocked. */ }
+        select.value = '';
+        clear.textContent = 'Cleared';
+      });
+      const hide = el('button', buttonClass, 'Hide this menu (add ?debug=1 to any address to bring it back)');
+      hide.type = 'button';
+      hide.addEventListener('click', () => { store.set(FLAG, '0'); openButton.hidden = true; panel.close(); });
+      actions.append(clear, hide);
+
+      body.append(look, jump, status, actions);
+    }
+  }
+</script>

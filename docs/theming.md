@@ -93,3 +93,17 @@ theme can make cards dark and keep button text readable.
 
 The lost-pet flyer pins its own black-on-white colors, because it is meant to be printed and posted and
 must stay legible whatever the site theme is. Its preview on screen follows the same rule.
+
+## Debug menu for demos
+
+A small **Debug** button in the corner of every public page opens a modal with a theme picker, a link to the
+`/theme` editor, shortcuts to the main pages and the staff portal, and live status (API address and health,
+who is signed in, screen size). It also has buttons to reset the theme and to clear this browser's saved
+settings. It is hidden for normal visitors. Turn it on by either:
+
+- opening any page with `?debug=1` (for example `https://pawheaven.online/?debug=1`): it stays on in that browser
+  until you press **Hide this menu** or open a page with `?debug=0`; or
+- setting `PUBLIC_DEBUG_MENU=true` in the web build, which shows it to everyone (see `apps/web/.env.example`).
+  `PUBLIC_ADMIN_URL` changes where the "Staff portal" link goes.
+
+It changes nothing on the server and gives no extra access.
