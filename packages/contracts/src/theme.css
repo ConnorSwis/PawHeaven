@@ -1,0 +1,224 @@
+/*
+ * PawHeaven theme. This is the one file to edit to restyle the whole site:
+ * the public site and the staff portal both import it.
+ *
+ *   1. Colors, fonts, and numbers are plain variables in the :root block below.
+ *   2. Change a value and everything that uses it follows (buttons, cards,
+ *      forms, badges, text, borders, spacing, type size, widths, corners).
+ *   3. A whole alternate look is a [data-theme="name"] block that overrides
+ *      only the variables that differ. Switch it by setting PUBLIC_THEME=name
+ *      for the web and admin builds. A dark example is included.
+ *
+ * The /theme page on the public site is a live playground: tune values with
+ * pickers and sliders, then copy the CSS it generates into this file.
+ *
+ * Every variable that starts with --ph- is meant to be edited. The @theme block
+ * further down wires Tailwind's utility classes to these variables; it should
+ * not need changes.
+ */
+
+/* Optional web font: add an @import here (it must stay the first rule), then use
+ * the family in --ph-font-sans or --ph-font-heading. For example:
+ *   @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
+ */
+
+:root {
+  /* ---- Brand colors ------------------------------------------------------ */
+  --ph-brand: #426447;          /* primary buttons, links, active states */
+  --ph-brand-strong: #2f4b34;   /* hover and pressed states, strong links */
+  --ph-brand-soft: #f1f5ee;     /* very light tint behind selected or positive items */
+  --ph-on-brand: #ffffff;       /* text and icons drawn on a brand-colored background */
+  --ph-accent: #c96e3d;         /* keyboard focus ring and warm highlights */
+
+  /* ---- Surfaces and text ------------------------------------------------- */
+  --ph-page: #f7f3eb;           /* the page background */
+  --ph-surface: #ffffff;        /* cards, forms, header, menus */
+  --ph-ink-strong: #0c0a09;     /* headings */
+  --ph-ink: #1c1917;            /* body text */
+  --ph-ink-soft: #44403b;       /* secondary text, nav links */
+  --ph-ink-muted: #57534d;      /* captions, help text */
+  --ph-ink-faint: #79716b;      /* least important text */
+
+  /* ---- Lines and subtle backgrounds -------------------------------------- */
+  --ph-border-strong: #a8a29e;  /* form field borders */
+  --ph-border: #d6d3d1;         /* card and divider borders */
+  --ph-divider: #e7e5e4;        /* hairlines inside cards */
+  --ph-hover: #f5f5f4;          /* hover background */
+  --ph-surface-alt: #fafaf9;    /* a slightly tinted surface */
+  --ph-neutral-800: #292524;    /* occasional dark UI text */
+
+  /* ---- Status colors ------------------------------------------------------ */
+  --ph-danger: #991b1b;         /* errors and destructive actions */
+  --ph-danger-strong: #7f1d1d;
+  --ph-danger-soft: #fef2f2;
+  --ph-warning: #b45309;        /* warnings, "in review", needs attention */
+  --ph-warning-strong: #78350f;
+  --ph-warning-soft: #fffbeb;
+  --ph-success: #166534;        /* confirmations */
+  --ph-success-strong: #14532d;
+  --ph-success-soft: #f0fdf4;
+
+  /* ---- Typography --------------------------------------------------------- */
+  --ph-font-sans: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+  --ph-font-heading: var(--ph-font-sans);     /* set a different family for h1 to h3 */
+  --ph-font-size: 100%;                       /* root size: 100% is 16px; everything scales with it */
+
+  /* ---- Shape, spacing, and layout ------------------------------------------ */
+  --ph-radius: 0px;             /* corner rounding for buttons, fields, cards, images */
+  --ph-spacing: 0.25rem;        /* the spacing unit: raise it for a roomier site */
+  --ph-content-width: 72rem;    /* widest page content */
+  --ph-content-width-medium: 64rem;
+  --ph-reading-width: 42rem;    /* widest paragraph and intro text */
+  --ph-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --ph-focus-width: 3px;
+  --ph-color-scheme: light;     /* light or dark: styles scrollbars and native controls */
+}
+
+/* ---- Example alternate theme: PUBLIC_THEME=dark ---------------------------- */
+[data-theme="dark"] {
+  --ph-brand: #7fb08a;
+  --ph-brand-strong: #a8d1b0;
+  --ph-brand-soft: #1f2e24;
+  --ph-on-brand: #0f1a12;
+  --ph-accent: #e0915f;
+
+  --ph-page: #151413;
+  --ph-surface: #1f1d1b;
+  --ph-ink-strong: #fafaf9;
+  --ph-ink: #f0eeec;
+  --ph-ink-soft: #d6d3d1;
+  --ph-ink-muted: #b3aea9;
+  --ph-ink-faint: #8f8a85;
+
+  --ph-border-strong: #78716c;
+  --ph-border: #3d3935;
+  --ph-divider: #2e2b28;
+  --ph-hover: #2a2725;
+  --ph-surface-alt: #242220;
+  --ph-neutral-800: #e7e5e4;
+
+  --ph-danger: #f19a9a;
+  --ph-danger-strong: #fbc5c5;
+  --ph-danger-soft: #3a1f1f;
+  --ph-warning: #f0b86a;
+  --ph-warning-strong: #f7d29b;
+  --ph-warning-soft: #3a2c16;
+  --ph-success: #86d49b;
+  --ph-success-strong: #b4e8c1;
+  --ph-success-soft: #172a1d;
+
+  --ph-shadow: 0 4px 10px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --ph-color-scheme: dark;
+}
+
+/* ---- Wiring: Tailwind's utilities read these, so every class follows the theme -- */
+@theme {
+  --font-sans: var(--ph-font-sans);
+  --spacing: var(--ph-spacing);
+  --shadow-md: var(--ph-shadow);
+  --container-6xl: var(--ph-content-width);
+  --container-5xl: var(--ph-content-width-medium);
+  --container-2xl: var(--ph-reading-width);
+
+  --color-page: var(--ph-page);
+  --color-ink: var(--ph-ink);
+  --color-moss: var(--ph-brand);
+  --color-moss-dark: var(--ph-brand-strong);
+  --color-moss-soft: var(--ph-brand-soft);
+  --color-on-brand: var(--ph-on-brand);
+  --color-warm: var(--ph-accent);
+
+  --color-white: var(--ph-surface);
+  --color-stone-50: var(--ph-surface-alt);
+  --color-stone-100: var(--ph-hover);
+  --color-stone-200: var(--ph-divider);
+  --color-stone-300: var(--ph-border);
+  --color-stone-400: var(--ph-border-strong);
+  --color-stone-500: var(--ph-ink-faint);
+  --color-stone-600: var(--ph-ink-muted);
+  --color-stone-700: var(--ph-ink-soft);
+  --color-stone-800: var(--ph-neutral-800);
+  --color-stone-900: var(--ph-ink);
+  --color-stone-950: var(--ph-ink-strong);
+
+  --color-red-50: var(--ph-danger-soft);
+  --color-red-300: color-mix(in oklab, var(--ph-danger) 35%, var(--ph-surface));
+  --color-red-700: var(--ph-danger);
+  --color-red-800: var(--ph-danger);
+  --color-red-900: var(--ph-danger-strong);
+  --color-red-950: var(--ph-danger-strong);
+
+  --color-amber-50: var(--ph-warning-soft);
+  --color-amber-700: var(--ph-warning);
+  --color-amber-800: var(--ph-warning);
+  --color-amber-900: var(--ph-warning-strong);
+  --color-amber-950: var(--ph-warning-strong);
+
+  --color-green-50: var(--ph-success-soft);
+  --color-green-300: color-mix(in oklab, var(--ph-success) 35%, var(--ph-surface));
+  --color-green-900: var(--ph-success-strong);
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  html {
+    font-size: var(--ph-font-size);
+    color-scheme: var(--ph-color-scheme);
+  }
+
+  body { min-width: 320px; }
+
+  h1, h2, h3 { font-family: var(--ph-font-heading); }
+
+  button, input, select, textarea { font: inherit; }
+
+  :focus-visible {
+    outline: var(--ph-focus-width) solid var(--ph-accent);
+    outline-offset: 2px;
+  }
+
+  /* One radius for everything boxy. Underline-only tabs and one-sided borders keep square edges. */
+  :where(
+    button, select, textarea, img, details, article, fieldset,
+    input:not([type="checkbox"], [type="radio"], [type="file"]),
+    [class*="border-stone-3"]:not([class*="border-b"], [class*="border-t"], [class*="border-l"], [class*="border-r"])
+  ) {
+    border-radius: var(--ph-radius);
+  }
+}
+
+/* Shared building blocks used by the helpers in @pawheaven/contracts/ui. */
+@layer components {
+  .ph-pill {
+    display: inline-block;
+    border: 1px solid var(--ph-border-strong);
+    background: var(--ph-surface-alt);
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    color: var(--ph-ink-soft);
+    border-radius: var(--ph-radius);
+  }
+  .ph-pill-good { border-color: var(--ph-brand); background: var(--ph-brand-soft); color: var(--ph-brand-strong); }
+  .ph-pill-warn { border-color: var(--ph-warning); background: var(--ph-warning-soft); color: var(--ph-warning-strong); }
+  .ph-pill-later { border-style: dashed; color: var(--ph-ink-muted); }
+  .ph-field { display: block; font-size: 0.875rem; font-weight: 500; color: var(--ph-ink); }
+  .ph-input {
+    margin-top: 0.5rem; display: block; width: 100%;
+    border: 1px solid var(--ph-border-strong); background: var(--ph-surface);
+    padding: 0.625rem 0.75rem; color: var(--ph-ink); font-weight: 400;
+  }
+  .ph-help { margin-top: 0.5rem; font-size: 0.875rem; font-weight: 400; color: var(--ph-ink-muted); }
+  .ph-error { margin-top: 0.5rem; font-size: 0.875rem; font-weight: 500; color: var(--ph-danger); }
+  .ph-btn {
+    border: 1px solid var(--ph-brand); background: var(--ph-surface);
+    padding: 0.5rem 1rem; font-size: 0.875rem; font-weight: 600; color: var(--ph-brand-strong);
+    cursor: pointer; border-radius: var(--ph-radius);
+  }
+  .ph-btn:hover { background: var(--ph-brand-soft); }
+  .ph-btn-primary { background: var(--ph-brand); color: var(--ph-on-brand); }
+  .ph-btn-primary:hover { background: var(--ph-brand-strong); }
+  .ph-btn:disabled { cursor: wait; opacity: 0.7; }
+  .ph-card { border: 1px solid var(--ph-border); background: var(--ph-surface); padding: 1.25rem 1.5rem; border-radius: var(--ph-radius); }
+}

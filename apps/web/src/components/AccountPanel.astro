@@ -25,7 +25,7 @@
     );
     const login = document.createElement('a');
     login.href = '/login';
-    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)]';
     login.textContent = 'Log in';
     panel.append(login);
   }
@@ -53,7 +53,7 @@
     label.append(name);
     const save = document.createElement('button');
     save.type = 'submit';
-    save.className = 'mt-3 bg-[var(--color-moss)] px-4 py-2.5 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    save.className = 'mt-3 bg-[var(--color-moss)] px-4 py-2.5 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)]';
     save.textContent = 'Save name';
     const profileMessage = textElement('p', 'mt-2 text-sm text-stone-700', '');
     profileMessage.setAttribute('role', 'status');
@@ -165,7 +165,7 @@
       wrapper.append(error);
       form.append(wrapper);
     }
-    const submit = textElement('button', 'justify-self-start bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70', submitLabel) as HTMLButtonElement;
+    const submit = textElement('button', 'justify-self-start bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70', submitLabel) as HTMLButtonElement;
     submit.type = 'submit';
     const status = textElement('p', 'text-sm', '');
     status.setAttribute('role', 'status');

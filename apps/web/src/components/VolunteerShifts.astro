@@ -53,7 +53,7 @@
     );
     const login = document.createElement('a');
     login.href = '/login';
-    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)]';
     login.textContent = 'Log in to volunteer';
     container.append(login);
   }
@@ -105,7 +105,7 @@
     actions.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
     submit.type = 'submit';
-    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
     submit.textContent = 'Confirm sign-up';
     const cancel = element('button', 'px-2 py-2 text-sm font-medium text-stone-700 underline underline-offset-4', 'Never mind') as HTMLButtonElement;
     cancel.type = 'button';
@@ -174,7 +174,7 @@
     const result = document.createElement('p');
     result.setAttribute('role', 'status');
     if (shift.registered) {
-      const cancel = element('button', 'border border-red-800 px-4 py-2 text-sm font-semibold text-red-800 transition-colors hover:bg-red-800 hover:text-white disabled:cursor-wait disabled:opacity-70', 'Cancel my sign-up') as HTMLButtonElement;
+      const cancel = element('button', 'border border-red-800 px-4 py-2 text-sm font-semibold text-red-800 transition-colors hover:bg-red-800 hover:text-on-brand disabled:cursor-wait disabled:opacity-70', 'Cancel my sign-up') as HTMLButtonElement;
       cancel.type = 'button';
       cancel.addEventListener('click', async () => {
         const registrationId = registrationByShift.get(shift.id);
@@ -192,7 +192,7 @@
       });
       controls.append(cancel);
     } else {
-      const join = element('button', 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-not-allowed disabled:opacity-60', full ? 'Shift is full' : 'Sign up') as HTMLButtonElement;
+      const join = element('button', 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-not-allowed disabled:opacity-60', full ? 'Shift is full' : 'Sign up') as HTMLButtonElement;
       join.type = 'button';
       join.disabled = full;
       join.addEventListener('click', () => {

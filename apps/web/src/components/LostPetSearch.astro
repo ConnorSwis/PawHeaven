@@ -36,7 +36,7 @@
     );
     const login = document.createElement('a');
     login.href = '/login';
-    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)]';
     login.textContent = 'Log in to search by photo';
     const flyer = flyerLink('ml-5 inline-block font-medium text-[var(--color-moss-dark)] underline underline-offset-4');
     container.append(login, flyer);
@@ -87,7 +87,7 @@
     actions.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
     submit.type = 'submit';
-    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
     submit.textContent = 'Send to the shelter';
     const status = document.createElement('p');
     status.setAttribute('role', 'status');
@@ -143,7 +143,7 @@
     );
     const contact = document.createElement('button');
     contact.type = 'button';
-    contact.className = 'mt-4 border border-[var(--color-moss)] px-4 py-2 text-sm font-semibold text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white';
+    contact.className = 'mt-4 border border-[var(--color-moss)] px-4 py-2 text-sm font-semibold text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-on-brand';
     contact.textContent = `Ask the shelter about ${match.pet.name}`;
     contact.addEventListener('click', () => {
       if (card.querySelector('form')) return;
@@ -264,7 +264,7 @@
     actions.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
     submit.type = 'submit';
-    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
     submit.textContent = 'Search by photo';
     const status = document.createElement('p');
     status.setAttribute('role', 'status');

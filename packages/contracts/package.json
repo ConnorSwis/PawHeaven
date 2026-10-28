@@ -11,6 +11,11 @@
     "./ui": {
       "types": "./src/ui.ts",
       "default": "./src/ui.ts"
-    }
+    },
+    "./site": {
+      "types": "./src/site.ts",
+      "default": "./src/site.ts"
+    },
+    "./theme.css": "./src/theme.css"
   }
 }

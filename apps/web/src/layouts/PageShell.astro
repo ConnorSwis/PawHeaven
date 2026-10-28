@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { SITE } from '@pawheaven/contracts/site';
 
 interface Props {
   title: string;
@@ -12,7 +13,7 @@ interface Props {
 
 const {
   title,
-  description = 'PawHeaven animal shelter portal',
+  description = `${SITE.name} animal shelter portal`,
   showNavigation = true,
   showFooter = true,
   noindex = false,
@@ -45,19 +46,19 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme={import.meta.env.PUBLIC_THEME || undefined}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
-    <title>{title} | PawHeaven</title>
+    <title>{title} | {SITE.name}</title>
   </head>
   <body class="flex min-h-dvh flex-col bg-[var(--color-page)] text-stone-900 antialiased">
     {showNavigation && (
       <header class="border-b border-stone-300 bg-white">
         <div class="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-6 py-3">
-          <a class="text-lg font-semibold tracking-tight text-stone-950" href="/">PawHeaven</a>
+          <a class="text-lg font-semibold tracking-tight text-stone-950" href="/">{SITE.name}</a>
           <nav aria-label="Primary navigation" class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium">
             {groups.map((group) => (
               <details class="relative" data-nav-group>
@@ -73,9 +74,9 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
               class:list={['border-b-2 py-1 transition-colors', here === '/lost-pet' || here.startsWith('/lost-pet/') ? 'border-[var(--color-moss)] text-stone-950' : 'border-transparent text-stone-700 hover:border-stone-400 hover:text-stone-950']}
               href="/lost-pet"
             >Lost a pet?</a>
-            <a class="bg-[var(--color-moss)] px-4 py-2 text-white transition-colors hover:bg-[var(--color-moss-dark)]" href="/donate" aria-current={here === '/donate' ? 'page' : undefined}>Donate</a>
+            <a class="bg-[var(--color-moss)] px-4 py-2 text-on-brand transition-colors hover:bg-[var(--color-moss-dark)]" href="/donate" aria-current={here === '/donate' ? 'page' : undefined}>Donate</a>
             <span data-account-menu>
-              <a class="border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white" href="/login">Log in</a>
+              <a class="border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-on-brand" href="/login">Log in</a>
             </span>
           </nav>
         </div>
@@ -87,7 +88,7 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
     {showFooter && (
       <footer class="border-t border-stone-300 bg-white">
         <div class="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-7 text-sm text-stone-700 sm:flex-row sm:items-center sm:justify-between">
-          <p>Helping shelter pets find their next home.</p>
+          <p>{SITE.tagline}</p>
           <nav aria-label="Footer navigation" class="flex flex-wrap gap-x-5 gap-y-2">
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/pets">Browse pets</a>
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/visits">Schedule a visit</a>
@@ -113,7 +114,7 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
     accountMenu.replaceChildren();
     const login = document.createElement('a');
     login.href = '/login';
-    login.className = 'border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white';
+    login.className = 'border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-on-brand';
     login.textContent = 'Log in';
     accountMenu.append(login);
   }
@@ -126,7 +127,7 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
     details.className = 'relative';
     details.dataset.navGroup = '';
     const summary = document.createElement('summary');
-    summary.className = 'flex cursor-pointer list-none items-center gap-1 border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white [&::-webkit-details-marker]:hidden';
+    summary.className = 'flex cursor-pointer list-none items-center gap-1 border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-on-brand [&::-webkit-details-marker]:hidden';
     summary.append('My PawHeaven ');
     const caret = document.createElement('span');
     caret.setAttribute('aria-hidden', 'true');

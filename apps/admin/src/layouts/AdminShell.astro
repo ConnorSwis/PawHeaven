@@ -1,26 +1,27 @@
 ---
 import '../styles/global.css';
+import { SITE } from '@pawheaven/contracts/site';
 
 interface Props {
   title: string;
   description?: string;
 }
 
-const { title, description = 'PawHeaven staff portal' } = Astro.props;
+const { title, description = `${SITE.name} staff portal` } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme={import.meta.env.PUBLIC_THEME || undefined}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
-    <title>{title} | PawHeaven Admin</title>
+    <title>{title} | {SITE.adminName}</title>
   </head>
   <body class="min-h-dvh bg-[var(--color-page)] text-stone-900 antialiased">
     <header class="border-b border-stone-300 bg-white">
       <div class="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-3">
-        <a class="text-lg font-semibold tracking-tight text-stone-950" href="/">PawHeaven Admin</a>
+        <a class="text-lg font-semibold tracking-tight text-stone-950" href="/">{SITE.adminName}</a>
         <nav class="flex items-center gap-5 text-sm font-medium" aria-label="Staff navigation">
           <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="/">Portal</a>
           <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="/users">Users</a>
