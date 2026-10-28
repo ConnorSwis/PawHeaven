@@ -1,0 +1,229 @@
+-- Local demo data only. Makes the database look lived in: twelve demo members,
+-- a fortnight of visit times (some booked), three weeks of volunteer shifts with
+-- sign-ups, applications in every status, lost-pet inquiries, quiz results, and
+-- test-mode donations. Everything is dated relative to the day of `db reset`.
+-- Members sign in with DemoMember-2026! and never exist outside the local stack.
+
+create temp table m as
+select n,
+  ('a3000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid as id,
+  first || ' ' || last as name,
+  lower(first || '.' || last) || '@pawheaven.local' as email,
+  phone,
+  (date '1984-03-09' + n * 700) as dob,
+  address
+from (values
+  (1, 'Maya', 'Chen', '(404) 555-0111', '210 Peachtree Ave NE, Atlanta, GA 30303'),
+  (2, 'Jordan', 'Patel', '(404) 555-0112', '48 Ponce de Leon Ave, Atlanta, GA 30308'),
+  (3, 'Sam', 'Rivera', '(678) 555-0113', '902 Moreland Ave SE, Atlanta, GA 30316'),
+  (4, 'Priya', 'Nair', '(470) 555-0114', '15 Clairmont Rd, Decatur, GA 30030'),
+  (5, 'Marcus', 'Johnson', '(404) 555-0115', '77 Memorial Dr SE, Atlanta, GA 30312'),
+  (6, 'Elena', 'Rossi', '(678) 555-0116', '311 Lullwater Rd NE, Atlanta, GA 30307'),
+  (7, 'Tyrone', 'Brooks', '(404) 555-0117', '640 Boulevard NE, Atlanta, GA 30308'),
+  (8, 'Hannah', 'Kim', '(470) 555-0118', '23 Candler St, Decatur, GA 30030'),
+  (9, 'Diego', 'Alvarez', '(404) 555-0119', '508 Glenwood Ave SE, Atlanta, GA 30316'),
+  (10, 'Aisha', 'Khan', '(678) 555-0120', '19 Church St, Decatur, GA 30030'),
+  (11, 'Liam', 'Oconnor', '(404) 555-0121', '256 Edgewood Ave SE, Atlanta, GA 30312'),
+  (12, 'Grace', 'Thompson', '(470) 555-0122', '88 Ansley Dr NE, Atlanta, GA 30309')
+) as t (n, first, last, phone, address);
+
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change,
+  phone_change, phone_change_token, email_change_token_current,
+  reauthentication_token, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+)
+select id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', email,
+  extensions.crypt('DemoMember-2026!', extensions.gen_salt('bf')), now(),
+  '', '', '', '', '', '', '', '',
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  jsonb_build_object('name', name, 'email', email, 'email_verified', true, 'phone_verified', false, 'sub', id::text),
+  now() - (n * 5 || ' days')::interval, now()
+from m;
+
+insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+select id::text, id, jsonb_build_object('sub', id::text, 'email', email, 'email_verified', true, 'phone_verified', false), 'email', now(), now(), now()
+from m;
+
+-- Saved contact details for most members.
+insert into public.member_profiles (user_id, phone, address, date_of_birth)
+select id, phone, address, dob from m where n <= 9;
+
+-- Pets: every animal not already placed is in the shelter, and several are open to foster.
+update public.pets set housing = 'Shelter' where housing = '';
+update public.pets set foster_available = true where name in ('Cleo', 'Wren', 'Miso', 'Juniper');
+
+-- Visit times: past and next two weeks (days 1 to 2 are the original demo slots), about two thirds booked.
+with days as (select d from generate_series(-7, 16) as d where d not in (0, 1, 2)),
+  times as (select t from unnest(array['11:00', '12:00', '13:00', '14:00', '15:00', '16:00']::time[]) as t),
+  new_slots as (
+    insert into public.visit_slots (starts_at, ends_at, created_by)
+    select ((timezone('America/New_York', now())::date + d + t) at time zone 'America/New_York'),
+      ((timezone('America/New_York', now())::date + d + t + interval '30 minutes') at time zone 'America/New_York'),
+      'a1000000-0000-0000-0000-000000000002'
+    from days, times
+    returning id, starts_at, ends_at
+  ),
+  ranked as (select id, starts_at, ends_at, row_number() over (order by starts_at) as rn from new_slots),
+  booked as (
+    insert into public.appointments (member_id, member_name, member_email, slot_id, purpose, created_at, updated_at)
+    select m.id, m.name, m.email, r.id,
+      (array['Meet a dog I saw online', 'Learn about fostering', 'Meet the cats before adopting', 'Bring my kids to meet a few dogs', 'Ask about senior pets', 'Tour the shelter and meet staff'])[1 + (r.rn % 6)::int],
+      r.starts_at - interval '3 days', r.starts_at - interval '3 days'
+    from ranked r join m on m.n = 1 + (r.rn % 12)::int
+    where r.rn % 3 <> 0
+    returning id, member_id, slot_id
+  )
+insert into public.appointment_events (appointment_id, member_id, event_type, slot_starts_at, slot_ends_at, created_at)
+select b.id, b.member_id, 'booked', r.starts_at, r.ends_at, r.starts_at - interval '3 days'
+from booked b join ranked r on r.id = b.slot_id;
+
+-- Volunteer shifts for the past ten days and next three weeks, filled by members without double-booking anyone.
+do $$
+declare
+  shift_row record;
+  member_row record;
+  v_shift_id uuid;
+  v_count integer;
+  v_target integer;
+  v_index integer := 0;
+begin
+  for shift_row in
+    select defs.title, defs.descr, defs.req, defs.min_age, defs.capacity, days.d,
+      ((timezone('America/New_York', now())::date + days.d + defs.start_time::time) at time zone 'America/New_York') as starts_at,
+      ((timezone('America/New_York', now())::date + days.d + defs.start_time::time + (defs.hours || ' hours')::interval) at time zone 'America/New_York') as ends_at
+    from generate_series(-10, 21) as days(d)
+    join (values
+      ('Kennel care', 'Clean and refill kennels, fresh water, and bedding for the dogs and cats.', 'Closed-toe shoes. Training provided on your first shift.', 0, '08:00', 3, 5, array[1, 2, 3, 4, 5]),
+      ('Dog walking', 'Walk shelter dogs on the trail and log how each walk went.', 'Comfortable handling large dogs. Volunteers must be 18 or older.', 18, '13:00', 2, 6, array[1, 2, 3, 4, 5, 6, 7]),
+      ('Cat socialization', 'Spend time with the cats: gentle play, brushing, and quiet company.', 'Wash your hands before and after. Volunteers must be 16 or older.', 16, '16:00', 2, 4, array[2, 4]),
+      ('Laundry and supplies', 'Wash blankets and towels and restock the supply closet.', '', 0, '11:30', 2, 3, array[1, 3, 5]),
+      ('Adoption event greeter', 'Welcome visitors at the weekend adoption event and hand out information sheets.', 'Friendly and patient. Volunteers must be 14 or older.', 14, '10:00', 4, 8, array[6]),
+      ('Volunteer orientation', 'Learn the shelter routines, safety rules, and how shifts work. Required before your first dog-walking shift.', 'Volunteers must be 14 or older.', 14, '09:00', 1, 12, array[6]),
+      ('Foster training workshop', 'A practical session for people thinking about fostering: supplies, routines, and what to expect.', 'Open to anyone 18 or older. No experience needed.', 18, '14:00', 2, 15, array[7])
+    ) as defs (title, descr, req, min_age, start_time, hours, capacity, dows)
+      on extract(isodow from (timezone('America/New_York', now())::date + days.d))::int = any (defs.dows)
+    order by 7, 1
+  loop
+    v_index := v_index + 1;
+    insert into public.volunteer_shifts (title, description, requirements, min_age, starts_at, ends_at, capacity, created_by)
+    values (shift_row.title, shift_row.descr, shift_row.req, shift_row.min_age, shift_row.starts_at, shift_row.ends_at, shift_row.capacity, 'a1000000-0000-0000-0000-000000000002')
+    returning id into v_shift_id;
+
+    -- Past shifts were well attended; upcoming ones vary from empty to full, and a few soon-to-start shifts have nobody yet.
+    if shift_row.d < 0 then v_target := greatest(1, round(shift_row.capacity * 0.8)::int);
+    elsif shift_row.d between 3 and 5 and v_index % 5 = 0 then v_target := 0;
+    else v_target := least(shift_row.capacity, round(shift_row.capacity * (0.2 + ((v_index * 37) % 85) / 100.0))::int);
+    end if;
+
+    v_count := 0;
+    for member_row in select * from m order by (n + v_index) % 12 loop
+      exit when v_count >= v_target;
+      if exists (
+        select 1 from public.volunteer_registrations registration
+        join public.volunteer_shifts other on other.id = registration.shift_id
+        where registration.member_id = member_row.id and registration.status = 'registered'
+          and tstzrange(other.starts_at, other.ends_at, '[)') && tstzrange(shift_row.starts_at, shift_row.ends_at, '[)')
+      ) then continue; end if;
+      insert into public.volunteer_registrations (shift_id, member_id, member_name, member_email, member_phone, member_date_of_birth, created_at, updated_at)
+      values (v_shift_id, member_row.id, member_row.name, member_row.email, member_row.phone, member_row.dob, shift_row.starts_at - interval '6 days', shift_row.starts_at - interval '6 days');
+      v_count := v_count + 1;
+    end loop;
+  end loop;
+end $$;
+
+-- A few members changed their minds.
+update public.volunteer_registrations
+set status = 'canceled', canceled_reason = 'member', updated_at = now()
+where abs(hashtext(id::text)) % 11 = 0
+  and shift_id in (select id from public.volunteer_shifts where starts_at > now() + interval '1 day');
+
+-- Adoption applications in every status.
+with a (n, pet, status, days_ago, household, experience, note) as (values
+  (1, 'Jett', 'Pending', 6, 'Two adults and a fenced yard in Decatur. One of us works from home most days.', 'Raised dogs growing up and fostered two rescues last year.', 'Happy to arrange a meet and greet this week.'),
+  (2, 'Cadillac', 'Pending', 4, 'Apartment with a dog park next door; household of two adults.', 'Had a lab for twelve years and know how to train with treats.', ''),
+  (3, 'Chadwick', 'Pending', 2, 'Small house, one other adult, flexible schedule, no other pets.', 'First dog as an adult, but I have read and watched a lot about training.', 'I would love a calm older dog.'),
+  (4, 'Padma Patil', 'In review', 9, 'Quiet household of two adults in a ground-floor condo.', 'Have adopted two seniors from shelters before.', 'Senior dogs are my favorite.'),
+  (5, 'Carlton', 'In review', 8, 'Family of four with a nine-year-old; we are looking for a laid-back cat.', 'Our last cat lived to nineteen.', ''),
+  (6, 'Hollie', 'Approved', 12, 'Two adults and a large fenced yard, no other pets right now.', 'Experienced with shy dogs and patient with training.', 'We can pick up any weekday.'),
+  (7, 'Fuerte', 'Approved', 11, 'Two adults, quiet home, an older dog would suit us best.', 'Cared for my parents'' senior dog for years.', ''),
+  (8, 'Sombra', 'Declined', 14, 'Studio apartment, long work hours, no outdoor space.', 'This would be my first pet, and I am eager to learn.', 'Hoping for an active young dog.'),
+  (9, 'Cookie Crisp', 'Approved', 18, 'Couple with a sunny apartment, both working from home.', 'Grew up with cats and have owned two.', ''),
+  (10, 'Arlo', 'Pending', 1, 'Family of five with a big backyard and two kids over ten.', 'Our family dog passed last spring and we are ready for a new one.', 'The kids are excited to meet him.'),
+  (11, 'Mika', 'In review', 5, 'Apartment, two adults, one adult cat already.', 'Slow introductions worked well with our current cat.', '')
+)
+insert into public.adoption_applications (applicant_id, applicant_name, applicant_email, applicant_phone, applicant_address, applicant_date_of_birth, pet_id, pet_name, household_summary, adoption_experience, note, status, submitted_at, reviewed_at, reviewed_by)
+select m.id, m.name, m.email, m.phone, m.address, m.dob, p.id, p.name, a.household, a.experience, a.note, a.status,
+  now() - (a.days_ago || ' days')::interval,
+  case when a.status = 'Pending' then null else now() - ((a.days_ago - 1) || ' days')::interval end,
+  case when a.status = 'Pending' then null else 'a1000000-0000-0000-0000-000000000002'::uuid end
+from a join m on m.n = a.n join lateral (select id, name from public.pets where name = a.pet limit 1) p on true;
+
+-- Approved adoptions move those animals along.
+update public.pets set status = 'Pending' where name in ('Hollie', 'Fuerte');
+update public.pets set status = 'Adopted' where name = 'Cookie Crisp';
+
+-- Foster applications.
+with f (n, pet, status, days_ago, start_in, length_days, household, experience, note) as (values
+  (2, 'Cleo', 'Pending', 3, 5, 45, 'Apartment, two adults, a spare room for a cat to settle into.', 'Fostered four kittens through a local rescue.', ''),
+  (5, 'Sombra', 'In review', 7, 10, 60, 'House with a fenced yard and one calm dog.', 'Fostered two young dogs for a local rescue.', 'Happy to continue his training.'),
+  (7, 'Juniper', 'Approved', 13, 2, 30, 'Family home, kids over twelve, big yard.', 'Raised three litters of puppies.', ''),
+  (9, 'Wren', 'Declined', 16, 7, 90, 'Studio apartment, new job with irregular hours.', 'None yet, but eager to learn.', ''),
+  (10, 'Miso', 'Pending', 1, 14, 40, 'Two adults, quiet home, no other pets.', 'Cared for cats of friends and family.', 'Happy to take medication-needing cats.'),
+  (11, 'Chesney', 'In review', 6, 9, 35, 'House with a fenced yard, work from home.', 'Fostered a hound mix for three months.', '')
+)
+insert into public.foster_applications (applicant_id, applicant_name, applicant_email, applicant_phone, applicant_address, applicant_date_of_birth, pet_id, pet_name, household_summary, foster_experience, available_from, available_until, note, status, submitted_at, reviewed_at, reviewed_by)
+select m.id, m.name, m.email, m.phone, m.address, m.dob, p.id, p.name, f.household, f.experience,
+  current_date + f.start_in, current_date + f.start_in + f.length_days, f.note, f.status,
+  now() - (f.days_ago || ' days')::interval,
+  case when f.status = 'Pending' then null else now() - ((f.days_ago - 1) || ' days')::interval end,
+  case when f.status = 'Pending' then null else 'a1000000-0000-0000-0000-000000000002'::uuid end
+from f join m on m.n = f.n join lateral (select id, name from public.pets where name = f.pet limit 1) p on true;
+
+-- Lost-pet searches and inquiries (the members' photos are not seeded, so staff see the inquiry without images).
+with s as (
+  insert into public.lost_pet_searches (member_id, species, description, photo_paths, result, created_at, expires_at)
+  select m.id, v.species, v.description, '{}', jsonb_build_array(jsonb_build_object('petId', p.id, 'confidence', v.confidence, 'reason', v.reason)),
+    now() - (v.days_ago || ' days')::interval, now() + interval '25 days'
+  from (values
+    (3, 'Dog', 'Black and white, about 45 pounds, no collar', 'Black and white coat with a similar build.', 70, 'Sombra', 2),
+    (8, 'Dog', 'Tan beagle mix with a white chest', 'Tan and white coat and a similar muzzle.', 78, 'Wren', 5),
+    (12, 'Cat', 'Gray tabby, very shy', 'Similar tabby markings and size.', 64, 'Carlton', 9)
+  ) as v (n, species, description, reason, confidence, pet, days_ago)
+  join m on m.n = v.n
+  join lateral (select id from public.pets where name = v.pet limit 1) p on true
+  returning id, member_id, result
+)
+insert into public.lost_pet_inquiries (search_id, member_id, member_name, member_email, member_phone, pet_id, pet_name, message, status, staff_note, handled_by, handled_at, created_at)
+select s.id, m.id, m.name, m.email, m.phone, (s.result -> 0 ->> 'petId')::uuid, p.name,
+  case m.n when 3 then 'I think Sombra is my dog, he went missing near Moreland on Friday night. Can someone check for a microchip?'
+           when 8 then 'Wren looks just like my beagle mix who disappeared two weeks ago. She has a white patch on her chest.'
+           else 'This looks like my cat Pepper. She is very shy and was last seen near Ansley Park on Sunday.' end,
+  case m.n when 3 then 'New' when 8 then 'In progress' else 'Resolved' end,
+  case m.n when 3 then '' when 8 then 'Called her. Scheduled a visit tomorrow to confirm the chest patch.' else 'Not a match; owner found Pepper at a neighbor''s.' end,
+  case when m.n = 3 then null else 'a1000000-0000-0000-0000-000000000002'::uuid end,
+  case when m.n = 3 then null else now() - interval '1 day' end,
+  now() - (case m.n when 3 then 1 when 8 then 4 else 8 end || ' days')::interval
+from s join m on m.id = s.member_id join public.pets p on p.id = (s.result -> 0 ->> 'petId')::uuid;
+
+-- Quiz results.
+insert into public.quiz_responses (user_id, answers, recommendations, created_at)
+select m.id,
+  jsonb_build_object('livingSpace', 'apartment', 'household', 'adults', 'otherPets', 'none', 'activityLevel', 'low', 'hoursAlone', '4-8', 'experience', 'some', 'species', 'dog', 'size', 'any', 'age', 'senior', 'traits', jsonb_build_array('calm', 'cuddly'), 'notes', ''),
+  jsonb_build_array(
+    jsonb_build_object('petId', (select id from public.pets where name = 'Poppy' limit 1), 'score', 92, 'reason', 'A calm senior who suits a quiet apartment and a relaxed routine.'),
+    jsonb_build_object('petId', (select id from public.pets where name = 'Padma Patil' limit 1), 'score', 81, 'reason', 'A gentle, loving senior who would be happy with a pile of soft blankets.')),
+  now() - (m.n || ' days')::interval
+from m where m.n in (4, 6, 8, 10, 12);
+
+-- Test-mode donations over the last month.
+insert into public.donations (stripe_session_id, stripe_payment_intent, amount_cents, currency, status, donor_name, donor_email, livemode, stripe_created_at)
+select 'cs_test_seed_' || g, 'pi_test_seed_' || g,
+  (array[1000, 2500, 2000, 5000, 1500, 10000, 3000, 2500, 7500, 2000, 4000, 1000, 2500, 6000])[g],
+  'usd', case when g = 13 then 'pending' when g = 14 then 'failed' else 'succeeded' end,
+  case when g % 4 = 0 then null else (select name from m where m.n = 1 + (g % 12)) end,
+  case when g % 4 = 0 then null else (select email from m where m.n = 1 + (g % 12)) end,
+  false, now() - ((g * 2) || ' days')::interval - ((g * 53 % 900) || ' minutes')::interval
+from generate_series(1, 14) as g;
+
+drop table m;

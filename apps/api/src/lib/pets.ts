@@ -36,6 +36,11 @@ export type DatabasePet = {
   good_with_dogs: YesNoUnknown;
   good_with_cats: YesNoUnknown;
   energy_level: PetEnergyLevel;
+  housing: Pet['housing'];
+  source_name: string;
+  source_url: string;
+  external_image_url: string | null;
+  gallery_urls: string[];
   image_path: string | null;
 };
 
@@ -68,7 +73,11 @@ export function petForClient(row: DatabasePet, env: Env): Pet {
     goodWithDogs: row.good_with_dogs ?? 'Unknown',
     goodWithCats: row.good_with_cats ?? 'Unknown',
     energyLevel: row.energy_level ?? '',
-    imageUrl: row.image_path ? supabase(env).storage.from('pet-images').getPublicUrl(row.image_path).data.publicUrl : null,
+    housing: row.housing ?? '',
+    sourceName: row.source_name ?? '',
+    sourceUrl: row.source_url ?? '',
+    galleryUrls: (row.gallery_urls ?? []).map((entry) => (/^https?:\/\//.test(entry) ? entry : supabase(env).storage.from('pet-images').getPublicUrl(entry).data.publicUrl)),
+    imageUrl: row.image_path ? supabase(env).storage.from('pet-images').getPublicUrl(row.image_path).data.publicUrl : (row.external_image_url ?? null),
   };
 }
 

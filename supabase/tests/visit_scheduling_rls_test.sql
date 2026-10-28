@@ -125,7 +125,7 @@ select lives_ok(
 set local request.jwt.claims = '{"role":"authenticated","sub":"61000000-0000-0000-0000-000000000003","email":"visit-admin@example.com","app_metadata":{"role":"staff"},"user_metadata":{"name":"Visit admin"}}';
 
 select results_eq(
-  $$select count(*)::integer from public.appointments where status = 'booked'$$,
+  $$select count(*)::integer from public.appointments where status = 'booked' and slot_id::text like '62000000-%'$$,
   array[1],
   'a staff member can see the current booking schedule'
 );
@@ -150,7 +150,7 @@ select lives_ok(
 );
 
 select results_eq(
-  $$select count(*)::integer from public.appointments where status = 'booked'$$,
+  $$select count(*)::integer from public.appointments where status = 'booked' and slot_id::text like '62000000-%'$$,
   array[1],
   'staff can see the current booking schedule'
 );

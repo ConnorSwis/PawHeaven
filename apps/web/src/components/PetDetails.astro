@@ -83,6 +83,26 @@ const seedPets = [
     const category = element('p', 'text-sm font-medium text-[var(--color-moss-dark)]', `${pet.type} · ${pet.status}${pet.fosterAvailable ? ' · Open to foster' : ''}`);
     const name = element('h1', 'mt-3 text-3xl font-semibold tracking-tight text-stone-950', pet.name);
     const description = element('p', 'mt-5 max-w-xl leading-7 text-stone-700', pet.summary);
+    const credit = document.createElement('p');
+    credit.className = 'mt-3 text-sm text-stone-600';
+    if (pet.housing) credit.append(`Currently in ${pet.housing === 'Foster home' ? 'a foster home' : 'the shelter'}. `);
+    if (pet.sourceName) {
+      credit.append('Listing from ');
+      const source = document.createElement('a');
+      source.textContent = pet.sourceName;
+      if (/^https:\/\//.test(pet.sourceUrl ?? '')) { source.href = pet.sourceUrl; source.target = '_blank'; source.rel = 'noopener noreferrer'; source.className = 'underline underline-offset-4'; }
+      credit.append(source, '.');
+    }
+    const gallery = document.createElement('div');
+    gallery.className = 'mt-3 flex flex-wrap gap-2';
+    for (const url of (pet.galleryUrls ?? []).filter((item) => /^https:\/\//.test(item)).slice(0, 4)) {
+      const thumb = document.createElement('img');
+      thumb.src = url;
+      thumb.alt = `More photos of ${pet.name}`;
+      thumb.loading = 'lazy';
+      thumb.className = 'h-20 w-28 object-cover';
+      gallery.append(thumb);
+    }
     const details = document.createElement('dl');
     details.className = 'mt-8 grid border-y border-stone-300 sm:grid-cols-3';
     [['Breed', pet.breed], ['Age', pet.age], ['Time in shelter', `${pet.daysInShelter} days`]].forEach(([term, value]) => {
@@ -168,7 +188,7 @@ const seedPets = [
     const fit = document.createElement('section');
     fit.setAttribute('aria-live', 'polite');
 
-    container.append(description, actions, fit, details, attributesList(pet), medicalHeading, medical, tagHeading, tags);
+    container.append(gallery, description, credit, actions, fit, details, attributesList(pet), medicalHeading, medical, tagHeading, tags);
     if (!samplePet && pet.status === 'Available') container.append(adoptBox);
     if (!samplePet && fosterBox && pet.status === 'Available') container.append(fosterBox);
     container.append(back);
