@@ -216,3 +216,24 @@ values
     'd1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000003',
     'Demo Superuser', 'demo.superuser@pawheaven.local', '(404) 555-0100', date '1985-06-15'
   );
+
+-- Recorded pet attributes, so "black dog" search, the pet page, and the matching
+-- quiz have real data to work with. Anything not listed stays "not recorded".
+update public.pets as pet
+set sex = data.sex, size = data.size, color = data.color, weight_lbs = data.weight,
+    spayed_neutered = data.fixed, good_with_kids = data.kids, good_with_dogs = data.dogs,
+    good_with_cats = data.cats, energy_level = data.energy
+from (values
+  ('b1000000-0000-0000-0000-000000000001'::uuid, 'Male',   'Large',  'Black, white and tan', 82, 'Yes', 'Yes',     'Yes',     'Unknown', 'Low'),
+  ('b1000000-0000-0000-0000-000000000002'::uuid, 'Female', 'Small',  'Gray tabby',            9, 'Yes', 'Yes',     'Unknown', 'Yes',     'Medium'),
+  ('b1000000-0000-0000-0000-000000000003'::uuid, 'Female', 'Medium', 'Brindle',              48, 'Yes', 'Yes',     'Yes',     'No',      'High'),
+  ('b1000000-0000-0000-0000-000000000004'::uuid, 'Female', 'Small',  'White',                 4, 'No',  'Unknown', 'Unknown', 'Unknown', 'Medium'),
+  ('b1000000-0000-0000-0000-000000000005'::uuid, 'Male',   'Medium', 'Black',                 11, 'Yes', 'Yes',     'Unknown', 'Yes',     'Medium'),
+  ('b1000000-0000-0000-0000-000000000006'::uuid, 'Female', 'Medium', 'Tan and white',         24, 'Yes', 'Yes',     'Yes',     'Unknown', 'Medium'),
+  ('b1000000-0000-0000-0000-000000000007'::uuid, 'Male',   'Large',  'Cream',                 68, 'Yes', 'Yes',     'Yes',     'Unknown', 'High'),
+  ('b1000000-0000-0000-0000-000000000008'::uuid, 'Male',   'Small',  'Orange tabby',           8, 'Yes', 'Yes',     'Unknown', 'Yes',     'High'),
+  ('b1000000-0000-0000-0000-000000000009'::uuid, 'Female', 'Small',  'Fawn',                  21, 'Yes', 'Unknown', 'Yes',     'Unknown', 'Low'),
+  ('b1000000-0000-0000-0000-000000000010'::uuid, 'Female', 'Medium', 'Black and white',       41, 'Yes', 'Yes',     'Yes',     'Unknown', 'High'),
+  ('b1000000-0000-0000-0000-000000000011'::uuid, 'Female', 'Small',  'Blue-gray',              8, 'Yes', 'Unknown', 'Unknown', 'Unknown', 'Low')
+) as data (id, sex, size, color, weight, fixed, kids, dogs, cats, energy)
+where pet.id = data.id;

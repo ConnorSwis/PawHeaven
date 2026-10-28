@@ -1,5 +1,5 @@
 begin;
-select plan(11);
+select plan(13);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values
@@ -37,6 +37,15 @@ select throws_ok(
 select lives_ok(
   $$update public.member_profiles set phone = '404-555-0100', updated_at = now() where user_id = 'b2000000-0000-0000-0000-000000000001'$$,
   'a member can update their profile'
+);
+select lives_ok(
+  $$insert into public.member_profiles (user_id, phone) values ('b2000000-0000-0000-0000-000000000001', '404-555-0123') on conflict (user_id) do update set user_id = excluded.user_id, phone = excluded.phone, updated_at = now()$$,
+  'an upsert (how the API saves) updates the member''s own profile'
+);
+select throws_ok(
+  $$update public.member_profiles set user_id = 'b2000000-0000-0000-0000-000000000002' where user_id = 'b2000000-0000-0000-0000-000000000001'$$,
+  '42501', null,
+  'a member cannot hand their profile to another member'
 );
 select throws_ok(
   $$update public.member_profiles set phone = '12' where user_id = 'b2000000-0000-0000-0000-000000000001'$$,

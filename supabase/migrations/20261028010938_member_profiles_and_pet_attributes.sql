@@ -21,7 +21,8 @@ revoke all on public.member_profiles from anon, authenticated;
 grant usage on schema public to authenticated;
 grant select, delete on public.member_profiles to authenticated;
 grant insert (user_id, phone, address, date_of_birth, updated_at) on public.member_profiles to authenticated;
-grant update (phone, address, date_of_birth, updated_at) on public.member_profiles to authenticated;
+-- user_id is included because an upsert rewrites it; the policy's WITH CHECK still pins it to the caller.
+grant update (user_id, phone, address, date_of_birth, updated_at) on public.member_profiles to authenticated;
 
 create policy "Members can read their own profile"
 on public.member_profiles for select to authenticated
