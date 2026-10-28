@@ -1,5 +1,5 @@
-import type { AdminAdoptionApplicationListResponse } from '@pawheaven/contracts';
-import { applicationForClient, applicationReviewStatus, type DatabaseAdoptionApplication } from '../lib/applications';
+import type { AdminAdoptionApplicationListResponse, PetStatusUpdate } from '@pawheaven/contracts';
+import { applicationForClient, applicationReviewStatus, reviewPetStatus, type DatabaseAdoptionApplication } from '../lib/applications';
 import { applicationOutcomeEmail } from '../lib/email-templates';
 import { notify } from '../lib/email';
 import { databaseError, errorResponse, jsonBody, respond, type ApiResponse } from '../lib/http';
@@ -20,8 +20,10 @@ export async function adminApplicationRoutes(context: AdminContext): Promise<Api
 
   const match = path.match(/^\/admin\/applications\/([0-9a-f-]{36})$/i);
   if (match && request.method === 'PUT') {
-    const status = applicationReviewStatus(await jsonBody(request));
+    const body = await jsonBody(request);
+    const status = applicationReviewStatus(body);
     if (!status) return errorResponse('Choose In review, Approved, or Declined.', 400);
+    const markPetStatus = reviewPetStatus(body, status);
     const { data: before, error: beforeError } = await client.from('adoption_applications').select('status').eq('id', match[1]).maybeSingle();
     if (beforeError) return databaseError('admin.applications.lookup', beforeError);
     if (!before) return errorResponse('Application not found.', 404);
@@ -36,7 +38,14 @@ export async function adminApplicationRoutes(context: AdminContext): Promise<Api
     if (before.status !== status) {
       notify(context, applicationOutcomeEmail({ to: application.applicant_email, name: application.applicant_name, petName: application.pet_name, status }));
     }
-    return respond(applicationForClient(application));
+    // The shortcut is opt-in per review: an outcome alone never changes a pet.
+    let petStatusUpdate: PetStatusUpdate = 'not_requested';
+    if (markPetStatus) {
+      const { error: petError } = await client.from('pets').update({ status: markPetStatus }).eq('id', application.pet_id);
+      if (petError) console.error(JSON.stringify({ operation: 'admin.applications.pet_status', error: petError.message }));
+      petStatusUpdate = petError ? 'failed' : 'applied';
+    }
+    return respond({ ...applicationForClient(application), petStatusUpdate });
   }
 
   return null;

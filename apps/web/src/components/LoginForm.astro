@@ -118,7 +118,7 @@
 
     try {
       await login({ email: email.value, password: password.value });
-      window.location.assign('/account');
+      window.location.assign('/me');
     } catch (exception) {
       showError(exception instanceof Error ? exception.message : 'We could not log you in. Please try again.');
     } finally {

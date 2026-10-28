@@ -464,6 +464,45 @@ if (webhookProbe.response.status === 503) {
   if (donations.totals.some((total) => total.livemode === true)) fail('no live-mode total should exist after test-mode events.');
 }
 
+
+// Saved profile, recorded pet attributes, and the opt-in review shortcut.
+expectStatus(await request('/profile'), 401, 'the saved profile requires a login');
+const emptyProfile = expectStatus(await request('/profile', { cookie: applicantCookie }), 200, 'a new member has no saved details');
+if (emptyProfile.profile?.phone !== null || emptyProfile.profile?.address !== null || emptyProfile.profile?.dateOfBirth !== null) fail('a new member should have an empty profile.');
+const badProfile = await request('/profile', { method: 'PUT', cookie: applicantCookie, body: { phone: '12', address: 'x', dateOfBirth: '2999-01-01' } });
+expectStatus(badProfile, 400, 'invalid saved details are rejected');
+for (const fieldName of ['phone', 'address', 'dateOfBirth']) if (!badProfile.body?.fieldErrors?.[fieldName]) fail(`the profile rejection did not identify the ${fieldName} field.`);
+const savedProfile = expectStatus(await request('/profile', { method: 'PUT', cookie: applicantCookie, body: { phone: '(404) 555-0142', address: '55 Park Place NE, Atlanta, GA 30303', dateOfBirth: '1990-04-12' } }), 200, 'save contact details');
+if (savedProfile.profile?.phone !== '(404) 555-0142' || savedProfile.profile?.dateOfBirth !== '1990-04-12') fail('the saved profile did not keep the submitted details.');
+const clearedPhone = expectStatus(await request('/profile', { method: 'PUT', cookie: applicantCookie, body: { phone: '', address: savedProfile.profile.address, dateOfBirth: savedProfile.profile.dateOfBirth } }), 200, 'an empty field clears a saved detail');
+if (clearedPhone.profile?.phone !== null || !clearedPhone.profile?.address) fail('clearing the phone should leave the other saved details alone.');
+const otherMember = await request('/auth/register', { method: 'POST', body: { name: 'Profile Isolation', email: `isolation-${Date.now()}@pawheaven.local`, password: qaPassword } });
+expectStatus(otherMember, 201, 'register a second member for profile isolation');
+if ((await request('/profile', { cookie: otherMember.cookie })).body?.profile?.address !== null) fail('one member must never see another member\'s saved details.');
+
+const searchBlackDog = expectStatus(await request('/pets?search=black%20dog'), 200, 'search by color and species');
+if (!searchBlackDog.pets?.some((pet) => pet.id === baxterId) || searchBlackDog.pets.some((pet) => pet.name === 'Wren')) fail('"black dog" should find Baxter (black, white and tan) and not Wren (tan and white).');
+const baxterDetails = expectStatus(await request(`/pets/${baxterId}`), 200, 'pet details include recorded attributes');
+if (baxterDetails.color !== 'Black, white and tan' || baxterDetails.goodWithKids !== 'Yes' || baxterDetails.weightLbs !== 82 || baxterDetails.energyLevel !== 'Low') fail('the pet details did not carry the recorded attributes.');
+const badAttributes = await request('/admin/pets', { method: 'POST', cookie: staffCookie, body: { name: 'QA Attributes', type: 'Dog', breed: 'Mixed', age: '2 years', intakeDate: '2026-10-01', tags: [], status: 'Available', summary: 'Temporary QA record.', size: 'Gigantic', goodWithKids: 'Maybe', weightLbs: 9000 } });
+expectStatus(badAttributes, 400, 'invalid pet attributes are rejected');
+for (const fieldName of ['size', 'goodWithKids', 'weightLbs']) if (!badAttributes.body?.fieldErrors?.[fieldName]) fail(`the attribute rejection did not identify the ${fieldName} field.`);
+const attributedPet = expectStatus(await request('/admin/pets', { method: 'POST', cookie: staffCookie, body: { name: 'QA Shortcut', type: 'Cat', breed: 'Mixed', age: '2 years', intakeDate: '2026-10-01', tags: ['qa'], status: 'Available', summary: 'Temporary QA record.', fosterAvailable: true, sex: 'Female', size: 'Small', color: 'Calico', weightLbs: 9, spayedNeutered: 'Yes', goodWithKids: 'Yes', goodWithDogs: 'No', goodWithCats: 'Unknown', energyLevel: 'Medium' } }), 201, 'staff creates a pet with attributes');
+if (attributedPet.color !== 'Calico' || attributedPet.weightLbs !== 9 || attributedPet.goodWithDogs !== 'No') fail('the created pet did not keep its attributes.');
+const keptAttributes = expectStatus(await request(`/admin/pets/${attributedPet.id}`, { method: 'PUT', cookie: staffCookie, body: { name: 'QA Shortcut', type: 'Cat', breed: 'Mixed', age: '3 years', intakeDate: '2026-10-01', tags: ['qa'], status: 'Available', summary: 'Temporary QA record, edited.', fosterAvailable: true } }), 200, 'an update that omits attributes leaves them alone');
+if (keptAttributes.color !== 'Calico' || keptAttributes.age !== '3 years') fail('omitting attributes on an update must not wipe them.');
+
+// An approval changes a pet only when staff explicitly ask for it.
+const shortcutApplication = expectStatus(await request(`/foster-applications/pets/${attributedPet.id}`, { method: 'POST', cookie: applicantCookie, body: fosterDetails }), 201, 'apply to foster the shortcut pet');
+const declinedWithShortcut = expectStatus(await request(`/admin/foster-applications/${shortcutApplication.id}`, { method: 'PUT', cookie: staffCookie, body: { status: 'Declined', markPetStatus: 'Fostered' } }), 200, 'a decline ignores the pet shortcut');
+if (declinedWithShortcut.petStatusUpdate !== 'not_requested') fail('a declined application must never change the pet.');
+const availableShortcut = expectStatus(await request(`/admin/foster-applications/${shortcutApplication.id}`, { method: 'PUT', cookie: staffCookie, body: { status: 'Approved', markPetStatus: 'Available' } }), 200, 'an approval cannot "mark" a pet Available');
+if (availableShortcut.petStatusUpdate !== 'not_requested') fail('Available is not a valid pet status shortcut.');
+const plainApproval = expectStatus(await request(`/admin/foster-applications/${shortcutApplication.id}`, { method: 'PUT', cookie: staffCookie, body: { status: 'Approved' } }), 200, 'an approval alone');
+if (plainApproval.petStatusUpdate !== 'not_requested' || (await request('/admin/pets', { cookie: staffCookie })).body.pets.find((pet) => pet.id === attributedPet.id)?.status !== 'Available') fail('an approval without the shortcut must leave the pet Available.');
+const shortcutApproval = expectStatus(await request(`/admin/foster-applications/${shortcutApplication.id}`, { method: 'PUT', cookie: staffCookie, body: { status: 'Approved', markPetStatus: 'Fostered' } }), 200, 'an approval with the shortcut');
+if (shortcutApproval.petStatusUpdate !== 'applied' || (await request('/admin/pets', { cookie: staffCookie })).body.pets.find((pet) => pet.id === attributedPet.id)?.status !== 'Fostered') fail('the shortcut should have marked the pet Fostered.');
+
 // Staff role: limited to pets, applications, and the visit schedule.
 const superCookie = await login(superuserEmail, superuserPassword);
 const staffIdentity = expectStatus(await request('/admin/me', { cookie: staffCookie }), 200, 'staff portal access');
@@ -512,4 +551,4 @@ expectStatus(await request('/auth/logout', { method: 'POST', cookie: staffCookie
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: applicantCookie }), 200, 'applicant logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: superCookie }), 200, 'superuser logout');
 
-console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, signed Stripe webhook donation recording, visit booking/reschedule/cancellation history, staff visit scheduling, session expiry, and logout.');
+console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, signed Stripe webhook donation recording, saved profile and pet attributes with the opt-in review shortcut, visit booking/reschedule/cancellation history, staff visit scheduling, session expiry, and logout.');

@@ -112,6 +112,16 @@ npm run qa:ai
     and the status control in the portal's Lost-pet inquiries section, then
     open `/lost-pet/flyer`, fill in the template, and print it.
 
+11. **5:00 — one home for members:** Sign in as the demo applicant and open
+    **My PawHeaven** from the header menu. Add contact details once, then open
+    any available pet: the adoption and foster forms are prefilled. Show the
+    single action panel on the pet page, and the dashboard's applications,
+    visits, shifts, and matches in one place.
+12. **5:45 — one inbox for staff:** Sign in at `http://localhost:4322` and show
+    the sidebar and Inbox. Approve a foster application with "Also mark ...
+    Fostered" ticked to show the opt-in shortcut, and search `black dog` on the
+    public site to show attribute search.
+
 Reset the local database before another presentation so the application starts
 in the expected pending state.
 
@@ -132,5 +142,8 @@ Capture these local pages after reset for a report or slide deck:
 10. `10-pet-quiz-results.png` — recommendations with reasons.
 11. `11-lost-pet-matches.png` — possible matches with the ownership notice.
 12. `12-lost-pet-flyer.png` — the printable flyer template.
+13. `13-my-pawheaven.png` — the member dashboard.
+14. `14-pet-page-hub.png` — the pet page action panel and attributes.
+15. `15-staff-inbox.png` — the staff sidebar and inbox.
 
 Do not capture real applicant information or production URLs.

@@ -45,3 +45,16 @@ test('discovery QA: non-available pets stay hidden and cannot begin an applicati
   assert.equal(canStartApplication(pets[2], false), false);
   assert.equal(canStartApplication(pets[0], true), false);
 });
+
+test('discovery QA: a broad search such as "black dog" uses the recorded color, size, and temperament', () => {
+  const pet = {
+    id: 'dddddddd-dddd-dddd-dddd-dddddddddddd', name: 'Pepper', type: 'Dog', breed: 'Lab mix', age: '3 years',
+    intakeDate: '2026-01-01', daysInShelter: 9, tags: [], status: 'Available', summary: 'Friendly.', imageUrl: null,
+    color: 'Black', sex: 'Female', size: 'Large', energyLevel: 'High', goodWithKids: 'Yes', goodWithDogs: 'Unknown', goodWithCats: 'No',
+  };
+  assert.equal(matchesPetSearch(pet, 'black dog'), true);
+  assert.equal(matchesPetSearch(pet, 'large female'), true);
+  assert.equal(matchesPetSearch(pet, 'high energy kids'), true);
+  assert.equal(matchesPetSearch(pet, 'white dog'), false);
+  assert.equal(matchesPetSearch(pet, 'cats'), false);
+});

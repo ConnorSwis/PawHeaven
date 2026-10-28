@@ -57,6 +57,8 @@ export type QuizCandidate = {
   tags: string[];
   summary: string;
   medicalHistory: string;
+  /** Optional attributes staff may have recorded; empty or Unknown means not recorded. */
+  attributes?: { sex: string; size: string; color: string; weightLbs: number | null; spayedNeutered: string; goodWithKids: string; goodWithDogs: string; goodWithCats: string; energyLevel: string };
 };
 
 const clip = (value: string, length: number) => (value.length > length ? `${value.slice(0, length - 1)}…` : value);
@@ -95,6 +97,7 @@ export function quizUserPrompt(answers: QuizAnswers, refs: Map<string, QuizCandi
       tags: pet.tags,
       summary: clip(pet.summary, 300),
       medical: clip(pet.medicalHistory, 200),
+      ...(pet.attributes && { details: pet.attributes }),
     })),
   });
 }

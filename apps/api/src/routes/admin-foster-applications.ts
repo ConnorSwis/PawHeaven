@@ -1,5 +1,5 @@
-import type { AdminFosterApplicationListResponse } from '@pawheaven/contracts';
-import { applicationReviewStatus } from '../lib/applications';
+import type { AdminFosterApplicationListResponse, PetStatusUpdate } from '@pawheaven/contracts';
+import { applicationReviewStatus, reviewPetStatus } from '../lib/applications';
 import { notify } from '../lib/email';
 import { fosterOutcomeEmail } from '../lib/email-templates';
 import { fosterApplicationForClient, type DatabaseFosterApplication } from '../lib/foster';
@@ -21,8 +21,10 @@ export async function adminFosterApplicationRoutes(context: AdminContext): Promi
 
   const match = path.match(/^\/admin\/foster-applications\/([0-9a-f-]{36})$/i);
   if (match && request.method === 'PUT') {
-    const status = applicationReviewStatus(await jsonBody(request));
+    const body = await jsonBody(request);
+    const status = applicationReviewStatus(body);
     if (!status) return errorResponse('Choose In review, Approved, or Declined.', 400);
+    const markPetStatus = reviewPetStatus(body, status);
     const { data: before, error: beforeError } = await client.from('foster_applications').select('status').eq('id', match[1]).maybeSingle();
     if (beforeError) return databaseError('admin.foster_applications.lookup', beforeError);
     if (!before) return errorResponse('Foster application not found.', 404);
@@ -37,7 +39,13 @@ export async function adminFosterApplicationRoutes(context: AdminContext): Promi
     if (before.status !== status) {
       notify(context, fosterOutcomeEmail({ to: application.applicant_email, name: application.applicant_name, petName: application.pet_name, status }));
     }
-    return respond(fosterApplicationForClient(application));
+    let petStatusUpdate: PetStatusUpdate = 'not_requested';
+    if (markPetStatus) {
+      const { error: petError } = await client.from('pets').update({ status: markPetStatus }).eq('id', application.pet_id);
+      if (petError) console.error(JSON.stringify({ operation: 'admin.foster_applications.pet_status', error: petError.message }));
+      petStatusUpdate = petError ? 'failed' : 'applied';
+    }
+    return respond({ ...fosterApplicationForClient(application), petStatusUpdate });
   }
 
   return null;

@@ -1,9 +1,17 @@
 import {
+  ENERGY_LEVELS,
+  PET_SEXES,
+  PET_SIZES,
   PET_STATUSES,
+  YES_NO_UNKNOWN,
   type FieldErrors,
   type Pet,
   type PetInput,
+  type PetEnergyLevel,
+  type PetSex,
+  type PetSize,
   type PetStatus,
+  type YesNoUnknown,
 } from '@pawheaven/contracts';
 import { supabase } from './supabase';
 
@@ -19,6 +27,15 @@ export type DatabasePet = {
   summary: string;
   medical_history: string;
   foster_available: boolean;
+  sex: PetSex;
+  size: PetSize;
+  color: string;
+  weight_lbs: number | null;
+  spayed_neutered: YesNoUnknown;
+  good_with_kids: YesNoUnknown;
+  good_with_dogs: YesNoUnknown;
+  good_with_cats: YesNoUnknown;
+  energy_level: PetEnergyLevel;
   image_path: string | null;
 };
 
@@ -42,6 +59,15 @@ export function petForClient(row: DatabasePet, env: Env): Pet {
     summary: row.summary,
     medicalHistory: row.medical_history ?? '',
     fosterAvailable: row.foster_available ?? false,
+    sex: row.sex ?? '',
+    size: row.size ?? '',
+    color: row.color ?? '',
+    weightLbs: row.weight_lbs ?? null,
+    spayedNeutered: row.spayed_neutered ?? 'Unknown',
+    goodWithKids: row.good_with_kids ?? 'Unknown',
+    goodWithDogs: row.good_with_dogs ?? 'Unknown',
+    goodWithCats: row.good_with_cats ?? 'Unknown',
+    energyLevel: row.energy_level ?? '',
     imageUrl: row.image_path ? supabase(env).storage.from('pet-images').getPublicUrl(row.image_path).data.publicUrl : null,
   };
 }
@@ -64,6 +90,35 @@ export function petInput(body: unknown): { value: PetInput } | { fieldErrors: Fi
     : [];
   const intakeTime = /^\d{4}-\d{2}-\d{2}$/.test(intakeDate) ? Date.parse(`${intakeDate}T00:00:00Z`) : Number.NaN;
   const errors: FieldErrors = {};
+  const attributes: Partial<Pick<PetInput, 'sex' | 'size' | 'color' | 'weightLbs' | 'spayedNeutered' | 'goodWithKids' | 'goodWithDogs' | 'goodWithCats' | 'energyLevel'>> = {};
+  /** An attribute that is absent is left alone; one that is present must be a listed value (or empty where "not recorded" is allowed). */
+  const choice = <T extends string>(key: string, allowed: readonly T[], emptyAllowed: boolean, label: string): T | '' | undefined => {
+    const raw = input?.[key];
+    if (raw === undefined) return undefined;
+    if (raw === '' && emptyAllowed) return '';
+    if (typeof raw === 'string' && (allowed as readonly string[]).includes(raw)) return raw as T;
+    errors[key] = `Choose ${label} from the list.`;
+    return undefined;
+  };
+  const assign = <K extends keyof typeof attributes>(key: K, value: (typeof attributes)[K]) => { if (value !== undefined) attributes[key] = value; };
+  assign('sex', choice('sex', PET_SEXES, true, 'a sex'));
+  assign('size', choice('size', PET_SIZES, true, 'a size'));
+  assign('energyLevel', choice('energyLevel', ENERGY_LEVELS, true, 'an energy level'));
+  assign('spayedNeutered', choice('spayedNeutered', YES_NO_UNKNOWN, false, 'Yes, No, or Unknown') as YesNoUnknown | undefined);
+  assign('goodWithKids', choice('goodWithKids', YES_NO_UNKNOWN, false, 'Yes, No, or Unknown') as YesNoUnknown | undefined);
+  assign('goodWithDogs', choice('goodWithDogs', YES_NO_UNKNOWN, false, 'Yes, No, or Unknown') as YesNoUnknown | undefined);
+  assign('goodWithCats', choice('goodWithCats', YES_NO_UNKNOWN, false, 'Yes, No, or Unknown') as YesNoUnknown | undefined);
+  if (input?.color !== undefined) {
+    const color = typeof input.color === 'string' ? input.color.trim() : '';
+    if (typeof input.color !== 'string' || color.length > 100) errors.color = 'Use 100 characters or fewer for the color.';
+    else attributes.color = color;
+  }
+  if (input?.weightLbs !== undefined) {
+    const weight = input.weightLbs;
+    if (weight === null || weight === '') attributes.weightLbs = null;
+    else if (typeof weight === 'number' && Number.isInteger(weight) && weight >= 1 && weight <= 400) attributes.weightLbs = weight;
+    else errors.weightLbs = 'Enter a weight from 1 to 400 pounds, or leave it blank.';
+  }
 
   if (!name) errors.name = 'Enter the pet’s name.';
   else if (name.length > 100) errors.name = 'Use 100 characters or fewer for the name.';
@@ -82,7 +137,7 @@ export function petInput(body: unknown): { value: PetInput } | { fieldErrors: Fi
   if (typeof status !== 'string' || !(PET_STATUSES as readonly string[]).includes(status)) errors.status = 'Choose a valid availability status.';
 
   if (Object.keys(errors).length) return { fieldErrors: errors };
-  return { value: { name, type, breed, age, intakeDate, tags, status: status as PetStatus, summary, medicalHistory, fosterAvailable } };
+  return { value: { name, type, breed, age, intakeDate, tags, status: status as PetStatus, summary, medicalHistory, fosterAvailable, ...attributes } };
 }
 
 export function petRow(input: PetInput) {
@@ -97,5 +152,15 @@ export function petRow(input: PetInput) {
     summary: input.summary,
     medical_history: input.medicalHistory,
     foster_available: input.fosterAvailable,
+    // Only attributes the request carried are written, so an older client never wipes them.
+    ...(input.sex !== undefined && { sex: input.sex }),
+    ...(input.size !== undefined && { size: input.size }),
+    ...(input.color !== undefined && { color: input.color }),
+    ...(input.weightLbs !== undefined && { weight_lbs: input.weightLbs }),
+    ...(input.spayedNeutered !== undefined && { spayed_neutered: input.spayedNeutered }),
+    ...(input.goodWithKids !== undefined && { good_with_kids: input.goodWithKids }),
+    ...(input.goodWithDogs !== undefined && { good_with_dogs: input.goodWithDogs }),
+    ...(input.goodWithCats !== undefined && { good_with_cats: input.goodWithCats }),
+    ...(input.energyLevel !== undefined && { energy_level: input.energyLevel }),
   };
 }

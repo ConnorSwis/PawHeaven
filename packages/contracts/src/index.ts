@@ -92,6 +92,17 @@ export type PetStatus = 'Available' | 'Pending' | 'Adopted' | 'Fostered' | 'Unav
 
 export const PET_STATUSES: readonly PetStatus[] = ['Available', 'Pending', 'Adopted', 'Fostered', 'Unavailable'];
 
+export const PET_SEXES = ['Male', 'Female', 'Unknown'] as const;
+export const PET_SIZES = ['Small', 'Medium', 'Large', 'Extra large'] as const;
+export const ENERGY_LEVELS = ['Low', 'Medium', 'High'] as const;
+export const YES_NO_UNKNOWN = ['Yes', 'No', 'Unknown'] as const;
+
+export type PetSex = (typeof PET_SEXES)[number] | '';
+export type PetSize = (typeof PET_SIZES)[number] | '';
+export type PetEnergyLevel = (typeof ENERGY_LEVELS)[number] | '';
+/** Yes, No, or Unknown, where Unknown means staff have not assessed it. */
+export type YesNoUnknown = (typeof YES_NO_UNKNOWN)[number];
+
 export type Pet = {
   id: string;
   name: string;
@@ -107,14 +118,47 @@ export type Pet = {
   medicalHistory: string;
   /** True when an Available pet is also open to foster applications. */
   fosterAvailable: boolean;
+  /** Empty string means not recorded. */
+  sex: PetSex;
+  size: PetSize;
+  color: string;
+  weightLbs: number | null;
+  spayedNeutered: YesNoUnknown;
+  goodWithKids: YesNoUnknown;
+  goodWithDogs: YesNoUnknown;
+  goodWithCats: YesNoUnknown;
+  energyLevel: PetEnergyLevel;
   imageUrl: string | null;
 };
 
-export type PetInput = Pick<Pet, 'name' | 'type' | 'breed' | 'age' | 'intakeDate' | 'tags' | 'status' | 'summary' | 'medicalHistory' | 'fosterAvailable'>;
+/** Pet attributes are optional on input: an attribute left out is not changed. */
+export type PetInput = Pick<Pet, 'name' | 'type' | 'breed' | 'age' | 'intakeDate' | 'tags' | 'status' | 'summary' | 'medicalHistory' | 'fosterAvailable'>
+  & Partial<Pick<Pet, 'sex' | 'size' | 'color' | 'weightLbs' | 'spayedNeutered' | 'goodWithKids' | 'goodWithDogs' | 'goodWithCats' | 'energyLevel'>>;
 
 export type AdminPetListResponse = {
   pets: Pet[];
 };
+
+/** A member's saved contact details, used only to prefill forms. Null means not saved. */
+export type MemberProfile = {
+  phone: string | null;
+  address: string | null;
+  /** ISO calendar date (YYYY-MM-DD). */
+  dateOfBirth: string | null;
+};
+
+export type MemberProfileInput = {
+  phone: string;
+  address: string;
+  dateOfBirth: string;
+};
+
+export type MemberProfileResponse = {
+  profile: MemberProfile;
+};
+
+/** What happened to the pet when staff asked a review to also update it. */
+export type PetStatusUpdate = 'applied' | 'failed' | 'not_requested';
 
 export type AdoptionApplicationStatus = 'Pending' | 'In review' | 'Approved' | 'Declined';
 
@@ -152,6 +196,14 @@ export type AdoptionApplicationListResponse = {
 };
 
 export type AdminAdoptionApplicationListResponse = AdoptionApplicationListResponse;
+
+/** Staff may ask an approval to also move the pet to a non-Available status. It is never automatic. */
+export type ApplicationReviewInput = {
+  status: Exclude<AdoptionApplicationStatus, 'Pending'>;
+  markPetStatus?: Exclude<PetStatus, 'Available'>;
+};
+
+export type ApplicationReviewResponse<T> = T & { petStatusUpdate: PetStatusUpdate };
 
 export type FosterApplicationInput = {
   applicantPhone: string;
@@ -524,6 +576,13 @@ export function matchesPetSearch(pet: Pet, search: string): boolean {
     pet.summary,
     pet.tags.join(' '),
     pet.fosterAvailable ? 'foster fostering' : '',
+    pet.color,
+    pet.sex,
+    pet.size,
+    pet.energyLevel ? `${pet.energyLevel} energy` : '',
+    pet.goodWithKids === 'Yes' ? 'kids children' : '',
+    pet.goodWithDogs === 'Yes' ? 'dogs' : '',
+    pet.goodWithCats === 'Yes' ? 'cats' : '',
     pet.status,
     pet.intakeDate,
     String(pet.daysInShelter),

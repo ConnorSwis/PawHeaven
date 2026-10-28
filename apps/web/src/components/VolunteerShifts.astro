@@ -7,6 +7,7 @@
 <script>
   import type { ApiUser, FieldErrors, RegisterVolunteerInput, VolunteerRegistrationListResponse, VolunteerShift, VolunteerShiftListResponse } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
+  import { prefillContact, saveDetailsBox, saveProfile } from '../lib/profile';
 
   const shelterTimeZone = 'America/New_York';
   const container = document.querySelector<HTMLElement>('[data-volunteer-shifts]');
@@ -97,6 +98,9 @@
     field('phone', 'Phone number', phone, `We’ll email ${user.email} to confirm, and may call if plans change.`);
     field('dateOfBirth', 'Date of birth', dob, shift.minAge > 0 ? `This shift requires volunteers to be at least ${shift.minAge} years old.` : 'Used only to check each shift’s age requirement.');
 
+    void prefillContact(controls, { phone: 'phone', dateOfBirth: 'dateOfBirth' });
+    const saveBox = saveDetailsBox();
+    form.append(saveBox.wrapper);
     const actions = document.createElement('div');
     actions.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
@@ -126,6 +130,7 @@
         await volunteerRequest(`/volunteer/shifts/${encodeURIComponent(shift.id)}/register`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
         });
+        if (saveBox.input.checked) void saveProfile({ phone: payload.phone, dateOfBirth: payload.dateOfBirth });
         await load(user, `You are signed up for “${shift.title}”. We emailed a confirmation, and you can cancel from this page or your account.`);
       } catch (exception) {
         const failure = exception as Error & { fieldErrors?: FieldErrors };
