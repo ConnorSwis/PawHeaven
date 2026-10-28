@@ -40,12 +40,35 @@ Name the family in `--ph-font-sans` (body) or `--ph-font-heading` (headings). To
 an `@import url(...)` as the **first** rule of `theme.css` (an example is in the file's comments), or an
 `@font-face` rule pointing at a font file you host.
 
+## Ready-made themes
+
+Seven themes ship in `theme.css`, so you can show different looks without editing anything:
+
+| Theme | `PUBLIC_THEME` | Look |
+| --- | --- | --- |
+| Moss | (empty) | The default: warm cream, moss green, square corners |
+| Ocean | `ocean` | Cool light blues and teal, system font, 10px corners |
+| Sunset | `sunset` | Cream and terracotta, serif headings, 4px corners |
+| Lavender | `lavender` | Soft purples, rounded font, very round 16px corners |
+| Dark | `dark` | Warm charcoal with soft green |
+| Midnight | `midnight` | Dark navy with sky blue |
+| High contrast | `contrast` | Black on white, deep blue, larger text, thick focus ring |
+
+**Show them off live.** Set `PUBLIC_THEME_SWITCHER=true` for the web and admin builds (it is on in your local
+`apps/web/.env`) and a **Theme** picker appears in the site footer and the staff portal header. The choice is
+remembered in that browser and applies to the next page, so you can flip through the whole site. Leave it unset
+on the real site, where visitors should not see it. The `/theme` playground has the same picker plus sliders.
+
+Every theme is checked by `npm run qa:theme` for readable contrast: body, secondary, muted, and link text,
+button text, and the text inside error, warning, and confirmation boxes must meet WCAG AA (4.5:1), and form
+field borders must reach 3:1 against cards. A new theme that fails is rejected with the exact pair and ratio.
+
 ## A whole alternate look
 
-A theme is a `[data-theme="name"]` block that overrides only the variables that differ. A `dark` theme
-is included as an example. Switch the site to a theme by setting `PUBLIC_THEME=dark` in the environment
+A theme is a `[data-theme="name"]` block that overrides only the variables that differ. Switch the site to a theme by setting `PUBLIC_THEME=dark` in the environment
 of the web and admin builds (see `apps/web/.env.example` and `apps/admin/.env.example`) and rebuilding.
-Leave it empty for the default. To add another theme, copy the `dark` block, rename it, and change values.
+Leave it empty for the default. To add another theme, copy an existing block, rename it, change the values, and add it to `THEMES` in
+`packages/contracts/src/site.ts` (a test fails if the list and the CSS disagree).
 
 ## How it works (so you can trust it)
 

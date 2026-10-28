@@ -81,3 +81,21 @@ export function formatDay(value: string): string {
 export function daysUntil(value: string, now = Date.now()): number {
   return Math.floor((Date.parse(value) - now) / 86_400_000);
 }
+
+const THEME_STORAGE_KEY = 'ph-theme';
+
+/**
+ * Wires a theme <select> (the optional demo switcher) to the page: choosing a
+ * theme sets data-theme on <html> and remembers it in this browser. Storage can
+ * be blocked, so every access is guarded and the switcher still works without it.
+ */
+export function initThemeSwitcher(select: HTMLSelectElement): void {
+  let saved = '';
+  try { saved = localStorage.getItem(THEME_STORAGE_KEY) ?? ''; } catch { /* Private mode or blocked storage. */ }
+  const known = [...select.options].some((option) => option.value === saved);
+  select.value = known ? saved : (document.documentElement.dataset.theme ?? '');
+  select.addEventListener('change', () => {
+    if (select.value) document.documentElement.dataset.theme = select.value; else delete document.documentElement.dataset.theme;
+    try { localStorage.setItem(THEME_STORAGE_KEY, select.value); } catch { /* The choice still applies to this page. */ }
+  });
+}

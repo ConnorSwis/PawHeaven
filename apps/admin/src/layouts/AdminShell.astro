@@ -1,12 +1,13 @@
 ---
 import '../styles/global.css';
-import { SITE } from '@pawheaven/contracts/site';
+import { SITE, THEMES } from '@pawheaven/contracts/site';
 
 interface Props {
   title: string;
   description?: string;
 }
 
+const themeSwitcher = import.meta.env.PUBLIC_THEME_SWITCHER === 'true';
 const { title, description = `${SITE.name} staff portal` } = Astro.props;
 ---
 
@@ -17,6 +18,7 @@ const { title, description = `${SITE.name} staff portal` } = Astro.props;
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
     <title>{title} | {SITE.adminName}</title>
+    {themeSwitcher && <script is:inline define:vars={{ ids: THEMES.map((theme) => theme.id) }}>try { const saved = localStorage.getItem('ph-theme'); if (saved !== null && ids.includes(saved)) { if (saved) document.documentElement.dataset.theme = saved; else delete document.documentElement.dataset.theme; } } catch { /* Storage blocked. */ }</script>}
   </head>
   <body class="min-h-dvh bg-[var(--color-page)] text-stone-900 antialiased">
     <header class="border-b border-stone-300 bg-white">
@@ -26,6 +28,13 @@ const { title, description = `${SITE.name} staff portal` } = Astro.props;
           <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="/">Portal</a>
           <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="/users">Users</a>
           <a class="text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950 hover:decoration-stone-950" href="https://pawheaven.online">Shelter site</a>
+          {themeSwitcher && (
+            <label class="flex items-center gap-2 text-sm text-stone-700">Theme
+              <select data-theme-switcher class="border border-stone-400 bg-white px-2 py-1.5 text-stone-900">
+                {THEMES.map((theme) => <option value={theme.id}>{theme.label}</option>)}
+              </select>
+            </label>
+          )}
         </nav>
       </div>
     </header>
@@ -34,3 +43,9 @@ const { title, description = `${SITE.name} staff portal` } = Astro.props;
     </main>
   </body>
 </html>
+
+<script>
+  import { initThemeSwitcher } from '@pawheaven/contracts/ui';
+  const themeSelect = document.querySelector<HTMLSelectElement>('[data-theme-switcher]');
+  if (themeSelect) initThemeSwitcher(themeSelect);
+</script>

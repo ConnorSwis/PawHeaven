@@ -84,6 +84,7 @@ import PageShell from '../layouts/PageShell.astro';
 </PageShell>
 
 <script>
+  import { THEMES } from '@pawheaven/contracts/site';
   import { el } from '@pawheaven/contracts/ui';
 
   type Control =
@@ -180,7 +181,7 @@ import PageShell from '../layouts/PageShell.astro';
     themeBox.append(el('h2', 'text-sm font-semibold text-stone-950', 'Starting point'));
     const themeRow = row('Theme');
     const themeSelect = el('select', 'border border-stone-400 bg-white px-2 py-1.5 text-sm');
-    for (const [value, label] of [['', 'Default'], ['dark', 'Dark']]) themeSelect.append(Object.assign(el('option', '', label), { value, selected: value === preset }));
+    for (const theme of THEMES) themeSelect.append(Object.assign(el('option', '', theme.label), { value: theme.id, selected: theme.id === preset }));
     themeSelect.addEventListener('change', () => {
       preset = themeSelect.value;
       if (preset) root.dataset.theme = preset; else delete root.dataset.theme;

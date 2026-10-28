@@ -7,7 +7,8 @@
  *      forms, badges, text, borders, spacing, type size, widths, corners).
  *   3. A whole alternate look is a [data-theme="name"] block that overrides
  *      only the variables that differ. Switch it by setting PUBLIC_THEME=name
- *      for the web and admin builds. A dark example is included.
+ *      for the web and admin builds. Dark, midnight, ocean, sunset, lavender, and
+ *      high-contrast examples are included.
  *
  * The /theme page on the public site is a live playground: tune values with
  * pickers and sliders, then copy the CSS it generates into this file.
@@ -40,7 +41,7 @@
   --ph-ink-faint: #79716b;      /* least important text */
 
   /* ---- Lines and subtle backgrounds -------------------------------------- */
-  --ph-border-strong: #a8a29e;  /* form field borders */
+  --ph-border-strong: #948f8b;  /* form field borders (kept at 3:1 against cards for accessibility) */
   --ph-border: #d6d3d1;         /* card and divider borders */
   --ph-divider: #e7e5e4;        /* hairlines inside cards */
   --ph-hover: #f5f5f4;          /* hover background */
@@ -109,6 +110,139 @@
 
   --ph-shadow: 0 4px 10px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
   --ph-color-scheme: dark;
+}
+
+/* ---- Ocean: cool, calm, softly rounded -------------------------------------- */
+[data-theme="ocean"] {
+  --ph-brand: #0e7490;
+  --ph-brand-strong: #155e75;
+  --ph-brand-soft: #ecfeff;
+  --ph-accent: #d97706;
+  --ph-page: #f0f9ff;
+  --ph-ink-strong: #0b1f2a;
+  --ph-ink: #12303f;
+  --ph-ink-soft: #35505e;
+  --ph-ink-muted: #4a6573;
+  --ph-ink-faint: #627d8b;
+  --ph-border-strong: #7894a0;
+  --ph-border: #c5dbe6;
+  --ph-divider: #dcebf2;
+  --ph-hover: #e6f4fa;
+  --ph-surface-alt: #f4fafd;
+  --ph-neutral-800: #1a3a4a;
+  --ph-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ph-radius: 10px;
+}
+
+/* ---- Sunset: warm, editorial, serif headings -------------------------------- */
+[data-theme="sunset"] {
+  --ph-brand: #c2410c;
+  --ph-brand-strong: #9a3412;
+  --ph-brand-soft: #fff1e6;
+  --ph-accent: #be185d;
+  --ph-page: #fff7ed;
+  --ph-surface: #fffdf9;
+  --ph-ink-strong: #2a1408;
+  --ph-ink: #3a2010;
+  --ph-ink-soft: #5c3a22;
+  --ph-ink-muted: #75503a;
+  --ph-ink-faint: #8c6c54;
+  --ph-border-strong: #a58b73;
+  --ph-border: #e6d2bf;
+  --ph-divider: #f0e2d3;
+  --ph-hover: #fbeedd;
+  --ph-surface-alt: #fff5e8;
+  --ph-neutral-800: #4a2c18;
+  --ph-font-heading: Georgia, "Times New Roman", serif;
+  --ph-radius: 4px;
+}
+
+/* ---- Lavender: soft, friendly, very round ----------------------------------- */
+[data-theme="lavender"] {
+  --ph-brand: #7c3aed;
+  --ph-brand-strong: #5b21b6;
+  --ph-brand-soft: #f3ecff;
+  --ph-accent: #db2777;
+  --ph-page: #faf7ff;
+  --ph-ink-strong: #1e1433;
+  --ph-ink: #2b2046;
+  --ph-ink-soft: #4b4466;
+  --ph-ink-muted: #5f587a;
+  --ph-ink-faint: #7a7494;
+  --ph-border-strong: #918ba6;
+  --ph-border: #ddd7ee;
+  --ph-divider: #ebe7f6;
+  --ph-hover: #f3f0fb;
+  --ph-surface-alt: #fbf9ff;
+  --ph-neutral-800: #342a55;
+  --ph-font-sans: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+  --ph-radius: 16px;
+  --ph-spacing: 0.26rem;
+}
+
+/* ---- Midnight: a dark navy theme --------------------------------------------- */
+[data-theme="midnight"] {
+  --ph-brand: #60a5fa;
+  --ph-brand-strong: #93c5fd;
+  --ph-brand-soft: #162338;
+  --ph-on-brand: #07111f;
+  --ph-accent: #fbbf24;
+  --ph-page: #0b1220;
+  --ph-surface: #111a2e;
+  --ph-ink-strong: #f8fafc;
+  --ph-ink: #e6edf7;
+  --ph-ink-soft: #c3d0e2;
+  --ph-ink-muted: #9fb0c8;
+  --ph-ink-faint: #8497b1;
+  --ph-border-strong: #586a86;
+  --ph-border: #263650;
+  --ph-divider: #1d2b43;
+  --ph-hover: #19243a;
+  --ph-surface-alt: #0f1829;
+  --ph-neutral-800: #dbe5f3;
+  --ph-danger: #f19a9a;
+  --ph-danger-strong: #fbc5c5;
+  --ph-danger-soft: #3a1f1f;
+  --ph-warning: #f0b86a;
+  --ph-warning-strong: #f7d29b;
+  --ph-warning-soft: #3a2c16;
+  --ph-success: #86d49b;
+  --ph-success-strong: #b4e8c1;
+  --ph-success-soft: #172a1d;
+  --ph-radius: 8px;
+  --ph-shadow: 0 4px 10px -1px rgb(0 0 0 / 0.55), 0 2px 4px -2px rgb(0 0 0 / 0.45);
+  --ph-color-scheme: dark;
+}
+
+/* ---- High contrast: maximum legibility, larger text, thick focus ring --------- */
+[data-theme="contrast"] {
+  --ph-brand: #0000cc;
+  --ph-brand-strong: #000080;
+  --ph-brand-soft: #e6e6ff;
+  --ph-accent: #cc0000;
+  --ph-page: #ffffff;
+  --ph-ink-strong: #000000;
+  --ph-ink: #000000;
+  --ph-ink-soft: #1a1a1a;
+  --ph-ink-muted: #333333;
+  --ph-ink-faint: #4d4d4d;
+  --ph-border-strong: #000000;
+  --ph-border: #404040;
+  --ph-divider: #808080;
+  --ph-hover: #f0f0f0;
+  --ph-surface-alt: #f7f7f7;
+  --ph-neutral-800: #000000;
+  --ph-danger: #a00000;
+  --ph-danger-strong: #700000;
+  --ph-danger-soft: #ffe5e5;
+  --ph-warning: #8a4b00;
+  --ph-warning-strong: #5c3000;
+  --ph-warning-soft: #fff0d6;
+  --ph-success: #006400;
+  --ph-success-strong: #003d00;
+  --ph-success-soft: #e0f5e0;
+  --ph-font-size: 112%;
+  --ph-focus-width: 4px;
 }
 
 /* ---- Wiring: Tailwind's utilities read these, so every class follows the theme -- */

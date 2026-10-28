@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { SITE } from '@pawheaven/contracts/site';
+import { SITE, THEMES } from '@pawheaven/contracts/site';
 
 interface Props {
   title: string;
@@ -19,6 +19,8 @@ const {
   noindex = false,
 } = Astro.props;
 const pathname = Astro.url.pathname;
+// Demo only: PUBLIC_THEME_SWITCHER=true adds a theme picker to the footer.
+const themeSwitcher = import.meta.env.PUBLIC_THEME_SWITCHER === 'true';
 const here = pathname.replace(/\/$/, '') || '/';
 const groups = [
   {
@@ -52,6 +54,7 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
+    {themeSwitcher && <script is:inline define:vars={{ ids: THEMES.map((theme) => theme.id) }}>try { const saved = localStorage.getItem('ph-theme'); if (saved !== null && ids.includes(saved)) { if (saved) document.documentElement.dataset.theme = saved; else delete document.documentElement.dataset.theme; } } catch { /* Storage blocked. */ }</script>}
     <title>{title} | {SITE.name}</title>
   </head>
   <body class="flex min-h-dvh flex-col bg-[var(--color-page)] text-stone-900 antialiased">
@@ -89,6 +92,13 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
       <footer class="border-t border-stone-300 bg-white">
         <div class="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-7 text-sm text-stone-700 sm:flex-row sm:items-center sm:justify-between">
           <p>{SITE.tagline}</p>
+          {themeSwitcher && (
+            <label class="flex items-center gap-2 text-sm text-stone-700">Theme
+              <select data-theme-switcher class="border border-stone-400 bg-white px-2 py-1.5 text-stone-900">
+                {THEMES.map((theme) => <option value={theme.id}>{theme.label}</option>)}
+              </select>
+            </label>
+          )}
           <nav aria-label="Footer navigation" class="flex flex-wrap gap-x-5 gap-y-2">
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/pets">Browse pets</a>
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/visits">Schedule a visit</a>
@@ -106,6 +116,7 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
 </html>
 
 <script>
+  import { initThemeSwitcher } from '@pawheaven/contracts/ui';
   import { apiBase } from '../lib/api';
   const accountMenu = document.querySelector<HTMLElement>('[data-account-menu]');
 
@@ -195,4 +206,6 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
   });
 
   loadAuthAction();
+  const themeSelect = document.querySelector<HTMLSelectElement>('[data-theme-switcher]');
+  if (themeSelect) initThemeSwitcher(themeSelect);
 </script>
