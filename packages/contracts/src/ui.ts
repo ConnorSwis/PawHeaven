@@ -83,6 +83,15 @@ export function daysUntil(value: string, now = Date.now()): number {
 }
 
 const THEME_STORAGE_KEY = 'ph-theme';
+const THEME_VARS_KEY = 'ph-theme-vars';
+
+/** Remembers a theme choice (and any hand-tuned variables) in this browser so every page picks it up. */
+export function saveTheme(id: string, vars: Record<string, string> = {}): void {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, id);
+    localStorage.setItem(THEME_VARS_KEY, JSON.stringify(vars));
+  } catch { /* The choice still applies to this page. */ }
+}
 
 /**
  * Wires a theme <select> (the optional demo switcher) to the page: choosing a
@@ -96,6 +105,7 @@ export function initThemeSwitcher(select: HTMLSelectElement): void {
   select.value = known ? saved : (document.documentElement.dataset.theme ?? '');
   select.addEventListener('change', () => {
     if (select.value) document.documentElement.dataset.theme = select.value; else delete document.documentElement.dataset.theme;
-    try { localStorage.setItem(THEME_STORAGE_KEY, select.value); } catch { /* The choice still applies to this page. */ }
+    try { for (const name of Object.keys(JSON.parse(localStorage.getItem(THEME_VARS_KEY) || '{}'))) document.documentElement.style.removeProperty(name); } catch { /* Nothing saved to clear. */ }
+    saveTheme(select.value);
   });
 }

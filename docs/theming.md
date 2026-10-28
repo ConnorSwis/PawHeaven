@@ -11,7 +11,7 @@ the header and footer, forms, badges, the staff portal, and the lost-pet flyer p
 3. Press **Copy CSS** and paste the result over the matching lines in the `:root { ... }` block of
    `theme.css`. Rebuild or restart the dev server.
 
-Nothing on `/theme` is saved. It is a `noindex` page that is not linked from the site menus.
+`/theme` remembers your theme and slider changes in this browser and applies them to every page of the public site, so you can switch looks live during a demo (press **Reset** and pick Moss to go back). Nothing is saved for other visitors. It is a `noindex` page that is not linked from the site menus.
 
 ## What you can set
 

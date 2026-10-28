@@ -5,7 +5,7 @@ import PageShell from '../layouts/PageShell.astro';
 <PageShell title="Theme playground" description="Try colors, fonts, and sizes live, then copy the CSS into the theme file." noindex>
   <div class="mx-auto max-w-6xl px-6 py-10">
     <h1 class="text-3xl font-semibold tracking-tight text-stone-950">Theme playground</h1>
-    <p class="mt-3 max-w-2xl leading-7 text-stone-700">Change a value and the whole page, header and footer included, follows. Nothing here is saved: copy the CSS and paste it into <code class="bg-stone-100 px-1">packages/contracts/src/theme.css</code>, replacing the matching lines in the <code class="bg-stone-100 px-1">:root</code> block.</p>
+    <p class="mt-3 max-w-2xl leading-7 text-stone-700">Change a value and the whole page, header and footer included, follows. Your choices are remembered in this browser and applied to every page of the site, so you can switch looks during a demo. To make them permanent, copy the CSS and paste it into <code class="bg-stone-100 px-1">packages/contracts/src/theme.css</code>, replacing the matching lines in the <code class="bg-stone-100 px-1">:root</code> block.</p>
 
     <div class="mt-8 grid items-start gap-8 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <aside class="ph-card lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto" aria-label="Theme controls">
@@ -85,7 +85,7 @@ import PageShell from '../layouts/PageShell.astro';
 
 <script>
   import { THEMES } from '@pawheaven/contracts/site';
-  import { el } from '@pawheaven/contracts/ui';
+  import { el, saveTheme } from '@pawheaven/contracts/ui';
 
   type Control =
     | { kind: 'color'; name: string; label: string }
@@ -164,6 +164,7 @@ import PageShell from '../layouts/PageShell.astro';
   function setVar(name: string, value: string) {
     root.style.setProperty(name, value);
     changed.set(name, value);
+    saveTheme(preset, Object.fromEntries(changed));
     render();
   }
 
@@ -188,6 +189,7 @@ import PageShell from '../layouts/PageShell.astro';
       for (const name of changed.keys()) root.style.removeProperty(name);
       changed.clear();
       refreshers.forEach((refresh) => refresh());
+      saveTheme(preset);
       render();
     });
     themeRow.append(themeSelect);
@@ -239,9 +241,15 @@ import PageShell from '../layouts/PageShell.astro';
     for (const name of changed.keys()) root.style.removeProperty(name);
     changed.clear();
     refreshers.forEach((refresh) => refresh());
+    saveTheme(preset);
     render();
-    if (status) status.textContent = 'Back to the theme file’s values.';
+    if (status) status.textContent = 'Back to the theme’s own values.';
   });
+
+  // Hand-tuned values from an earlier visit are already applied by the page shell; pick them up so edits build on them.
+  try {
+    for (const [name, value] of Object.entries(JSON.parse(localStorage.getItem('ph-theme-vars') || '{}') as Record<string, string>)) if (root.style.getPropertyValue(name)) changed.set(name, value);
+  } catch { /* Nothing saved. */ }
 
   build();
   render();
