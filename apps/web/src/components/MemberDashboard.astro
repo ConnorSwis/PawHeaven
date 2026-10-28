@@ -1,0 +1,367 @@
+<div class="mx-auto max-w-6xl px-6 py-10">
+  <div data-dashboard aria-live="polite">
+    <p class="text-sm text-stone-600">Loading your dashboard…</p>
+  </div>
+</div>
+
+<script>
+  import {
+    matchStrength,
+    type AdoptionApplication,
+    type AdoptionApplicationListResponse,
+    type ApiUser,
+    type FosterApplication,
+    type FosterApplicationListResponse,
+    type LatestQuizResponse,
+    type LostPetInquiryListResponse,
+    type MemberProfile,
+    type MemberProfileInput,
+    type MemberProfileResponse,
+    type VisitAppointment,
+    type VisitAppointmentListResponse,
+    type VisitSlotListResponse,
+    type VolunteerRegistration,
+    type VolunteerRegistrationListResponse,
+  } from '@pawheaven/contracts';
+  import { ApiRequestError, apiRequest, daysUntil, el, formatDay, formatShelterRange, pill, statusPill } from '@pawheaven/contracts/ui';
+  import { apiBase } from '../lib/api';
+
+  const root = document.querySelector<HTMLElement>('[data-dashboard]');
+  const api = <T,>(path: string, init: RequestInit & { json?: unknown } = {}) => apiRequest<T>(apiBase, path, init);
+
+  type Loaded<T> = { ok: true; value: T } | { ok: false };
+  const settle = async <T,>(promise: Promise<T>): Promise<Loaded<T>> => promise.then((value) => ({ ok: true as const, value }), () => ({ ok: false as const }));
+
+  const card = (title: string, aside?: Node) => {
+    const section = el('section', 'ph-card');
+    const header = el('div', 'flex flex-wrap items-baseline justify-between gap-2');
+    header.append(el('h2', 'text-base font-semibold text-stone-950', title));
+    if (aside) header.append(aside);
+    section.append(header);
+    return section;
+  };
+  const row = () => el('div', 'mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-3');
+  const quiet = (text: string) => el('p', 'mt-2 text-sm leading-6 text-stone-600', text);
+  const link = (href: string, text: string) => Object.assign(el('a', 'text-sm font-medium text-[var(--color-moss-dark)] underline underline-offset-4', text), { href });
+  const unavailable = (title: string) => { const section = card(title); section.append(quiet('We could not load this right now. Please refresh in a moment.')); return section; };
+
+  function showSignedOut() {
+    if (!root) return;
+    root.replaceChildren(
+      el('h1', 'text-3xl font-semibold tracking-tight text-stone-950', 'My PawHeaven'),
+      el('p', 'mt-4 max-w-2xl leading-7 text-stone-700', 'Log in to see your visits, volunteer shifts, applications, pet matches, and saved details in one place.'),
+    );
+    const login = Object.assign(el('a', 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]', 'Log in'), { href: '/login' });
+    root.append(login);
+  }
+
+  // Needs your attention ---------------------------------------------------------------
+  type Attention = { title: string; detail: string; href: string; action: string };
+
+  function attentionItems(appointments: VisitAppointment[], registrations: VolunteerRegistration[], adoption: AdoptionApplication[], foster: FosterApplication[]): Attention[] {
+    const items: Attention[] = [];
+    for (const appointment of appointments) {
+      if (appointment.status === 'booked' && daysUntil(appointment.startsAt) <= 1 && Date.parse(appointment.startsAt) > Date.now()) {
+        items.push({ title: 'Shelter visit coming up', detail: formatShelterRange(appointment.startsAt, appointment.endsAt), href: '#upcoming', action: 'View' });
+      }
+    }
+    for (const registration of registrations) {
+      if (registration.status === 'registered' && daysUntil(registration.startsAt) <= 1 && Date.parse(registration.startsAt) > Date.now()) {
+        items.push({ title: `Volunteer shift soon: ${registration.title}`, detail: formatShelterRange(registration.startsAt, registration.endsAt), href: '#upcoming', action: 'View or cancel' });
+      }
+    }
+    const recent = (reviewedAt: string | null) => reviewedAt !== null && Date.now() - Date.parse(reviewedAt) < 7 * 86_400_000;
+    for (const application of adoption) {
+      if ((application.status === 'Approved' || application.status === 'Declined') && recent(application.reviewedAt)) {
+        items.push({ title: `Your adoption application for ${application.petName} was ${application.status.toLowerCase()}`, detail: application.status === 'Approved' ? 'The shelter will contact you about next steps.' : 'Thank you for applying. Other animals are waiting for homes.', href: '#applications', action: 'See details' });
+      }
+    }
+    for (const application of foster) {
+      if ((application.status === 'Approved' || application.status === 'Declined') && recent(application.reviewedAt)) {
+        items.push({ title: `Your foster application for ${application.petName} was ${application.status.toLowerCase()}`, detail: application.status === 'Approved' ? 'The shelter will contact you about next steps.' : 'Thank you for offering. Other animals need a temporary home.', href: '#applications', action: 'See details' });
+      }
+    }
+    return items;
+  }
+
+  function attentionCard(items: Attention[]) {
+    const section = card('Needs your attention');
+    section.classList.add('border-l-4', 'border-l-amber-800');
+    if (!items.length) { section.append(quiet('Nothing needs your attention right now.')); return section; }
+    for (const item of items) {
+      const line = row();
+      const text = el('div');
+      text.append(el('p', 'text-sm font-semibold text-stone-950', item.title), el('p', 'mt-1 text-sm text-stone-600', item.detail));
+      line.append(text, Object.assign(el('a', 'ph-btn', item.action), { href: item.href }));
+      section.append(line);
+    }
+    return section;
+  }
+
+  // Upcoming visits and shifts -----------------------------------------------------------
+  function upcomingCard(reload: () => Promise<void>, appointments: VisitAppointmentListResponse, slots: VisitSlotListResponse | null, registrations: VolunteerRegistration[]) {
+    const section = card('Upcoming', link('/visits', 'Schedule a visit'));
+    section.id = 'upcoming';
+    const future = appointments.appointments.filter((item) => item.status === 'booked' && Date.parse(item.startsAt) > Date.now());
+    const shifts = registrations.filter((item) => item.status === 'registered' && Date.parse(item.startsAt) > Date.now());
+    if (!future.length && !shifts.length) {
+      section.append(quiet('Nothing scheduled yet.'), link('/volunteer', 'Find a volunteer shift'));
+      return section;
+    }
+    for (const appointment of future) {
+      const line = row();
+      const text = el('div');
+      const head = el('p', 'text-sm font-semibold text-stone-950', 'Shelter visit ');
+      head.append(statusPill('booked'));
+      text.append(head, el('p', 'mt-1 text-sm text-stone-600', formatShelterRange(appointment.startsAt, appointment.endsAt)), el('p', 'mt-1 text-sm text-stone-600', appointment.purpose));
+      const actions = el('div', 'flex flex-wrap items-center gap-2');
+      const select = el('select', 'border border-stone-400 bg-white px-2 py-1.5 text-sm');
+      select.setAttribute('aria-label', 'Reschedule to another open time');
+      select.append(Object.assign(el('option', '', 'Reschedule to…'), { value: '' }));
+      for (const slot of slots?.slots.filter((candidate) => candidate.available && candidate.id !== appointment.slotId) ?? []) {
+        select.append(Object.assign(el('option', '', formatShelterRange(slot.startsAt, slot.endsAt)), { value: slot.id }));
+      }
+      const message = el('p', 'w-full text-sm text-red-800');
+      message.setAttribute('role', 'status');
+      const run = async (button: HTMLButtonElement, label: string, action: () => Promise<unknown>) => {
+        button.disabled = true;
+        try { await action(); await reload(); } catch (exception) { message.textContent = exception instanceof Error ? exception.message : 'That did not work.'; button.disabled = false; button.textContent = label; }
+      };
+      const move = el('button', 'ph-btn', 'Reschedule');
+      move.type = 'button';
+      move.addEventListener('click', () => {
+        if (!select.value) { message.textContent = 'Choose another open time first.'; return; }
+        void run(move, 'Reschedule', () => api(`/appointments/${encodeURIComponent(appointment.id)}`, { method: 'PUT', json: { slotId: select.value } }));
+      });
+      const cancel = el('button', 'ph-btn', 'Cancel');
+      cancel.type = 'button';
+      cancel.addEventListener('click', () => {
+        if (window.confirm('Cancel this shelter visit? The time will open for someone else.')) void run(cancel, 'Cancel', () => api(`/appointments/${encodeURIComponent(appointment.id)}/cancel`, { method: 'POST' }));
+      });
+      actions.append(select, move, cancel);
+      line.append(text, actions, message);
+      section.append(line);
+    }
+    for (const registration of shifts) {
+      const line = row();
+      const text = el('div');
+      const head = el('p', 'text-sm font-semibold text-stone-950', `Volunteer: ${registration.title} `);
+      head.append(statusPill('registered'));
+      text.append(head, el('p', 'mt-1 text-sm text-stone-600', formatShelterRange(registration.startsAt, registration.endsAt)));
+      const cancel = el('button', 'ph-btn', 'Cancel sign-up');
+      cancel.type = 'button';
+      const message = el('p', 'w-full text-sm text-red-800');
+      message.setAttribute('role', 'status');
+      cancel.addEventListener('click', async () => {
+        if (!window.confirm('Cancel this volunteer shift? Your spot will open for someone else.')) return;
+        cancel.disabled = true;
+        try { await api(`/volunteer/registrations/${encodeURIComponent(registration.id)}/cancel`, { method: 'POST' }); await reload(); } catch (exception) { message.textContent = exception instanceof Error ? exception.message : 'That did not work.'; cancel.disabled = false; }
+      });
+      line.append(text, cancel, message);
+      section.append(line);
+    }
+    return section;
+  }
+
+  // Applications -------------------------------------------------------------------------------
+  function applicationsCard(adoption: AdoptionApplication[], foster: FosterApplication[]) {
+    const section = card('Applications');
+    section.id = 'applications';
+    const all = [
+      ...adoption.map((item) => ({ kind: 'Adoption', petName: item.petName, status: item.status, submittedAt: item.submittedAt, detail: '' })),
+      ...foster.map((item) => ({ kind: 'Foster', petName: item.petName, status: item.status, submittedAt: item.submittedAt, detail: `${item.availableFrom} to ${item.availableUntil}` })),
+    ].sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt));
+    if (!all.length) { section.append(quiet('No applications yet. Pick a pet to apply to adopt or foster.'), link('/pets', 'Browse available pets')); return section; }
+    for (const item of all) {
+      const line = row();
+      const text = el('div');
+      const head = el('p', 'text-sm font-semibold text-stone-950', `${item.petName} `);
+      head.append(pill(item.kind));
+      text.append(head, el('p', 'mt-1 text-sm text-stone-600', `Submitted ${formatDay(item.submittedAt)}${item.detail ? ` · ${item.detail}` : ''}`));
+      line.append(text, statusPill(item.status));
+      section.append(line);
+    }
+    return section;
+  }
+
+  // Quiz matches, lost-pet inquiries -------------------------------------------------------------
+  function matchesCard(latest: LatestQuizResponse) {
+    const section = card('Your matches', link('/quiz', latest.result ? 'Retake quiz' : 'Take the quiz'));
+    const result = latest.result;
+    if (!result) { section.append(quiet('Answer a few questions and we will suggest animals that suit you.')); return section; }
+    section.append(quiet(`From your quiz on ${formatDay(result.createdAt)}.`));
+    if (!result.recommendations.length) { section.append(quiet(result.notice ?? 'No available animals fit those answers right now.')); return section; }
+    for (const recommendation of result.recommendations.slice(0, 3)) {
+      const line = row();
+      const text = el('div');
+      const name = Object.assign(el('a', 'text-sm font-semibold text-stone-950 underline underline-offset-4', recommendation.pet.name), { href: `/pets/details?id=${encodeURIComponent(recommendation.pet.id)}` });
+      text.append(name, el('p', 'mt-1 text-sm text-stone-600', recommendation.reason));
+      const strength = matchStrength(recommendation.score);
+      line.append(text, pill(`${strength} match`, strength === 'Strong' ? 'good' : 'neutral'));
+      section.append(line);
+    }
+    return section;
+  }
+
+  function inquiriesCard(list: LostPetInquiryListResponse) {
+    const section = card('Lost-pet inquiries', link('/lost-pet', 'Search by photo'));
+    if (!list.inquiries.length) section.append(quiet('You have not asked the shelter about a possible match.'));
+    for (const inquiry of list.inquiries) {
+      const line = row();
+      const text = el('div');
+      text.append(el('p', 'text-sm font-semibold text-stone-950', `Asked about ${inquiry.petName}`), el('p', 'mt-1 text-sm text-stone-600', `Sent ${formatDay(inquiry.createdAt)}`));
+      line.append(text, statusPill(inquiry.status));
+      section.append(line);
+    }
+    section.append(row());
+    section.lastElementChild?.replaceChildren(link('/lost-pet/flyer', 'Make a printable lost-pet flyer'));
+    return section;
+  }
+
+  // Saved details ----------------------------------------------------------------------------------
+  function detailsCard(initial: MemberProfile) {
+    let profile = initial;
+    const section = card('Your details');
+    const body = el('div');
+    section.append(body);
+    const view = () => {
+      body.replaceChildren(quiet('Saved once, then prefilled into your adoption, foster, and volunteer forms. Only you can see them.'));
+      const fields: [string, string | null][] = [['Phone', profile.phone], ['Address', profile.address], ['Date of birth', profile.dateOfBirth]];
+      for (const [label, value] of fields) {
+        const line = row();
+        line.append(el('span', 'text-sm text-stone-600', label), el('span', value ? 'text-sm text-stone-950' : 'text-sm text-stone-500', value ?? 'Not saved'));
+        body.append(line);
+      }
+      const edit = el('button', 'ph-btn mt-4', fields.some(([, value]) => value) ? 'Edit details' : 'Add details');
+      edit.type = 'button';
+      edit.addEventListener('click', form);
+      body.append(edit);
+    };
+    const form = () => {
+      const formElement = el('form', 'mt-3 grid gap-4');
+      formElement.noValidate = true;
+      const errors = new Map<string, HTMLElement>();
+      const inputs = new Map<string, HTMLInputElement | HTMLTextAreaElement>();
+      const add = (name: keyof MemberProfileInput, label: string, control: HTMLInputElement | HTMLTextAreaElement, value: string | null) => {
+        control.name = name;
+        control.className = 'ph-input';
+        control.value = value ?? '';
+        const wrapper = el('label', 'ph-field', label);
+        wrapper.append(control);
+        const error = el('p', 'ph-error');
+        error.hidden = true;
+        error.setAttribute('role', 'alert');
+        errors.set(name, error);
+        inputs.set(name, control);
+        const group = el('div');
+        group.append(wrapper, error);
+        formElement.append(group);
+      };
+      const phone = Object.assign(el('input'), { type: 'tel', autocomplete: 'tel', maxLength: 30 });
+      const address = Object.assign(el('textarea'), { rows: 2, maxLength: 300 });
+      const dob = Object.assign(el('input'), { type: 'date', min: '1900-01-01', max: new Date().toISOString().slice(0, 10) });
+      add('phone', 'Phone number', phone, profile.phone);
+      add('address', 'Mailing address', address, profile.address);
+      add('dateOfBirth', 'Date of birth', dob, profile.dateOfBirth);
+      const actions = el('div', 'flex flex-wrap items-center gap-3');
+      const save = el('button', 'ph-btn ph-btn-primary', 'Save details');
+      save.type = 'submit';
+      const cancel = el('button', 'ph-btn', 'Cancel');
+      cancel.type = 'button';
+      cancel.addEventListener('click', view);
+      const status = el('p', 'text-sm text-red-800');
+      status.setAttribute('role', 'status');
+      actions.append(save, cancel, status);
+      formElement.append(actions);
+      formElement.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        save.disabled = true;
+        for (const error of errors.values()) error.hidden = true;
+        try {
+          const payload: MemberProfileInput = { phone: phone.value.trim(), address: address.value.trim(), dateOfBirth: dob.value.trim() };
+          profile = (await api<MemberProfileResponse>('/profile', { method: 'PUT', json: payload })).profile;
+          view();
+        } catch (exception) {
+          if (exception instanceof ApiRequestError && exception.fieldErrors) {
+            for (const [name, text] of Object.entries(exception.fieldErrors)) { const error = errors.get(name); if (error) { error.textContent = text; error.hidden = false; } }
+          }
+          status.textContent = exception instanceof Error ? exception.message : 'We could not save your details.';
+          save.disabled = false;
+        }
+      });
+      body.replaceChildren(formElement);
+      phone.focus();
+    };
+    view();
+    return section;
+  }
+
+  // History (past and canceled) ----------------------------------------------------------------------
+  function historyCard(appointments: VisitAppointmentListResponse, registrations: VolunteerRegistration[]) {
+    const past = [
+      ...appointments.appointments.filter((item) => item.status === 'canceled' || Date.parse(item.startsAt) <= Date.now()).map((item) => ({ title: 'Shelter visit', when: formatShelterRange(item.startsAt, item.endsAt), note: item.status === 'canceled' ? 'Canceled' : 'Completed', sort: Date.parse(item.startsAt) })),
+      ...registrations.filter((item) => item.status === 'canceled' || Date.parse(item.startsAt) <= Date.now()).map((item) => ({ title: `Volunteer: ${item.title}`, when: formatShelterRange(item.startsAt, item.endsAt), note: item.status === 'canceled' ? (item.canceledReason === 'shift_canceled' ? 'Canceled by the shelter' : 'Canceled') : 'Completed', sort: Date.parse(item.startsAt) })),
+    ].sort((a, b) => b.sort - a.sort);
+    const details = el('details', 'ph-card');
+    details.append(el('summary', 'cursor-pointer text-base font-semibold text-stone-950', `History (${past.length})`));
+    if (!past.length) details.append(quiet('Past and canceled visits and shifts will appear here.'));
+    for (const item of past) {
+      const line = row();
+      const text = el('div');
+      text.append(el('p', 'text-sm font-semibold text-stone-950', item.title), el('p', 'mt-1 text-sm text-stone-600', item.when));
+      line.append(text, pill(item.note));
+      details.append(line);
+    }
+    return details;
+  }
+
+  async function load() {
+    if (!root) return;
+    const me = await settle(api<{ user: ApiUser }>('/auth/me'));
+    if (!me.ok) return showSignedOut();
+    const [appointments, slots, registrations, adoption, foster, quiz, inquiries, profile] = await Promise.all([
+      settle(api<VisitAppointmentListResponse>('/appointments')),
+      settle(api<VisitSlotListResponse>('/visit-slots')),
+      settle(api<VolunteerRegistrationListResponse>('/volunteer/registrations')),
+      settle(api<AdoptionApplicationListResponse>('/applications')),
+      settle(api<FosterApplicationListResponse>('/foster-applications')),
+      settle(api<LatestQuizResponse>('/quiz/latest')),
+      settle(api<LostPetInquiryListResponse>('/lost-pet/inquiries')),
+      settle(api<MemberProfileResponse>('/profile')),
+    ]);
+
+    const header = el('div');
+    header.append(el('p', 'text-sm text-stone-600', 'My PawHeaven'), el('h1', 'mt-1 text-3xl font-semibold tracking-tight text-stone-950', `Welcome back, ${me.value.user.name.split(' ')[0]}`));
+    const stack = (...children: Node[]) => { const column = el('div', 'flex min-w-0 flex-col gap-5'); column.append(...children); return column; };
+
+    const attention = attentionCard(attentionItems(
+      appointments.ok ? appointments.value.appointments : [],
+      registrations.ok ? registrations.value.registrations : [],
+      adoption.ok ? adoption.value.applications : [],
+      foster.ok ? foster.value.applications : [],
+    ));
+    const left = stack(
+      appointments.ok && registrations.ok ? upcomingCard(load, appointments.value, slots.ok ? slots.value : null, registrations.value.registrations) : unavailable('Upcoming'),
+      adoption.ok && foster.ok ? applicationsCard(adoption.value.applications, foster.value.applications) : unavailable('Applications'),
+      appointments.ok && registrations.ok ? historyCard(appointments.value, registrations.value.registrations) : el('div'),
+    );
+    const right = stack(
+      quiz.ok ? matchesCard(quiz.value) : unavailable('Your matches'),
+      inquiries.ok ? inquiriesCard(inquiries.value) : unavailable('Lost-pet inquiries'),
+      profile.ok ? detailsCard(profile.value.profile) : unavailable('Your details'),
+      Object.assign(card('Saved pets and alerts', pill('coming later', 'later')), {}),
+    );
+    right.lastElementChild?.append(quiet('Favorites and “tell me when it is available” will live here.'));
+    (right.lastElementChild as HTMLElement | null)?.classList.add('border-dashed');
+    const grid = el('div', 'grid items-start gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]');
+    grid.append(left, right);
+    const page = el('div', 'flex flex-col gap-5');
+    page.append(header, attention, grid);
+    const settings = el('p', 'text-sm text-stone-600');
+    settings.append('Need to change your name, email, or password? ', link('/account', 'Profile and sign-in details'));
+    page.append(settings);
+    root.replaceChildren(page);
+  }
+
+  void load();
+</script>

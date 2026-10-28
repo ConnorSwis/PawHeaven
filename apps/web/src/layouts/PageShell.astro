@@ -18,16 +18,30 @@ const {
   noindex = false,
 } = Astro.props;
 const pathname = Astro.url.pathname;
-const navItems = [
-  { href: '/', label: 'Home' },
-  { href: '/pets', label: 'Available pets' },
-  { href: '/quiz', label: 'Pet quiz' },
-  { href: '/visits', label: 'Schedule a visit' },
-  { href: '/volunteer', label: 'Volunteer' },
-  { href: '/lost-pet', label: 'Lost a pet?' },
-  { href: '/donate', label: 'Donate' },
-  { href: '/account', label: 'Account' },
+const here = pathname.replace(/\/$/, '') || '/';
+const groups = [
+  {
+    label: 'Find a pet',
+    prefixes: ['/pets', '/quiz'],
+    links: [
+      { href: '/pets', label: 'Browse available pets' },
+      { href: '/quiz', label: 'Take the matching quiz' },
+      { href: '/pets?search=foster', label: 'Foster a pet' },
+    ],
+  },
+  {
+    label: 'Get involved',
+    prefixes: ['/visits', '/volunteer'],
+    links: [
+      { href: '/visits', label: 'Schedule a shelter visit' },
+      { href: '/volunteer', label: 'Volunteer shifts' },
+    ],
+  },
 ];
+const isHere = (prefixes: string[]) => prefixes.some((prefix) => here === prefix || here.startsWith(`${prefix}/`));
+const summaryClass = 'flex cursor-pointer list-none items-center gap-1 border-b-2 py-1 transition-colors [&::-webkit-details-marker]:hidden';
+const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
+
 ---
 
 <!doctype html>
@@ -44,18 +58,23 @@ const navItems = [
       <header class="border-b border-stone-300 bg-white">
         <div class="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-6 py-3">
           <a class="text-lg font-semibold tracking-tight text-stone-950" href="/">PawHeaven</a>
-          <nav aria-label="Primary navigation" class="flex items-center gap-5 text-sm font-medium">
-            {navItems.map((item) => (
-              <a
-                class:list={[
-                  'border-b-2 py-1 transition-colors',
-                  pathname === item.href ? 'border-[var(--color-moss)] text-stone-950' : 'border-transparent text-stone-700 hover:border-stone-400 hover:text-stone-950',
-                ]}
-                href={item.href}
-                aria-current={pathname === item.href ? 'page' : undefined}
-              >{item.label}</a>
+          <nav aria-label="Primary navigation" class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium">
+            {groups.map((group) => (
+              <details class="relative" data-nav-group>
+                <summary class:list={[summaryClass, isHere(group.prefixes) ? 'border-[var(--color-moss)] text-stone-950' : 'border-transparent text-stone-700 hover:border-stone-400 hover:text-stone-950']}>
+                  {group.label}<span aria-hidden="true" class="text-xs">▾</span>
+                </summary>
+                <div class="absolute left-0 top-full z-20 mt-2 w-60 border border-stone-300 bg-white py-2 shadow-md">
+                  {group.links.map((link) => <a class={linkClass} href={link.href}>{link.label}</a>)}
+                </div>
+              </details>
             ))}
-            <span data-auth-action>
+            <a
+              class:list={['border-b-2 py-1 transition-colors', here === '/lost-pet' || here.startsWith('/lost-pet/') ? 'border-[var(--color-moss)] text-stone-950' : 'border-transparent text-stone-700 hover:border-stone-400 hover:text-stone-950']}
+              href="/lost-pet"
+            >Lost a pet?</a>
+            <a class="bg-[var(--color-moss)] px-4 py-2 text-white transition-colors hover:bg-[var(--color-moss-dark)]" href="/donate" aria-current={here === '/donate' ? 'page' : undefined}>Donate</a>
+            <span data-account-menu>
               <a class="border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white" href="/login">Log in</a>
             </span>
           </nav>
@@ -77,7 +96,7 @@ const navItems = [
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/lost-pet">Lost a pet?</a>
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/donate">Donate</a>
             <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/sign-up">Create an account</a>
-            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/account">Your account</a>
+            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/me">My PawHeaven</a>
           </nav>
         </div>
       </footer>
@@ -87,24 +106,45 @@ const navItems = [
 
 <script>
   import { apiBase } from '../lib/api';
-  const authAction = document.querySelector<HTMLElement>('[data-auth-action]');
+  const accountMenu = document.querySelector<HTMLElement>('[data-account-menu]');
 
   function showLoginAction() {
-    if (!authAction) return;
-    authAction.replaceChildren();
+    if (!accountMenu) return;
+    accountMenu.replaceChildren();
     const login = document.createElement('a');
     login.href = '/login';
     login.className = 'border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white';
     login.textContent = 'Log in';
-    authAction.append(login);
+    accountMenu.append(login);
   }
 
-  function showLogoutAction() {
-    if (!authAction) return;
-    authAction.replaceChildren();
+  /** Signed in: one "My PawHeaven" menu holds the dashboard, sign-in details, and log out. */
+  function showAccountMenu() {
+    if (!accountMenu) return;
+    accountMenu.replaceChildren();
+    const details = document.createElement('details');
+    details.className = 'relative';
+    details.dataset.navGroup = '';
+    const summary = document.createElement('summary');
+    summary.className = 'flex cursor-pointer list-none items-center gap-1 border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white [&::-webkit-details-marker]:hidden';
+    summary.append('My PawHeaven ');
+    const caret = document.createElement('span');
+    caret.setAttribute('aria-hidden', 'true');
+    caret.className = 'text-xs';
+    caret.textContent = '▾';
+    summary.append(caret);
+    const panel = document.createElement('div');
+    panel.className = 'absolute right-0 top-full z-20 mt-2 w-60 border border-stone-300 bg-white py-2 shadow-md';
+    for (const [href, label] of [['/me', 'Dashboard'], ['/account', 'Profile and sign-in details']]) {
+      const link = document.createElement('a');
+      link.href = href;
+      link.className = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
+      link.textContent = label;
+      panel.append(link);
+    }
     const logout = document.createElement('button');
     logout.type = 'button';
-    logout.className = 'border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white disabled:cursor-wait disabled:opacity-70';
+    logout.className = 'block w-full px-4 py-2 text-left text-sm text-stone-800 hover:bg-stone-100 disabled:cursor-wait disabled:opacity-70';
     logout.textContent = 'Log out';
     logout.addEventListener('click', async () => {
       logout.disabled = true;
@@ -119,13 +159,15 @@ const navItems = [
         logout.textContent = 'Log out';
       }
     });
-    authAction.append(logout);
+    panel.append(logout);
+    details.append(summary, panel);
+    accountMenu.append(details);
   }
 
   async function loadAuthAction() {
     try {
       const response = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
-      if (response.ok) showLogoutAction();
+      if (response.ok) showAccountMenu();
       else showLoginAction();
     } catch {
       showLoginAction();
@@ -134,7 +176,21 @@ const navItems = [
 
   window.addEventListener('pawheaven:authchange', (event) => {
     if (event instanceof CustomEvent && event.detail?.signedIn === false) showLoginAction();
-    if (event instanceof CustomEvent && event.detail?.signedIn === true) showLogoutAction();
+    if (event instanceof CustomEvent && event.detail?.signedIn === true) showAccountMenu();
+  });
+
+  // Only one menu is open at a time; a click elsewhere or Escape closes it.
+  document.addEventListener('click', (event) => {
+    for (const group of document.querySelectorAll<HTMLDetailsElement>('details[data-nav-group][open]')) {
+      if (!group.contains(event.target as Node)) group.open = false;
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    for (const group of document.querySelectorAll<HTMLDetailsElement>('details[data-nav-group][open]')) {
+      group.open = false;
+      group.querySelector('summary')?.focus();
+    }
   });
 
   loadAuthAction();

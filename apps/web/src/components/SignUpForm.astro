@@ -150,7 +150,7 @@
         confirmationNotice?.focus();
         return;
       }
-      window.location.assign('/account');
+      window.location.assign('/me');
     } catch (exception) {
       showError(exception instanceof Error ? exception.message : 'We could not create your account. Please try again.');
     } finally {
