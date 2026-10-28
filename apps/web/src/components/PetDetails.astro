@@ -16,6 +16,8 @@ const seedPets = [
 <script>
   import type { AdoptionApplication, AdoptionApplicationInput, AdoptionApplicationListResponse, ApiUser, FieldErrors, FosterApplication, FosterApplicationInput, FosterApplicationListResponse, Pet } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
+  import { prefillContact, saveDetailsBox, saveProfile } from '../lib/profile';
+  import { matchStrength, type LatestQuizResponse } from '@pawheaven/contracts';
   import { canStartApplication, hasPetImage } from '../lib/pet-discovery';
   const container = document.querySelector<HTMLElement>('[data-pet-detail]');
   const seedPets: Pet[] = JSON.parse(container?.dataset.pets || '[]');
@@ -26,6 +28,53 @@ const seedPets = [
     node.className = className;
     node.textContent = content;
     return node;
+  }
+
+  /** Recorded attributes only: an empty or Unknown value is simply not shown. */
+  function attributesList(pet: Pet) {
+    const rows: [string, string][] = [];
+    if (pet.sex) rows.push(['Sex', pet.sex]);
+    if (pet.size || pet.weightLbs) rows.push(['Size', [pet.size, pet.weightLbs ? `${pet.weightLbs} lb` : ''].filter(Boolean).join(', ')]);
+    if (pet.color) rows.push(['Color', pet.color]);
+    if (pet.spayedNeutered && pet.spayedNeutered !== 'Unknown') rows.push(['Spayed or neutered', pet.spayedNeutered]);
+    const good = [['kids', pet.goodWithKids], ['dogs', pet.goodWithDogs], ['cats', pet.goodWithCats]] as const;
+    const yes = good.filter(([, value]) => value === 'Yes').map(([label]) => label);
+    const no = good.filter(([, value]) => value === 'No').map(([label]) => label);
+    if (yes.length || no.length) rows.push(['Good with', [yes.join(', '), no.length ? `not with ${no.join(' or ')}` : ''].filter(Boolean).join('; ')]);
+    if (pet.energyLevel) rows.push(['Energy level', pet.energyLevel]);
+    const list = document.createElement('dl');
+    list.className = rows.length ? 'grid border-b border-stone-300 sm:grid-cols-3' : 'hidden';
+    for (const [term, value] of rows) {
+      const item = document.createElement('div');
+      item.className = 'border-stone-300 py-4 sm:border-r sm:px-4 first:sm:pl-0 last:sm:border-r-0';
+      item.append(element('dt', 'text-sm text-stone-600', term), element('dd', 'mt-1 font-medium text-stone-950', value));
+      list.append(item);
+    }
+    return list;
+  }
+
+  async function showQuizFit(pet: Pet, target: HTMLElement) {
+    try {
+      const response = await fetch(`${apiBase}/quiz/latest`, { credentials: 'include' });
+      if (!response.ok) return;
+      const { result } = await response.json() as LatestQuizResponse;
+      const match = result?.recommendations.find((recommendation) => recommendation.pet.id === pet.id);
+      if (match) {
+        const strength = matchStrength(match.score);
+        target.className = 'mt-6 border border-stone-300 bg-white p-6';
+        const header = document.createElement('div');
+        header.className = 'flex flex-wrap items-baseline justify-between gap-2';
+        header.append(element('h2', 'text-base font-semibold text-stone-950', `Why ${pet.name} might suit you`), element('span', `border px-2 py-1 text-xs ${strength === 'Strong' ? 'border-[var(--color-moss)] bg-[#f1f5ee] text-[var(--color-moss-dark)]' : 'border-stone-400 text-stone-700'}`, `${strength} match`));
+        target.append(header, element('p', 'mt-3 text-sm leading-6 text-stone-700', match.reason));
+      } else if (result === null) {
+        target.className = 'mt-6 border border-dashed border-stone-400 bg-white p-6';
+        const link = document.createElement('a');
+        link.href = '/quiz';
+        link.className = 'font-medium text-[var(--color-moss-dark)] underline underline-offset-4';
+        link.textContent = 'Take the two-minute quiz';
+        target.append(element('p', 'text-sm leading-6 text-stone-700', `Not sure ${pet.name} is the right fit? `), link);
+      }
+    } catch { /* The match card is a bonus; the page works without it. */ }
   }
 
   function displayPet(pet: Pet, note?: string) {
@@ -60,19 +109,71 @@ const seedPets = [
       image.className = 'mt-6 aspect-[4/3] w-full object-cover';
       container.append(image);
     }
+    const samplePet = Boolean(note);
     const application = document.createElement('section');
-    application.className = 'mt-9 border-t border-stone-300 pt-7';
+    application.className = 'mt-5';
     application.setAttribute('aria-live', 'polite');
-    container.append(description, details, medicalHeading, medical, tagHeading, tags, application);
+    const adoptBox = document.createElement('details');
+    adoptBox.id = 'adopt';
+    adoptBox.className = 'mt-6 border border-stone-300 bg-white p-6';
+    adoptBox.append(element('summary', 'cursor-pointer text-lg font-semibold text-stone-950', `Apply to adopt ${pet.name}`), application);
+
+    let fosterBox: HTMLDetailsElement | null = null;
     if (pet.fosterAvailable) {
       const foster = document.createElement('section');
-      foster.className = 'mt-9 border-t border-stone-300 pt-7';
+      foster.className = 'mt-5';
       foster.setAttribute('aria-live', 'polite');
-      container.append(foster);
-      void displayFosterForm(pet, foster, Boolean(note));
+      fosterBox = document.createElement('details');
+      fosterBox.id = 'foster';
+      fosterBox.className = 'mt-4 border border-stone-300 bg-white p-6';
+      fosterBox.append(element('summary', 'cursor-pointer text-lg font-semibold text-stone-950', `Apply to foster ${pet.name}`), foster);
+      void displayFosterForm(pet, foster, samplePet);
     }
+
+    // One panel for everything a visitor can do about this pet.
+    const actions = document.createElement('section');
+    actions.className = 'mt-8 border border-[var(--color-moss)] bg-white p-6';
+    actions.append(element('h2', 'text-lg font-semibold text-stone-950', 'What would you like to do?'));
+    const buttons = document.createElement('div');
+    buttons.className = 'mt-4 grid gap-3 sm:grid-cols-2';
+    const openForm = (box: HTMLDetailsElement) => { box.open = true; box.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    const action = (label: string, hint: string, primary: boolean) => {
+      const control = document.createElement('button');
+      control.type = 'button';
+      control.className = `flex flex-col items-start gap-1 border border-[var(--color-moss)] px-4 py-3 text-left text-sm font-semibold transition-colors ${primary ? 'bg-[var(--color-moss)] text-white hover:bg-[var(--color-moss-dark)]' : 'bg-white text-[var(--color-moss-dark)] hover:bg-stone-50'}`;
+      control.append(label, element('span', 'text-xs font-normal opacity-90', hint));
+      return control;
+    };
+    if (!samplePet && pet.status === 'Available') {
+      const adopt = action(`Apply to adopt ${pet.name}`, 'Your saved details are filled in for you', true);
+      adopt.addEventListener('click', () => openForm(adoptBox));
+      buttons.append(adopt);
+      if (fosterBox) {
+        const box = fosterBox;
+        const foster = action(`Apply to foster ${pet.name}`, 'Choose the dates you can provide care', false);
+        foster.addEventListener('click', () => openForm(box));
+        buttons.append(foster);
+      }
+      const visit = document.createElement('a');
+      visit.href = `/visits?pet=${encodeURIComponent(pet.id)}&name=${encodeURIComponent(pet.name)}`;
+      visit.className = 'flex flex-col items-start gap-1 border border-[var(--color-moss)] bg-white px-4 py-3 text-sm font-semibold text-[var(--color-moss-dark)] transition-colors hover:bg-stone-50 sm:col-span-2';
+      visit.append(`Schedule a visit to meet ${pet.name}`, element('span', 'text-xs font-normal', 'Pick an open time; we will add the pet to your reason for visiting'));
+      buttons.append(visit);
+      actions.append(buttons, element('p', 'mt-3 text-xs text-stone-600', 'Not logged in? Each option asks you to log in first.'));
+    } else {
+      actions.append(element('p', 'mt-3 text-sm leading-6 text-stone-700', samplePet ? 'Applications and visits are available when this listing is connected to live records.' : 'This animal is not currently open to new applications.'));
+    }
+
+    // "Why this pet might suit you" appears only for a member whose quiz recommended it.
+    const fit = document.createElement('section');
+    fit.setAttribute('aria-live', 'polite');
+
+    container.append(description, actions, fit, details, attributesList(pet), medicalHeading, medical, tagHeading, tags);
+    if (!samplePet && pet.status === 'Available') container.append(adoptBox);
+    if (!samplePet && fosterBox && pet.status === 'Available') container.append(fosterBox);
     container.append(back);
     if (note) container.append(element('p', 'mt-5 text-sm text-stone-600', note));
+    void showQuizFit(pet, fit);
     void displayApplicationForm(pet, application, Boolean(note));
   }
 
@@ -159,7 +260,10 @@ const seedPets = [
       const saved = JSON.parse(sessionStorage.getItem(draftKey) || 'null') as Partial<AdoptionApplicationInput> | null;
       if (saved) for (const [name, control] of controls) control.value = typeof saved[name] === 'string' ? saved[name] : '';
     } catch { /* Ignore a malformed or unavailable session draft. */ }
+    void prefillContact(controls, { phone: 'applicantPhone', address: 'applicantAddress', dateOfBirth: 'applicantDateOfBirth' });
 
+    const saveBox = saveDetailsBox();
+    form.append(saveBox.wrapper);
     const actions = document.createElement('div');
     actions.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
@@ -223,6 +327,7 @@ const seedPets = [
           throw new Error(typeof failure?.message === 'string' ? failure.message : 'We could not submit your application.');
         }
         try { sessionStorage.removeItem(draftKey); } catch { /* Submission still succeeded. */ }
+        if (saveBox.input.checked) void saveProfile({ phone: payload.applicantPhone, address: payload.applicantAddress, dateOfBirth: payload.applicantDateOfBirth });
         existingApplication(target, result as AdoptionApplication);
       } catch (exception) {
         applicationMessage(message, exception instanceof Error ? exception.message : 'We could not submit your application.', true);
@@ -329,7 +434,10 @@ const seedPets = [
       const saved = JSON.parse(sessionStorage.getItem(draftKey) || 'null') as Partial<FosterApplicationInput> | null;
       if (saved) for (const [name, control] of controls) control.value = typeof saved[name] === 'string' ? saved[name] : '';
     } catch { /* Ignore a malformed or unavailable session draft. */ }
+    void prefillContact(controls, { phone: 'applicantPhone', address: 'applicantAddress', dateOfBirth: 'applicantDateOfBirth' });
 
+    const saveBox = saveDetailsBox();
+    form.append(saveBox.wrapper);
     const actions = document.createElement('div');
     actions.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
@@ -398,6 +506,7 @@ const seedPets = [
           throw new Error(typeof failure?.message === 'string' ? failure.message : 'We could not submit your foster application.');
         }
         try { sessionStorage.removeItem(draftKey); } catch { /* Submission still succeeded. */ }
+        if (saveBox.input.checked) void saveProfile({ phone: payload.applicantPhone, address: payload.applicantAddress, dateOfBirth: payload.applicantDateOfBirth });
         existingFosterApplication(target, result as FosterApplication);
       } catch (exception) {
         applicationMessage(message, exception instanceof Error ? exception.message : 'We could not submit your foster application.', true);

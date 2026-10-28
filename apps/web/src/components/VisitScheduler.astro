@@ -11,6 +11,9 @@
   const shelterTimeZone = 'America/New_York';
   const container = document.querySelector<HTMLElement>('[data-visit-scheduler]');
   let selectedSlotId = '';
+  // Arriving from a pet page (?name=Baxter) pre-writes the reason for the visit.
+  const requestedName = new URLSearchParams(window.location.search).get('name')?.trim().slice(0, 60) ?? '';
+  const suggestedPurpose = requestedName ? `I would like to meet ${requestedName} and learn about adopting or fostering.` : '';
   let slots: VisitSlot[] = [];
 
   function element(tag: string, className: string, content: string) {
@@ -91,7 +94,7 @@
     purpose.maxLength = 500;
     purpose.className = 'mt-2 block min-h-28 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
     purpose.placeholder = 'For example: I would like to learn more about meeting the animals and the adoption process.';
-    purpose.value = initialPurpose;
+    purpose.value = initialPurpose || suggestedPurpose;
     purposeLabel.append(purpose);
     const controls = document.createElement('div');
     controls.className = 'mt-5 flex flex-wrap items-center gap-3';
