@@ -1,14 +1,8 @@
 ---
-const seedPets = [
-  { id: 'maple', name: 'Maple', type: 'Dog', breed: 'Golden Retriever mix', age: '3 years', daysInShelter: 18, tags: ['big-dog', 'good-with-kids'], status: 'Available', summary: 'Maple is an affectionate young dog who enjoys gentle walks, quiet afternoons, and meeting new people.', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/maple.jpg' },
-  { id: 'milo', name: 'Milo', type: 'Dog', breed: 'Welsh Springer Spaniel', age: '2 years', daysInShelter: 42, tags: ['active', 'friendly'], status: 'Available', summary: 'Milo is a bright, active spaniel who would love regular exercise and plenty of time with his people.', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/milo.jpg' },
-  { id: 'nala', name: 'Nala', type: 'Dog', breed: 'White German Shepherd mix', age: '5 years', daysInShelter: 76, tags: ['big-dog', 'gentle'], status: 'Available', summary: 'Nala is a gentle companion who is ready for patient people, peaceful walks, and lots of room to explore.', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/nala.jpg' },
-  { id: 'pepper', name: 'Pepper', type: 'Dog', breed: 'Cavalier King Charles Spaniel', age: '1 year', daysInShelter: 9, tags: ['playful', 'small-dog'], status: 'Available', summary: 'Pepper is a playful young dog who enjoys toys, close company, and a little attention each day.', imageUrl: 'https://zzcbjfgyibhuhlylsvhs.supabase.co/storage/v1/object/public/pet-images/seed/pepper.jpg' },
-];
 ---
 
 <div class="mx-auto grid max-w-5xl place-items-center px-6 py-12">
-  <article class="w-full max-w-2xl border border-stone-300 bg-white p-7 sm:p-10" data-pet-detail data-pets={JSON.stringify(seedPets)} aria-live="polite">
+  <article class="w-full max-w-2xl border border-stone-300 bg-white p-7 sm:p-10" data-pet-detail aria-live="polite">
     <p class="text-sm text-stone-600">Loading pet details…</p>
   </article>
 </div>
@@ -20,8 +14,7 @@ const seedPets = [
   import { matchStrength, type LatestQuizResponse } from '@pawheaven/contracts';
   import { canStartApplication, hasPetImage } from '../lib/pet-discovery';
   const container = document.querySelector<HTMLElement>('[data-pet-detail]');
-  const seedPets: Pet[] = JSON.parse(container?.dataset.pets || '[]');
-  const id = new URLSearchParams(window.location.search).get('id') || 'maple';
+  const id = new URLSearchParams(window.location.search).get('id') ?? '';
 
   function element(tag: string, className: string, content: string) {
     const node = document.createElement(tag);
@@ -577,15 +570,11 @@ const seedPets = [
   async function loadPet() {
     try {
       const response = await fetch(`${apiBase}/pets/${encodeURIComponent(id)}`, { credentials: 'include' });
-      if (response.status === 404) {
-        const fallback = seedPets.find((pet) => pet.id === id);
-        return fallback ? displayPet(fallback, 'Sample pet information is shown while the shelter API is unavailable.') : displayNotFound();
-      }
+      if (response.status === 404) return displayNotFound();
       if (!response.ok) throw new Error('Pet details are unavailable.');
       displayPet(await response.json());
     } catch {
-      const fallback = seedPets.find((pet) => pet.id === id);
-      fallback ? displayPet(fallback, 'Sample pet information is shown while the shelter API is unavailable.') : displayNotFound();
+      displayNotFound();
     }
   }
 
