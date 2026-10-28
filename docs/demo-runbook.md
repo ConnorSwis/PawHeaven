@@ -15,6 +15,7 @@ terminals:
 ```sh
 npm run db:start
 npm run db:reset
+npm run db:images   # optional: fetches the imported shelter photos into local Storage
 npm run db:configure-api
 npm run dev:api
 npm run dev:web
@@ -147,3 +148,16 @@ Capture these local pages after reset for a report or slide deck:
 15. `15-staff-inbox.png` — the staff sidebar and inbox.
 
 Do not capture real applicant information or production URLs.
+
+## Lively demo data and imported animals
+
+`db:reset` also loads `supabase/seed-lively.sql` (12 demo members with
+password `DemoMember-2026!`, visit slots, ~95 volunteer shifts with signups,
+adoption/foster applications, lost-pet searches, quiz results, test donations)
+and `supabase/seed-dekalb.sql` (31 animals from DeKalb County Animal Services,
+shown with credit and a link back). Run `npm run db:images` after every reset
+to download their photos into local Storage; photos are never committed
+(`.cache/` is ignored). Imported animals are browse-only and are excluded from
+lost-pet photo matching. This data is local only; do not push it to production
+without the shelter's say-so. Regenerate the seed from a listing-saver export
+with `node scripts/build-dekalb-seed.mjs path/to/animals.json`.

@@ -128,6 +128,13 @@ export type Pet = {
   goodWithDogs: YesNoUnknown;
   goodWithCats: YesNoUnknown;
   energyLevel: PetEnergyLevel;
+  /** Where the animal lives; empty when not recorded. */
+  housing: 'Shelter' | 'Foster home' | '';
+  /** Credit and link back when the record came from another organization; empty otherwise. */
+  sourceName: string;
+  sourceUrl: string;
+  /** Extra photos beyond `imageUrl`. */
+  galleryUrls: string[];
   imageUrl: string | null;
 };
 
