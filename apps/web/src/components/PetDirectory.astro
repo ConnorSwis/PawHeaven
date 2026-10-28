@@ -13,23 +13,12 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
   <section aria-labelledby="pet-directory-title">
     <p class="text-sm font-medium text-stone-600">PawHeaven</p>
     <h1 id="pet-directory-title" class="mt-3 text-3xl font-semibold tracking-tight text-stone-950">Pets available for adoption</h1>
-    <p class="mt-3 max-w-2xl leading-7 text-stone-700">Listings are kept in alphabetical order. Search by name, description, breed, age, type, shelter tag, or “foster” to find a pet that fits your home.</p>
+    <p class="mt-3 max-w-2xl leading-7 text-stone-700">Listings are kept in alphabetical order. Search by name, description, breed, age, type, or “foster” to find a pet that fits your home.</p>
 
-    <form class="mt-8 grid gap-4 border-y border-stone-300 py-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_13rem_11rem_11rem_auto] lg:items-end" data-pet-filters>
+    <form class="mt-8 grid gap-4 border-y border-stone-300 py-5 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_11rem_11rem_auto] lg:items-end" data-pet-filters>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-search">Search pets</label>
         <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="pet-search" name="search" type="search" placeholder="Try gentle, retriever, or good with kids" value={initialSearch} />
-      </div>
-      <div>
-        <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-tag">Shelter tag</label>
-        <select class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="pet-tag" name="tag">
-          <option value="" selected={!initialTag}>All tags</option>
-          <option value="big-dog" selected={initialTag === 'big-dog'}>Big dog</option>
-          <option value="good-with-kids" selected={initialTag === 'good-with-kids'}>Good with kids</option>
-          <option value="calm" selected={initialTag === 'calm'}>Calm</option>
-          <option value="indoor" selected={initialTag === 'indoor'}>Indoor</option>
-          <option value="playful" selected={initialTag === 'playful'}>Playful</option>
-        </select>
       </div>
       <div>
         <label class="mb-2 block text-sm font-medium text-stone-900" for="pet-species">Species</label>
@@ -98,7 +87,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
     if (pets.length === 0) {
       const message = document.createElement('p');
       message.className = 'sm:col-span-2 lg:col-span-3 border border-stone-300 bg-white p-5 text-stone-700';
-      message.textContent = 'No pets match that search. Try another word or shelter tag.';
+      message.textContent = 'No pets match that search. Try another word.';
       results.append(message);
       return;
     }
@@ -199,7 +188,7 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
     const pets = publicPets(seedPets.filter((pet) => matches(pet, search, tag, species, age)));
     displayPets(pets);
     if (status) status.textContent = pets.length === 0
-      ? 'No sample pets match that search. Try another word or shelter tag.'
+      ? 'No sample pets match that search. Try another word.'
       : `Showing ${pets.length} sample ${pets.length === 1 ? 'listing' : 'listings'} while shelter listings are being added.`;
   }
 
