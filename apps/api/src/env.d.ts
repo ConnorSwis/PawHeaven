@@ -19,4 +19,6 @@ interface Env {
   OPENROUTER_VISION_MODEL?: string;
   /** Optional address that is emailed when a lost-pet inquiry arrives. Staff always see inquiries in the portal. */
   SHELTER_NOTIFICATION_EMAIL?: string;
+  /** Cloudflare secret (`whsec_...`) that verifies Stripe webhook signatures. Without it donations are not recorded. */
+  STRIPE_WEBHOOK_SECRET?: string;
 }

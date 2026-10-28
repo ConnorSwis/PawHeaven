@@ -25,3 +25,7 @@ OPENROUTER_API_KEY="sk-or-your-openrouter-key"
 # OPENROUTER_VISION_MODEL="anthropic/claude-haiku-5.5"
 # Optional: also email lost-pet inquiries to the shelter.
 # SHELTER_NOTIFICATION_EMAIL="shelter@example.org"
+# Donations are recorded by Stripe's signed webhook. `npm run db:configure-api` writes a local-only
+# placeholder; for real test events run `stripe listen --forward-to localhost:8787/api/webhooks/stripe`
+# and paste the whsec_ value it prints.
+STRIPE_WEBHOOK_SECRET="whsec_local_demo_secret"

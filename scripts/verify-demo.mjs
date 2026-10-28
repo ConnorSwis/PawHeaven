@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 const apiBase = process.env.DEMO_API_BASE ?? 'http://localhost:8787/api';
@@ -407,6 +408,62 @@ if (!aiLive) {
   if (mine.inquiries?.[0]?.status !== 'In progress' || 'staffNote' in mine.inquiries[0]) fail('the member should see the status but never the staff note.');
 }
 
+
+// Donations: Stripe's webhook is the only way one is recorded, and only with a valid signature.
+const webhookSecret = process.env.DEMO_STRIPE_WEBHOOK_SECRET ?? 'whsec_local_demo_secret';
+async function stripeWebhook(event, { secret = webhookSecret, timestamp = Math.floor(Date.now() / 1000), signed = true } = {}) {
+  const body = JSON.stringify(event);
+  const headers = { 'Content-Type': 'application/json' };
+  if (signed) headers['Stripe-Signature'] = `t=${timestamp},v1=${createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex')}`;
+  const response = await fetch(`${apiBase}/webhooks/stripe`, { method: 'POST', headers, body });
+  return { response, body: await response.json().catch(() => null) };
+}
+const checkoutEvent = (sessionId, type = 'checkout.session.completed', paymentStatus = 'paid', amount = 2500) => ({
+  id: `evt_${sessionId}_${type}`, type, livemode: false, data: { object: {
+    object: 'checkout.session', id: sessionId, mode: 'payment', payment_status: paymentStatus, amount_total: amount, currency: 'usd',
+    payment_intent: `pi_${sessionId}`, created: Math.floor(Date.now() / 1000), customer_details: { name: 'QA Donor', email: `donor-${sessionId}@example.com` },
+  } },
+});
+
+expectStatus(await request('/admin/donations', { cookie: applicantCookie }), 403, 'a member cannot read donations');
+expectStatus(await request('/admin/donations'), 401, 'donations require a login');
+const webhookProbe = await stripeWebhook({ id: 'evt_probe', type: 'charge.refunded', data: { object: {} } });
+if (webhookProbe.response.status === 503) {
+  console.log('The Stripe webhook is not configured on this local API (no STRIPE_WEBHOOK_SECRET): skipped the donation checks.');
+} else if (webhookProbe.response.status === 400) {
+  console.log('The local STRIPE_WEBHOOK_SECRET is not the demo placeholder (set DEMO_STRIPE_WEBHOOK_SECRET to match): skipped the donation checks.');
+} else {
+  expectStatus(webhookProbe, 200, 'a signed event of an unrelated type is acknowledged');
+  if (webhookProbe.body?.recorded !== false) fail('an unrelated Stripe event should be acknowledged without recording anything.');
+  const sessionId = `cs_test_qa_${Date.now()}`;
+  expectStatus(await stripeWebhook(checkoutEvent(sessionId), { signed: false }), 400, 'an unsigned webhook is rejected');
+  expectStatus(await stripeWebhook(checkoutEvent(sessionId), { secret: 'whsec_wrong' }), 400, 'a webhook signed with the wrong secret is rejected');
+  expectStatus(await stripeWebhook(checkoutEvent(sessionId), { timestamp: Math.floor(Date.now() / 1000) - 3600 }), 400, 'a stale signed webhook is rejected');
+  expectStatus(await request('/webhooks/stripe', { method: 'POST', body: checkoutEvent(sessionId) }), 400, 'a browser-style request without a signature is rejected');
+  const before = expectStatus(await request('/admin/donations', { cookie: staffCookie }), 200, 'staff donations before recording');
+  if (before.donations.some((item) => item.donorEmail === `donor-${sessionId}@example.com`)) fail('a rejected webhook must not record a donation.');
+
+  const pending = await stripeWebhook(checkoutEvent(sessionId, 'checkout.session.completed', 'unpaid'));
+  expectStatus(pending, 200, 'a delayed payment is recorded as pending');
+  if (pending.body?.status !== 'pending') fail('an unpaid checkout session should be recorded as pending.');
+  expectStatus(await stripeWebhook(checkoutEvent(sessionId, 'checkout.session.async_payment_succeeded', 'paid')), 200, 'the confirmed payment upgrades the donation');
+  const late = await stripeWebhook(checkoutEvent(sessionId, 'checkout.session.completed', 'unpaid'));
+  if (late.body?.status !== 'succeeded') fail('a late pending event must not downgrade a succeeded donation.');
+  expectStatus(await stripeWebhook(checkoutEvent(sessionId, 'checkout.session.async_payment_succeeded', 'paid')), 200, 'replaying an event is harmless');
+  const ignored = await stripeWebhook({ ...checkoutEvent(`${sessionId}_sub`), data: { object: { ...checkoutEvent(sessionId).data.object, id: `${sessionId}_sub`, mode: 'subscription' } } });
+  if (ignored.body?.recorded !== false) fail('a subscription checkout must not be recorded as a donation.');
+  const failedId = `${sessionId}_failed`;
+  expectStatus(await stripeWebhook(checkoutEvent(failedId, 'checkout.session.async_payment_failed', 'unpaid', 700)), 200, 'a failed asynchronous payment is recorded');
+
+  const donations = expectStatus(await request('/admin/donations', { cookie: staffCookie }), 200, 'staff donations after recording');
+  const mine = donations.donations.filter((item) => item.donorEmail === `donor-${sessionId}@example.com`);
+  if (mine.length !== 1 || mine[0].status !== 'succeeded' || mine[0].amountCents !== 2500 || mine[0].livemode !== false || mine[0].donorName !== 'QA Donor') fail('staff should see exactly one succeeded $25.00 test donation for the session.');
+  if (!donations.donations.some((item) => item.donorEmail === `donor-${failedId}@example.com` && item.status === 'failed')) fail('staff should see the failed donation.');
+  const testTotal = donations.totals.find((total) => total.livemode === false && total.currency === 'usd');
+  if (!testTotal || testTotal.totalCents < 2500 || testTotal.count < 1) fail('the test-mode total should include the succeeded donation.');
+  if (donations.totals.some((total) => total.livemode === true)) fail('no live-mode total should exist after test-mode events.');
+}
+
 // Staff role: limited to pets, applications, and the visit schedule.
 const superCookie = await login(superuserEmail, superuserPassword);
 const staffIdentity = expectStatus(await request('/admin/me', { cookie: staffCookie }), 200, 'staff portal access');
@@ -455,4 +512,4 @@ expectStatus(await request('/auth/logout', { method: 'POST', cookie: staffCookie
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: applicantCookie }), 200, 'applicant logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: superCookie }), 200, 'superuser logout');
 
-console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, visit booking/reschedule/cancellation history, staff visit scheduling, session expiry, and logout.');
+console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, signed Stripe webhook donation recording, visit booking/reschedule/cancellation history, staff visit scheduling, session expiry, and logout.');

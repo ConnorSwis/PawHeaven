@@ -9,6 +9,7 @@ import { lostPetRoutes } from './routes/lost-pets';
 import { publicPetRoutes } from './routes/pets';
 import { quizRoutes } from './routes/quiz';
 import { visitSchedulingRoutes } from './routes/visits';
+import { webhookRoutes } from './routes/webhooks';
 import { volunteerRoutes } from './routes/volunteer';
 
 function isAllowedWorkersDevApp(origin: string, env: Env): boolean {
@@ -35,6 +36,7 @@ function isAllowedOrigin(origin: string | null, env: Env): origin is string {
 async function route(context: RouteContext): Promise<ApiResponse> {
   const { request, path } = context;
   if (path === '/health' && request.method === 'GET') return respond({ ok: true });
+  if (path.startsWith('/webhooks/')) return webhookRoutes(context);
   if (path.startsWith('/auth/')) return authRoutes(context);
   if (path.startsWith('/admin/')) return adminRoutes(context);
   if (path === '/applications' || path.startsWith('/applications/')) return adoptionApplicationRoutes(context);
@@ -71,7 +73,10 @@ export default {
       response.headers.set('Access-Control-Max-Age', '600');
       return withCors(response, origin, true);
     }
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && !origin) return errorResponse('Origin required.', 403);
+    // Browser writes must carry an Origin. Stripe's server-to-server webhook has none and
+    // is authenticated by its signature instead, so it is the one path exempt from this check.
+    const isWebhook = new URL(request.url).pathname.replace(/^\/api/, '') === '/webhooks/stripe';
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && !origin && !isWebhook) return errorResponse('Origin required.', 403);
     try {
       const path = new URL(request.url).pathname.replace(/^\/api/, '') || '/';
       return withCors(await route({ request, env, ctx, path }), origin, allowed);

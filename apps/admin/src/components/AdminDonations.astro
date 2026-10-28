@@ -1,0 +1,75 @@
+<section class="mt-10 border-t border-stone-300 pt-8" aria-labelledby="donations-title">
+  <h2 id="donations-title" class="text-lg font-semibold text-stone-950">Donations</h2>
+  <p class="mt-2 max-w-2xl leading-6 text-stone-700">Gifts appear here only after Stripe confirms them to PawHeaven's signed webhook. Test-mode payments move no real money and are counted separately. Stripe emails each donor's receipt.</p>
+  <div data-donation-totals class="mt-5 flex flex-wrap gap-4" aria-live="polite"></div>
+  <div data-donation-list class="mt-5 grid gap-3" aria-live="polite">
+    <p class="text-sm text-stone-700">Loading donations…</p>
+  </div>
+</section>
+
+<script>
+  import type { AdminDonationsResponse } from '@pawheaven/contracts';
+  import { apiBase } from '../lib/api';
+
+  const totals = document.querySelector<HTMLElement>('[data-donation-totals]');
+  const list = document.querySelector<HTMLElement>('[data-donation-list]');
+
+  function node(tag: string, className: string, content: string) {
+    const element = document.createElement(tag);
+    element.className = className;
+    element.textContent = content;
+    return element;
+  }
+
+  const money = (cents: number, currency: string) => new Intl.NumberFormat(undefined, { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100);
+
+  function render(payload: AdminDonationsResponse) {
+    if (!totals || !list) return;
+    totals.replaceChildren();
+    if (!payload.totals.length) totals.append(node('p', 'text-sm text-stone-700', 'No successful donations yet.'));
+    for (const total of payload.totals) {
+      const card = document.createElement('div');
+      card.className = 'border border-stone-300 bg-white px-5 py-4';
+      card.append(
+        node('p', 'text-sm text-stone-600', total.livemode ? 'Live donations' : 'Test-mode donations (not real money)'),
+        node('p', 'mt-1 text-2xl font-semibold text-stone-950', money(total.totalCents, total.currency)),
+        node('p', 'mt-1 text-sm text-stone-700', `${total.count} gift${total.count === 1 ? '' : 's'}`),
+      );
+      totals.append(card);
+    }
+    list.replaceChildren();
+    if (!payload.donations.length) {
+      list.append(node('p', 'text-sm leading-6 text-stone-700', 'Nothing recorded yet. If a payment went through but is missing, check that the Stripe webhook endpoint and its signing secret are configured.'));
+      return;
+    }
+    for (const donation of payload.donations) {
+      const row = document.createElement('article');
+      row.className = 'flex flex-wrap items-baseline justify-between gap-3 border border-stone-300 bg-white px-4 py-3';
+      const who = document.createElement('div');
+      who.append(
+        node('p', 'font-medium text-stone-950', donation.donorName ?? 'Name not provided'),
+        node('p', 'text-sm text-stone-700', `${donation.donorEmail ?? 'No email'} · ${new Date(donation.createdAt).toLocaleString()}`),
+      );
+      const meta = document.createElement('div');
+      meta.className = 'text-right';
+      meta.append(
+        node('p', 'font-semibold text-stone-950', money(donation.amountCents, donation.currency)),
+        node('p', 'text-sm text-stone-700', `${donation.status}${donation.livemode ? '' : ' · test'}`),
+      );
+      row.append(who, meta);
+      list.append(row);
+    }
+  }
+
+  async function load() {
+    try {
+      const response = await fetch(`${apiBase}/admin/donations`, { credentials: 'include' });
+      if (!response.ok) throw new Error();
+      render(await response.json() as AdminDonationsResponse);
+    } catch {
+      list?.replaceChildren(node('p', 'text-sm text-red-800', 'We could not load donations right now.'));
+    }
+  }
+
+  void load();
+</script>

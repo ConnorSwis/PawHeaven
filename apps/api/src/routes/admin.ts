@@ -1,6 +1,7 @@
 import { errorResponse, respond, type ApiResponse } from '../lib/http';
 import { adminIdentity, adminUser, clearSession, sessionResponse, type AdminContext, type RouteContext } from '../lib/session';
 import { adminApplicationRoutes } from './admin-applications';
+import { adminDonationRoutes } from './admin-donations';
 import { adminFosterApplicationRoutes } from './admin-foster-applications';
 import { adminInvitationRoutes } from './admin-invitations';
 import { adminLostPetRoutes } from './admin-lost-pets';
@@ -31,6 +32,7 @@ export async function adminRoutes(context: RouteContext): Promise<ApiResponse> {
     ?? (await adminVisitRoutes(admin))
     ?? (await adminVolunteerRoutes(admin))
     ?? (await adminLostPetRoutes(admin))
+    ?? (await adminDonationRoutes(admin))
     ?? errorResponse('Not found.', 404);
   return sessionResponse(response, request, current);
 }
