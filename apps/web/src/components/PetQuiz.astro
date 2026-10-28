@@ -25,7 +25,7 @@
     );
     const login = document.createElement('a');
     login.href = '/login';
-    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)]';
     login.textContent = 'Log in to take the quiz';
     container.append(login);
   }
@@ -157,7 +157,7 @@
     actions.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
     submit.type = 'submit';
-    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
     submit.textContent = previous ? 'Update my recommendations' : 'Show my matches';
     const status = document.createElement('p');
     status.setAttribute('role', 'status');

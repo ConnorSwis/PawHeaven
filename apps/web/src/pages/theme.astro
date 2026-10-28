@@ -1,0 +1,248 @@
+---
+import PageShell from '../layouts/PageShell.astro';
+---
+
+<PageShell title="Theme playground" description="Try colors, fonts, and sizes live, then copy the CSS into the theme file." noindex>
+  <div class="mx-auto max-w-6xl px-6 py-10">
+    <h1 class="text-3xl font-semibold tracking-tight text-stone-950">Theme playground</h1>
+    <p class="mt-3 max-w-2xl leading-7 text-stone-700">Change a value and the whole page, header and footer included, follows. Nothing here is saved: copy the CSS and paste it into <code class="bg-stone-100 px-1">packages/contracts/src/theme.css</code>, replacing the matching lines in the <code class="bg-stone-100 px-1">:root</code> block.</p>
+
+    <div class="mt-8 grid items-start gap-8 lg:grid-cols-[22rem_minmax(0,1fr)]">
+      <aside class="ph-card lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto" aria-label="Theme controls">
+        <div data-controls class="grid gap-6"></div>
+        <div class="mt-6 flex flex-wrap gap-3 border-t border-stone-200 pt-5">
+          <button type="button" class="ph-btn ph-btn-primary" data-copy>Copy CSS</button>
+          <button type="button" class="ph-btn" data-reset>Reset</button>
+        </div>
+        <p data-status class="mt-3 text-sm text-stone-600" role="status"></p>
+        <label class="mt-4 block text-sm font-medium text-stone-900">Generated CSS
+          <textarea data-output rows="8" readonly class="ph-input font-mono text-xs"></textarea>
+        </label>
+      </aside>
+
+      <div class="grid gap-8" data-sample>
+        <section class="ph-card" aria-labelledby="sample-type">
+          <h2 id="sample-type" class="text-xl font-semibold text-stone-950">Typography</h2>
+          <p class="mt-3 max-w-2xl leading-7 text-stone-700">Shelter pets find their next home faster when people can see them clearly. This paragraph uses the reading width, the body font, and the secondary text color.</p>
+          <p class="mt-3 text-sm text-stone-600">Smaller muted text for captions and help. <a class="font-medium text-[var(--color-moss-dark)] underline underline-offset-4" href="#sample-type">A link looks like this.</a></p>
+        </section>
+
+        <section class="ph-card" aria-labelledby="sample-buttons">
+          <h2 id="sample-buttons" class="text-xl font-semibold text-stone-950">Buttons and badges</h2>
+          <div class="mt-4 flex flex-wrap items-center gap-3">
+            <button type="button" class="bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)]">Primary action</button>
+            <button type="button" class="border border-[var(--color-moss)] px-5 py-3 font-semibold text-[var(--color-moss-dark)] transition-colors hover:bg-moss-soft">Secondary action</button>
+            <button type="button" class="border border-red-800 px-5 py-3 font-semibold text-red-800 transition-colors hover:bg-red-800 hover:text-on-brand">Destructive</button>
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <span class="ph-pill">Pending</span>
+            <span class="ph-pill ph-pill-good">Approved</span>
+            <span class="ph-pill ph-pill-warn">In review</span>
+            <span class="ph-pill ph-pill-later">Coming later</span>
+          </div>
+        </section>
+
+        <section class="ph-card" aria-labelledby="sample-form">
+          <h2 id="sample-form" class="text-xl font-semibold text-stone-950">Form</h2>
+          <div class="mt-4 grid max-w-md gap-4">
+            <label class="ph-field">Phone number<input class="ph-input" value="(404) 555-0142" /></label>
+            <label class="ph-field">Message<textarea class="ph-input" rows="2">Tell the shelter a little more.</textarea><span class="ph-help">Help text sits under a field.</span></label>
+            <label class="ph-field">Date of birth<input class="ph-input" type="date" aria-invalid="true" /><span class="ph-error">An error message looks like this.</span></label>
+          </div>
+        </section>
+
+        <section class="grid gap-4 sm:grid-cols-3" aria-label="Messages">
+          <p class="border border-red-300 bg-red-50 p-4 text-sm text-red-900">Something went wrong. This is an error message.</p>
+          <p class="border border-amber-700 bg-amber-50 p-4 text-sm text-amber-900">Heads up. This is a warning.</p>
+          <p class="border border-green-300 bg-green-50 p-4 text-sm text-green-900">All set. This is a confirmation.</p>
+        </section>
+
+        <section class="grid gap-4 sm:grid-cols-2" aria-label="Sample pet cards">
+          {['Baxter', 'Poppy'].map((name) => (
+            <article class="flex flex-col border border-stone-300 bg-white p-5">
+              <div class="aspect-[4/3] w-full bg-stone-200"></div>
+              <h3 class="mt-4 text-lg font-semibold text-stone-950">{name}</h3>
+              <p class="mt-1 text-sm text-[var(--color-moss-dark)]">Dog · Available</p>
+              <p class="mt-3 text-sm leading-6 text-stone-700">A short description of the animal sits here so visitors can decide whether to read more.</p>
+              <div class="mt-4 flex flex-wrap gap-2"><span class="border border-stone-300 px-2 py-1 text-xs text-stone-700">calm</span><span class="border border-stone-300 px-2 py-1 text-xs text-stone-700">good with kids</span></div>
+            </article>
+          ))}
+        </section>
+
+        <section class="ph-card" aria-labelledby="sample-scale">
+          <h2 id="sample-scale" class="text-xl font-semibold text-stone-950">Neutral scale</h2>
+          <p class="mt-2 text-sm text-stone-600">Edited in the theme file as the ink, border, and surface variables.</p>
+          <div class="mt-4 grid grid-cols-6 gap-2 text-xs sm:grid-cols-11">
+            {['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'].map((step) => (
+              <div><div class="h-10 border border-stone-300" style={`background: var(--color-stone-${step})`}></div><span class="mt-1 block text-stone-600">{step}</span></div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</PageShell>
+
+<script>
+  import { THEMES } from '@pawheaven/contracts/site';
+  import { el } from '@pawheaven/contracts/ui';
+
+  type Control =
+    | { kind: 'color'; name: string; label: string }
+    | { kind: 'range'; name: string; label: string; min: number; max: number; step: number; unit: string }
+    | { kind: 'font'; name: string; label: string; sameAsBody?: boolean };
+
+  const FONTS: [string, string][] = [
+    ['Avenir (default)', '"Avenir Next", Avenir, "Helvetica Neue", sans-serif'],
+    ['System', 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'],
+    ['Serif', 'Georgia, "Times New Roman", serif'],
+    ['Rounded', '"Trebuchet MS", "Segoe UI", Verdana, sans-serif'],
+    ['Monospace', 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'],
+  ];
+
+  const groups: { title: string; controls: Control[] }[] = [
+    { title: 'Brand', controls: [
+      { kind: 'color', name: '--ph-brand', label: 'Brand' },
+      { kind: 'color', name: '--ph-brand-strong', label: 'Brand, hover' },
+      { kind: 'color', name: '--ph-brand-soft', label: 'Brand, light tint' },
+      { kind: 'color', name: '--ph-on-brand', label: 'Text on brand' },
+      { kind: 'color', name: '--ph-accent', label: 'Accent and focus ring' },
+    ] },
+    { title: 'Surfaces and text', controls: [
+      { kind: 'color', name: '--ph-page', label: 'Page background' },
+      { kind: 'color', name: '--ph-surface', label: 'Cards and forms' },
+      { kind: 'color', name: '--ph-ink-strong', label: 'Headings' },
+      { kind: 'color', name: '--ph-ink', label: 'Body text' },
+      { kind: 'color', name: '--ph-ink-muted', label: 'Muted text' },
+      { kind: 'color', name: '--ph-border', label: 'Borders' },
+      { kind: 'color', name: '--ph-border-strong', label: 'Form borders' },
+    ] },
+    { title: 'Status', controls: [
+      { kind: 'color', name: '--ph-danger', label: 'Error' },
+      { kind: 'color', name: '--ph-warning', label: 'Warning' },
+      { kind: 'color', name: '--ph-success', label: 'Success' },
+    ] },
+    { title: 'Fonts', controls: [
+      { kind: 'font', name: '--ph-font-sans', label: 'Body font' },
+      { kind: 'font', name: '--ph-font-heading', label: 'Heading font', sameAsBody: true },
+    ] },
+    { title: 'Size and shape', controls: [
+      { kind: 'range', name: '--ph-font-size', label: 'Text size', min: 80, max: 125, step: 1, unit: '%' },
+      { kind: 'range', name: '--ph-spacing', label: 'Spacing unit', min: 0.2, max: 0.32, step: 0.005, unit: 'rem' },
+      { kind: 'range', name: '--ph-radius', label: 'Corner radius', min: 0, max: 24, step: 1, unit: 'px' },
+      { kind: 'range', name: '--ph-content-width', label: 'Page width', min: 56, max: 96, step: 1, unit: 'rem' },
+      { kind: 'range', name: '--ph-reading-width', label: 'Text width', min: 30, max: 60, step: 1, unit: 'rem' },
+      { kind: 'range', name: '--ph-focus-width', label: 'Focus ring', min: 1, max: 6, step: 1, unit: 'px' },
+    ] },
+  ];
+
+  const root = document.documentElement;
+  const container = document.querySelector<HTMLElement>('[data-controls]');
+  const output = document.querySelector<HTMLTextAreaElement>('[data-output]');
+  const status = document.querySelector<HTMLElement>('[data-status]');
+  const changed = new Map<string, string>();
+  const refreshers: (() => void)[] = [];
+  let preset = root.dataset.theme ?? '';
+
+  const current = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
+  const toHex = (value: string) => {
+    if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+    const probe = document.createElement('canvas').getContext('2d');
+    if (!probe) return '#000000';
+    probe.fillStyle = value;
+    return /^#[0-9a-f]{6}$/i.test(probe.fillStyle) ? probe.fillStyle : '#000000';
+  };
+
+  function render() {
+    if (output) {
+      const lines = [...changed].map(([name, value]) => `  ${name}: ${value};`);
+      output.value = lines.length ? `:root {\n${lines.join('\n')}\n}` : '/* No changes yet. */';
+      if (preset) output.value += `\n\n/* To use the "${preset}" theme everywhere, set PUBLIC_THEME=${preset} for the web and admin builds. */`;
+    }
+  }
+
+  function setVar(name: string, value: string) {
+    root.style.setProperty(name, value);
+    changed.set(name, value);
+    render();
+  }
+
+  function row(label: string) {
+    const wrapper = el('label', 'grid grid-cols-[1fr_auto] items-center gap-3 text-sm text-stone-800');
+    wrapper.append(el('span', '', label));
+    return wrapper;
+  }
+
+  function build() {
+    if (!container) return;
+    container.replaceChildren();
+
+    const themeBox = el('div', 'grid gap-3');
+    themeBox.append(el('h2', 'text-sm font-semibold text-stone-950', 'Starting point'));
+    const themeRow = row('Theme');
+    const themeSelect = el('select', 'border border-stone-400 bg-white px-2 py-1.5 text-sm');
+    for (const theme of THEMES) themeSelect.append(Object.assign(el('option', '', theme.label), { value: theme.id, selected: theme.id === preset }));
+    themeSelect.addEventListener('change', () => {
+      preset = themeSelect.value;
+      if (preset) root.dataset.theme = preset; else delete root.dataset.theme;
+      for (const name of changed.keys()) root.style.removeProperty(name);
+      changed.clear();
+      refreshers.forEach((refresh) => refresh());
+      render();
+    });
+    themeRow.append(themeSelect);
+    themeBox.append(themeRow);
+    container.append(themeBox);
+
+    for (const group of groups) {
+      const box = el('div', 'grid gap-3');
+      box.append(el('h2', 'text-sm font-semibold text-stone-950', group.title));
+      for (const control of group.controls) {
+        const line = row(control.label);
+        if (control.kind === 'color') {
+          const input = Object.assign(el('input', 'h-9 w-14 cursor-pointer border border-stone-400 bg-white p-0.5'), { type: 'color' });
+          input.setAttribute('aria-label', control.label);
+          const sync = () => { input.value = toHex(current(control.name)); };
+          input.addEventListener('input', () => setVar(control.name, input.value));
+          refreshers.push(sync); sync();
+          line.append(input);
+        } else if (control.kind === 'range') {
+          const holder = el('span', 'flex items-center gap-2');
+          const input = Object.assign(el('input', 'w-32'), { type: 'range', min: String(control.min), max: String(control.max), step: String(control.step) });
+          input.setAttribute('aria-label', control.label);
+          const readout = el('span', 'w-16 text-right text-xs text-stone-600');
+          const sync = () => { const value = Number.parseFloat(current(control.name)); input.value = String(Number.isFinite(value) ? value : control.min); readout.textContent = `${input.value}${control.unit}`; };
+          input.addEventListener('input', () => { readout.textContent = `${input.value}${control.unit}`; setVar(control.name, `${input.value}${control.unit}`); });
+          refreshers.push(sync); sync();
+          holder.append(input, readout);
+          line.append(holder);
+        } else {
+          const select = el('select', 'max-w-44 border border-stone-400 bg-white px-2 py-1.5 text-sm');
+          select.setAttribute('aria-label', control.label);
+          if (control.sameAsBody) select.append(Object.assign(el('option', '', 'Same as body'), { value: 'var(--ph-font-sans)' }));
+          for (const [label, stack] of FONTS) select.append(Object.assign(el('option', '', label), { value: stack }));
+          select.addEventListener('change', () => setVar(control.name, select.value));
+          refreshers.push(() => { select.selectedIndex = 0; });
+          line.append(select);
+        }
+        box.append(line);
+      }
+      container.append(box);
+    }
+  }
+
+  document.querySelector('[data-copy]')?.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(output?.value ?? ''); if (status) status.textContent = 'Copied. Paste it into theme.css.'; }
+    catch { output?.select(); if (status) status.textContent = 'Select the text below and copy it.'; }
+  });
+  document.querySelector('[data-reset]')?.addEventListener('click', () => {
+    for (const name of changed.keys()) root.style.removeProperty(name);
+    changed.clear();
+    refreshers.forEach((refresh) => refresh());
+    render();
+    if (status) status.textContent = 'Back to the theme file’s values.';
+  });
+
+  build();
+  render();
+</script>

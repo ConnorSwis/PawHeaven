@@ -99,7 +99,7 @@
       noteLabel.append(note);
       const row = document.createElement('div');
       row.className = 'flex flex-wrap items-center gap-3';
-      const save = textNode('button', 'bg-[var(--color-moss)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70', 'Save') as HTMLButtonElement;
+      const save = textNode('button', 'bg-[var(--color-moss)] px-4 py-2 text-sm font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70', 'Save') as HTMLButtonElement;
       save.type = 'button';
       const result = textNode('p', 'text-sm', '');
       result.setAttribute('role', 'status');

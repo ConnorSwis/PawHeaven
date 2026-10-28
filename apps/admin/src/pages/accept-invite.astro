@@ -47,7 +47,7 @@ import AdminShell from '../layouts/AdminShell.astro';
     field.append(label, input);
     const submit = document.createElement('button');
     submit.type = 'submit';
-    submit.className = 'w-full bg-[var(--color-moss)] px-4 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.className = 'w-full bg-[var(--color-moss)] px-4 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
     submit.textContent = 'Set password and continue';
     form.append(field, submit);
     panel.append(form);
@@ -85,7 +85,7 @@ import AdminShell from '../layouts/AdminShell.astro';
       message('You have been invited to administer Paw Heaven. Continue to verify your invitation and choose a password.');
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'mt-7 w-full bg-[var(--color-moss)] px-4 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+      button.className = 'mt-7 w-full bg-[var(--color-moss)] px-4 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
       button.textContent = 'Continue to set password';
       panel.append(button);
       button.addEventListener('click', async () => {

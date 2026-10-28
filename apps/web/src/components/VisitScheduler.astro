@@ -40,7 +40,7 @@
     );
     const login = document.createElement('a');
     login.href = '/login';
-    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    login.className = 'mt-7 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)]';
     login.textContent = 'Log in to schedule';
     container.append(login);
   }
@@ -101,7 +101,7 @@
     const submit = document.createElement('button');
     submit.type = 'submit';
     submit.disabled = !visibleSlots.some((slot) => slot.available);
-    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-not-allowed disabled:opacity-60';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-not-allowed disabled:opacity-60';
     submit.textContent = 'Confirm visit';
     const result = document.createElement('p');
     result.setAttribute('role', 'status');

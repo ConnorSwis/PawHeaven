@@ -64,7 +64,7 @@ const seedPets = [
         target.className = 'mt-6 border border-stone-300 bg-white p-6';
         const header = document.createElement('div');
         header.className = 'flex flex-wrap items-baseline justify-between gap-2';
-        header.append(element('h2', 'text-base font-semibold text-stone-950', `Why ${pet.name} might suit you`), element('span', `border px-2 py-1 text-xs ${strength === 'Strong' ? 'border-[var(--color-moss)] bg-[#f1f5ee] text-[var(--color-moss-dark)]' : 'border-stone-400 text-stone-700'}`, `${strength} match`));
+        header.append(element('h2', 'text-base font-semibold text-stone-950', `Why ${pet.name} might suit you`), element('span', `border px-2 py-1 text-xs ${strength === 'Strong' ? 'border-[var(--color-moss)] bg-moss-soft text-[var(--color-moss-dark)]' : 'border-stone-400 text-stone-700'}`, `${strength} match`));
         target.append(header, element('p', 'mt-3 text-sm leading-6 text-stone-700', match.reason));
       } else if (result === null) {
         target.className = 'mt-6 border border-dashed border-stone-400 bg-white p-6';
@@ -160,7 +160,7 @@ const seedPets = [
     const action = (label: string, hint: string, primary: boolean) => {
       const control = document.createElement('button');
       control.type = 'button';
-      control.className = `flex flex-col items-start gap-1 border border-[var(--color-moss)] px-4 py-3 text-left text-sm font-semibold transition-colors ${primary ? 'bg-[var(--color-moss)] text-white hover:bg-[var(--color-moss-dark)]' : 'bg-white text-[var(--color-moss-dark)] hover:bg-stone-50'}`;
+      control.className = `flex flex-col items-start gap-1 border border-[var(--color-moss)] px-4 py-3 text-left text-sm font-semibold transition-colors ${primary ? 'bg-[var(--color-moss)] text-on-brand hover:bg-[var(--color-moss-dark)]' : 'bg-white text-[var(--color-moss-dark)] hover:bg-stone-50'}`;
       control.append(label, element('span', 'text-xs font-normal opacity-90', hint));
       return control;
     };
@@ -216,7 +216,7 @@ const seedPets = [
     );
     const login = document.createElement('a');
     login.href = '/login';
-    login.className = 'mt-5 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)]';
+    login.className = 'mt-5 inline-block bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)]';
     login.textContent = 'Log in to apply';
     target.append(login);
   }
@@ -288,7 +288,7 @@ const seedPets = [
     actions.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
     submit.type = 'submit';
-    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
     submit.textContent = 'Submit application';
     const message = document.createElement('p');
     message.setAttribute('role', 'status');
@@ -462,7 +462,7 @@ const seedPets = [
     actions.className = 'flex flex-wrap items-center gap-3';
     const submit = document.createElement('button');
     submit.type = 'submit';
-    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
+    submit.className = 'bg-[var(--color-moss)] px-5 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
     submit.textContent = 'Submit foster application';
     const message = document.createElement('p');
     message.setAttribute('role', 'status');
@@ -544,7 +544,7 @@ const seedPets = [
       if (identityResponse.status === 401) {
         const login = document.createElement('a');
         login.href = '/login';
-        login.className = 'mt-5 inline-block border border-[var(--color-moss)] px-5 py-3 font-semibold text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-white';
+        login.className = 'mt-5 inline-block border border-[var(--color-moss)] px-5 py-3 font-semibold text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-on-brand';
         login.textContent = 'Log in to foster';
         return target.replaceChildren(heading(), element('p', 'mt-3 leading-7 text-stone-700', `${pet.name} is open to a temporary foster home. Log in or create an account to send a foster application.`), login);
       }

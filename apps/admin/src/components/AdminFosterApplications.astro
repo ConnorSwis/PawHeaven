@@ -77,7 +77,7 @@
       markPet.disabled = select.value !== 'Approved';
       select.addEventListener('change', () => { markPet.disabled = select.value !== 'Approved'; if (markPet.disabled) markPet.checked = false; });
       shortcut.append(markPet, `Also mark ${application.petName} Fostered`);
-      const save = textNode('button', 'bg-[var(--color-moss)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70', 'Save outcome') as HTMLButtonElement;
+      const save = textNode('button', 'bg-[var(--color-moss)] px-4 py-2 text-sm font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70', 'Save outcome') as HTMLButtonElement;
       save.type = 'button';
       const result = textNode('p', 'text-sm', '');
       result.setAttribute('role', 'status');
