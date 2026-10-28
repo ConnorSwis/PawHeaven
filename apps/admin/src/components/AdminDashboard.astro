@@ -1,6 +1,7 @@
 ---
 import AdminDonations from './AdminDonations.astro';
 import AdminFosterApplications from './AdminFosterApplications.astro';
+import AdminInbox from './AdminInbox.astro';
 import AdminLostPetInquiries from './AdminLostPetInquiries.astro';
 import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
 ---
@@ -17,14 +18,26 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
   <div data-admin-content hidden>
     <header class="flex flex-wrap items-start justify-between gap-6 border-b border-stone-300 pb-8">
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-stone-950">Pet records</h1>
+        <h1 class="text-2xl font-semibold tracking-tight text-stone-950">Staff portal</h1>
         <p data-user-detail class="mt-3 leading-7 text-stone-700"></p>
       </div>
       <button data-logout type="button" class="border border-stone-400 px-4 py-2 text-sm font-semibold text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-wait disabled:opacity-70">Log out</button>
     </header>
 
     <p data-page-message class="mt-6 hidden text-sm" role="status"></p>
-
+    <div class="mt-8 gap-8 lg:flex lg:items-start">
+      <nav aria-label="Staff sections" class="mb-6 flex flex-wrap border border-stone-300 bg-white py-2 lg:mb-0 lg:block lg:w-60 lg:shrink-0">
+        <a data-nav="inbox" href="#inbox" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Inbox</span> <span data-count="inbox" hidden class="rounded-full bg-[var(--color-moss)] px-2 text-xs text-white"></span></a>
+        <a data-nav="pets" href="#pets" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Pets</span></a>
+        <a data-nav="applications" href="#applications" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Applications</span> <span data-count="applications" hidden class="rounded-full bg-[var(--color-moss)] px-2 text-xs text-white"></span></a>
+        <a data-nav="visits" href="#visits" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Visits and volunteers</span> <span data-count="visits" hidden class="rounded-full bg-[var(--color-moss)] px-2 text-xs text-white"></span></a>
+        <a data-nav="lost-pets" href="#lost-pets" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Lost-pet inquiries</span> <span data-count="lost-pets" hidden class="rounded-full bg-[var(--color-moss)] px-2 text-xs text-white"></span></a>
+        <a data-nav="donations" href="#donations" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Donations</span></a>
+        <a data-nav="people" href="#people" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>People</span></a>
+      </nav>
+      <div class="min-w-0 flex-1">
+        <div data-view="inbox"><AdminInbox /></div>
+        <div data-view="pets" hidden>
     <div class="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <section>
         <div class="flex flex-wrap items-baseline justify-between gap-3">
@@ -67,6 +80,69 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
             <span class="mt-2 block text-sm font-normal text-stone-600">Separate up to 20 tags with commas.</span>
           </label>
 
+          <fieldset class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <legend class="mb-1 text-sm font-semibold text-stone-950">Details visitors can search and the quiz can use</legend>
+            <label class="block text-sm font-medium text-stone-900">Sex
+              <select data-field="sex" name="sex" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
+                <option value="" selected>Not recorded</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Unknown">Unknown</option>
+              </select>
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Size
+              <select data-field="size" name="size" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
+                <option value="" selected>Not recorded</option>
+                <option value="Small">Small</option>
+                <option value="Medium">Medium</option>
+                <option value="Large">Large</option>
+                <option value="Extra large">Extra large</option>
+              </select>
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Weight (pounds)
+              <input data-field="weightLbs" name="weightLbs" type="number" min="1" max="400" step="1" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" />
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Color
+              <input data-field="color" name="color" maxlength="100" placeholder="Black and white" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" />
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Energy level
+              <select data-field="energyLevel" name="energyLevel" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
+                <option value="" selected>Not recorded</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+              </select>
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Spayed or neutered
+              <select data-field="spayedNeutered" name="spayedNeutered" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="Unknown" selected>Unknown</option>
+              </select>
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Good with kids
+              <select data-field="goodWithKids" name="goodWithKids" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="Unknown" selected>Unknown</option>
+              </select>
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Good with dogs
+              <select data-field="goodWithDogs" name="goodWithDogs" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="Unknown" selected>Unknown</option>
+              </select>
+            </label>
+            <label class="block text-sm font-medium text-stone-900">Good with cats
+              <select data-field="goodWithCats" name="goodWithCats" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950">
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="Unknown" selected>Unknown</option>
+              </select>
+            </label>
+          </fieldset>
+
           <label class="block text-sm font-medium text-stone-900">Description
             <textarea data-field="summary" name="summary" class="mt-2 block min-h-32 w-full resize-y border border-stone-400 bg-white px-3 py-2.5 text-stone-950" maxlength="2000" required></textarea>
           </label>
@@ -100,23 +176,8 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
       </section>
     </div>
 
-    <section data-invitations hidden class="mt-10 border-t border-stone-300 pt-8">
-      <h2 class="text-lg font-semibold text-stone-950">Invite a staff member</h2>
-      <p class="mt-2 leading-6 text-stone-700">They will receive a Supabase email invitation and choose a password before their first sign-in.</p>
-      <form data-invite-form class="mt-5 flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end" novalidate>
-        <label class="min-w-0 flex-1 text-sm font-medium text-stone-900">Email address
-          <input data-invite-email name="email" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" type="email" autocomplete="email" maxlength="254" required placeholder="admin@example.com" />
-        </label>
-        <button data-invite-submit type="submit" class="bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70">Send invitation</button>
-      </form>
-      <p data-invite-message class="mt-3 hidden text-sm" role="status"></p>
-      <div class="mt-8 border-t border-stone-200 pt-6">
-        <h3 class="font-semibold text-stone-950">Staff invitations</h3>
-        <p class="mt-2 text-sm leading-6 text-stone-700">Resending gives a staff member a fresh password-setup email. They should use the newest message.</p>
-        <div data-invitation-list class="mt-4 grid gap-3"></div>
-      </div>
-    </section>
-
+        </div>
+        <div data-view="applications" hidden>
     <section class="mt-10 border-t border-stone-300 pt-8" aria-labelledby="applications-title">
       <h2 id="applications-title" class="text-lg font-semibold text-stone-950">Adoption applications</h2>
       <p class="mt-2 max-w-2xl leading-6 text-stone-700">Review applications here. Changing an application outcome does not change the pet’s availability.</p>
@@ -124,7 +185,8 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
     </section>
 
     <AdminFosterApplications />
-
+        </div>
+        <div data-view="visits" hidden>
     <section class="mt-10 border-t border-stone-300 pt-8" aria-labelledby="visit-schedule-title">
       <h2 id="visit-schedule-title" class="text-lg font-semibold text-stone-950">Shelter visit schedule</h2>
       <p class="mt-2 max-w-2xl leading-6 text-stone-700">Publish general visit times and review confirmed visitor details. Times are entered and displayed in America/New_York.</p>
@@ -144,15 +206,45 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
     </section>
 
     <AdminVolunteerShifts />
-
+        </div>
+        <div data-view="lost-pets" hidden>
     <AdminLostPetInquiries />
-
+        </div>
+        <div data-view="donations" hidden>
     <AdminDonations />
+        </div>
+        <div data-view="people" hidden>
+          <p class="max-w-2xl leading-6 text-stone-700">Member accounts, blocking, and deletion are on the <a class="font-medium text-[var(--color-moss-dark)] underline underline-offset-4" href="/users">Users page</a>.</p>
+    <section data-invitations hidden class="mt-10 border-t border-stone-300 pt-8">
+      <h2 class="text-lg font-semibold text-stone-950">Invite a staff member</h2>
+      <p class="mt-2 leading-6 text-stone-700">They will receive a Supabase email invitation and choose a password before their first sign-in.</p>
+      <form data-invite-form class="mt-5 flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end" novalidate>
+        <label class="min-w-0 flex-1 text-sm font-medium text-stone-900">Email address
+          <input data-invite-email name="email" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" type="email" autocomplete="email" maxlength="254" required placeholder="admin@example.com" />
+        </label>
+        <button data-invite-submit type="submit" class="bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70">Send invitation</button>
+      </form>
+      <p data-invite-message class="mt-3 hidden text-sm" role="status"></p>
+      <div class="mt-8 border-t border-stone-200 pt-6">
+        <h3 class="font-semibold text-stone-950">Staff invitations</h3>
+        <p class="mt-2 text-sm leading-6 text-stone-700">Resending gives a staff member a fresh password-setup email. They should use the newest message.</p>
+        <div data-invitation-list class="mt-4 grid gap-3"></div>
+      </div>
+    </section>
+
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
+<style is:global>
+  [data-view] > :first-child { margin-top: 0; border-top: 0; padding-top: 0; }
+  [data-nav][aria-current='page'] { border-left-color: var(--color-moss); background: #f1f5ee; font-weight: 600; }
+</style>
+
 <script>
-  import type { AdminAdoptionApplicationListResponse, AdminInvitation, FieldErrors, AdminInvitationListResponse, AdminPetListResponse, AdminUser, AdminVisitScheduleResponse, AdminVisitSlot, AdoptionApplication, AdoptionApplicationStatus, Pet, PetInput, PublishVisitSlotInput } from '@pawheaven/contracts';
+  import type { ApplicationReviewResponse, AdminAdoptionApplicationListResponse, AdminInvitation, FieldErrors, AdminInvitationListResponse, AdminPetListResponse, AdminUser, AdminVisitScheduleResponse, AdminVisitSlot, AdoptionApplication, AdoptionApplicationStatus, Pet, PetInput, PublishVisitSlotInput } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
   import { newYorkInstant } from '../lib/shelter-time';
 
@@ -222,6 +314,15 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
     (field('summary') as HTMLTextAreaElement).value = pet.summary;
     (field('medicalHistory') as HTMLTextAreaElement).value = pet.medicalHistory;
     (field('fosterAvailable') as HTMLInputElement).checked = pet.fosterAvailable;
+    (field('sex') as HTMLSelectElement).value = pet.sex ?? '';
+    (field('size') as HTMLSelectElement).value = pet.size ?? '';
+    (field('color') as HTMLInputElement).value = pet.color ?? '';
+    (field('weightLbs') as HTMLInputElement).value = pet.weightLbs ? String(pet.weightLbs) : '';
+    (field('energyLevel') as HTMLSelectElement).value = pet.energyLevel ?? '';
+    (field('spayedNeutered') as HTMLSelectElement).value = pet.spayedNeutered ?? 'Unknown';
+    (field('goodWithKids') as HTMLSelectElement).value = pet.goodWithKids ?? 'Unknown';
+    (field('goodWithDogs') as HTMLSelectElement).value = pet.goodWithDogs ?? 'Unknown';
+    (field('goodWithCats') as HTMLSelectElement).value = pet.goodWithCats ?? 'Unknown';
     showFieldErrors();
     if (formTitle) formTitle.textContent = `Edit ${pet.name}`;
     if (saveButton) saveButton.textContent = 'Save changes';
@@ -397,6 +498,14 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
         select.append(option);
       }
       label.append(select);
+      // Opt-in shortcut: an outcome alone never changes a pet, so this must be ticked deliberately.
+      const shortcut = document.createElement('label');
+      shortcut.className = 'flex items-center gap-2 text-sm text-stone-800';
+      const markPet = document.createElement('input');
+      markPet.type = 'checkbox';
+      markPet.disabled = select.value !== 'Approved';
+      select.addEventListener('change', () => { markPet.disabled = select.value !== 'Approved'; if (markPet.disabled) markPet.checked = false; });
+      shortcut.append(markPet, `Also mark ${application.petName} Pending`);
       const save = document.createElement('button');
       save.type = 'button';
       save.className = 'bg-[var(--color-moss)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70';
@@ -408,10 +517,12 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
         save.disabled = true;
         save.textContent = 'Saving…';
         try {
-          const saved = await responseJson<AdoptionApplication>(`/admin/applications/${encodeURIComponent(application.id)}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: select.value }),
+          const saved = await responseJson<ApplicationReviewResponse<AdoptionApplication>>(`/admin/applications/${encodeURIComponent(application.id)}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: select.value, ...(markPet.checked && { markPetStatus: 'Pending' }) }),
           });
           replaceApplication(saved);
+          if (saved.petStatusUpdate === 'applied') { message(pageMessage, `${application.petName} is now marked Pending.`, true); await loadPets(); }
+          else if (saved.petStatusUpdate === 'failed') message(pageMessage, `The outcome was saved, but ${application.petName}'s status could not be changed. Update it on the Pets tab.`);
         } catch (exception) {
           result.textContent = exception instanceof Error ? exception.message : 'We could not save the application outcome.';
           result.className = 'text-sm text-red-800';
@@ -419,7 +530,7 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
           save.textContent = 'Save outcome';
         }
       });
-      controls.append(label, save, result);
+      controls.append(label, shortcut, save, result);
       card.append(controls);
       applicationList.append(card);
     }
@@ -528,6 +639,15 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
       summary: (field('summary') as HTMLTextAreaElement).value.trim(),
       medicalHistory: (field('medicalHistory') as HTMLTextAreaElement).value.trim(),
       fosterAvailable: (field('fosterAvailable') as HTMLInputElement).checked,
+      sex: (field('sex') as HTMLSelectElement).value as Pet['sex'],
+      size: (field('size') as HTMLSelectElement).value as Pet['size'],
+      color: (field('color') as HTMLInputElement).value.trim(),
+      weightLbs: (field('weightLbs') as HTMLInputElement).value ? Number((field('weightLbs') as HTMLInputElement).value) : null,
+      energyLevel: (field('energyLevel') as HTMLSelectElement).value as Pet['energyLevel'],
+      spayedNeutered: (field('spayedNeutered') as HTMLSelectElement).value as Pet['spayedNeutered'],
+      goodWithKids: (field('goodWithKids') as HTMLSelectElement).value as Pet['goodWithKids'],
+      goodWithDogs: (field('goodWithDogs') as HTMLSelectElement).value as Pet['goodWithDogs'],
+      goodWithCats: (field('goodWithCats') as HTMLSelectElement).value as Pet['goodWithCats'],
     };
     if (image && (!['image/jpeg', 'image/png', 'image/webp'].includes(image.type) || image.size > 5 * 1024 * 1024)) {
       message(formMessage, 'Choose a JPEG, PNG, or WebP image smaller than 5 MB.');
@@ -685,6 +805,20 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
       deniedPanel?.removeAttribute('hidden');
     }
   }
+
+  const viewNames = ['inbox', 'pets', 'applications', 'visits', 'lost-pets', 'donations', 'people'];
+  function showView() {
+    const requested = window.location.hash.slice(1);
+    const view = viewNames.includes(requested) ? requested : 'inbox';
+    for (const panel of dashboard?.querySelectorAll<HTMLElement>('[data-view]') ?? []) panel.hidden = panel.dataset.view !== view;
+    for (const link of dashboard?.querySelectorAll<HTMLElement>('[data-nav]') ?? []) {
+      if (link.dataset.nav === view) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+    }
+  }
+  window.addEventListener('hashchange', showView);
+  // The foster review (a separate component) tells us when it changed a pet's status.
+  window.addEventListener('pawheaven:pets-changed', () => { void loadPets(); });
+  showView();
 
   load();
 </script>

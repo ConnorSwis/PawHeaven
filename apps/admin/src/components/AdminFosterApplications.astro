@@ -7,7 +7,7 @@
 </section>
 
 <script>
-  import type { AdminFosterApplicationListResponse, AdoptionApplicationStatus, FosterApplication } from '@pawheaven/contracts';
+  import type { ApplicationReviewResponse, AdminFosterApplicationListResponse, AdoptionApplicationStatus, FosterApplication } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
 
   const list = document.querySelector<HTMLElement>('[data-foster-list]');
@@ -71,6 +71,12 @@
         select.append(option);
       }
       label.append(select);
+      const shortcut = textNode('label', 'flex items-center gap-2 text-sm text-stone-800', '');
+      const markPet = document.createElement('input');
+      markPet.type = 'checkbox';
+      markPet.disabled = select.value !== 'Approved';
+      select.addEventListener('change', () => { markPet.disabled = select.value !== 'Approved'; if (markPet.disabled) markPet.checked = false; });
+      shortcut.append(markPet, `Also mark ${application.petName} Fostered`);
       const save = textNode('button', 'bg-[var(--color-moss)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70', 'Save outcome') as HTMLButtonElement;
       save.type = 'button';
       const result = textNode('p', 'text-sm', '');
@@ -80,11 +86,12 @@
         save.disabled = true;
         save.textContent = 'Saving…';
         try {
-          const saved = await request<FosterApplication>(`/admin/foster-applications/${encodeURIComponent(application.id)}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: select.value }),
+          const saved = await request<ApplicationReviewResponse<FosterApplication>>(`/admin/foster-applications/${encodeURIComponent(application.id)}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: select.value, ...(markPet.checked && { markPetStatus: 'Fostered' }) }),
           });
           applications = applications.map((item) => item.id === saved.id ? saved : item);
           render();
+          if (saved.petStatusUpdate === 'applied') window.dispatchEvent(new CustomEvent('pawheaven:pets-changed'));
         } catch (exception) {
           result.textContent = exception instanceof Error ? exception.message : 'We could not save the foster application outcome.';
           result.className = 'text-sm text-red-800';
@@ -92,7 +99,7 @@
           save.textContent = 'Save outcome';
         }
       });
-      controls.append(label, save, result);
+      controls.append(label, shortcut, save, result);
       card.append(controls);
       list.append(card);
     }
