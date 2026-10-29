@@ -1,5 +1,5 @@
 import { errorResponse, jsonBody, respond, rpcErrorResponse, UUID_PATTERN, type ApiResponse } from '../lib/http';
-import { feedForClient, involvementForClient, memberFosterRequestForClient, scheduleEntryForClient, scheduleToIcs } from '../lib/schedule';
+import { availabilityForClient, feedForClient, involvementForClient, memberFosterRequestForClient, scheduleEntryForClient, scheduleToIcs } from '../lib/schedule';
 import { clearSession, identity, sessionResponse, type RouteContext } from '../lib/session';
 import { supabase, userSupabase } from '../lib/supabase';
 
@@ -14,6 +14,13 @@ export async function getInvolvedRoutes(context: RouteContext): Promise<ApiRespo
     const { data, error } = await supabase(env).rpc('get_involved_feed');
     if (error) return rpcError('get_involved.feed', error);
     return respond(feedForClient(data));
+  }
+
+  // Open visit times and volunteer shifts with ids, so a guest can choose before signing in.
+  if (path === '/public/availability' && request.method === 'GET') {
+    const { data, error } = await supabase(env).rpc('get_public_availability');
+    if (error) return rpcError('public.availability', error);
+    return respond(availabilityForClient(data));
   }
 
   const current = await identity(request, env);

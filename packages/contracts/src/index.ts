@@ -710,3 +710,9 @@ export type GetInvolvedFeed = {
   events: ShelterEvent[];
   foster: { open: number; urgent: { id: string; name: string }[] };
 };
+
+/** GET /public/availability: open visit times (with ids) and volunteer shifts, readable without signing in. */
+export type PublicAvailability = {
+  visits: { id: string; startsAt: string; endsAt: string; spotsLeft: number }[];
+  shifts: { id: string; title: string; description: string; requirements: string; minAge: number; startsAt: string; endsAt: string; capacity: number; spotsLeft: number }[];
+};

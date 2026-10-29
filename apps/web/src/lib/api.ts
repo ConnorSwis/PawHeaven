@@ -10,6 +10,6 @@ function matchingWorkersDevApiBase(location: Location): string | null {
 /** Astro's development server continues to call the local API Worker directly. */
 export const apiBase = import.meta.env.DEV
   ? (import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8787/api').replace(/\/$/, '')
-  : matchingWorkersDevApiBase(window.location)
+  : (typeof window === 'undefined' ? null : matchingWorkersDevApiBase(window.location))
     ?? import.meta.env.PUBLIC_API_BASE_URL?.replace(/\/$/, '')
     ?? 'https://api.pawheaven.online/api';

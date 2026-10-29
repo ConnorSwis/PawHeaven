@@ -1,8 +1,8 @@
 ---
-import LostPetSearch from '../components/LostPetSearch.astro';
 import PageShell from '../layouts/PageShell.astro';
+import { LostPetPage } from '../app/lost/LostPetPage';
 ---
 
-<PageShell title="Lost a pet?" description="Search PawHeaven shelter animals by photo, or make a printable lost-pet flyer.">
-  <LostPetSearch />
+<PageShell title="Lost a pet?" description="Call or visit the shelter, check by photo whether we have your pet, make a printable flyer, and find out how to report a lost pet.">
+  <LostPetPage client:load />
 </PageShell>

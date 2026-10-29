@@ -1,8 +1,63 @@
 ---
-import VolunteerShifts from '../components/VolunteerShifts.astro';
 import PageShell from '../layouts/PageShell.astro';
+import VolunteerShifts from '../app/volunteer/VolunteerShifts';
+import { PageHeading } from '../ui';
+import { SHELTER } from '@pawheaven/contracts/site';
+
+const { minAgeAlone, minAgeAccompanied, recommendedHoursPerMonth } = SHELTER.volunteer;
+const roles = [
+  ['Kennel care', 'Clean and refill kennels, set out fresh water and bedding.'],
+  ['Dog walking', 'Walk dogs and give them a break from the kennel.'],
+  ['Cat and small animal time', 'Play with and socialize cats so they are ready for a home.'],
+  ['Laundry and dishes', 'Keep blankets, towels, and bowls clean. It matters more than it sounds.'],
+  ['Events and front desk', 'Help at adoption events and greet visitors.'],
+];
+const faq = [
+  ['Do I need experience with animals?', 'No. Training is given on your first shift, and each shift lists what it needs.'],
+  ['How much time do I need to give?', `Whatever fits. Many volunteers give about ${recommendedHoursPerMonth} hours a month, and a single shift is a good way to start.`],
+  ['How old do I need to be?', `Volunteers ${minAgeAlone} and older can join any shift on their own. Ages ${minAgeAccompanied} to ${minAgeAlone - 1} can volunteer with an adult. Each shift shows its own age rule.`],
+  ['What should I wear?', 'Closed-toe shoes and clothes that can get dirty. Shifts that need anything else say so.'],
+  ['What if I cannot make it?', 'Cancel from this page or from My PawHeaven so someone else can take your spot.'],
+  ['Who do I ask about something else?', `Call ${SHELTER.phone} or email ${SHELTER.email}.`],
+];
 ---
 
-<PageShell title="Volunteer" description="Find a PawHeaven volunteer shift and sign up.">
-  <VolunteerShifts />
+<PageShell title="Volunteer" description={`Volunteer at ${SHELTER.name}. See what volunteers do, the age rules, and open shifts, then sign up in two taps.`}>
+  <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <PageHeading title="Volunteer" intro="Volunteers keep the shelter running and make the animals' days better. Pick a shift and sign up in two taps.">
+      <p class="mt-3"><a class="inline-flex min-h-11 items-center font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href="#shifts">See open shifts</a></p>
+    </PageHeading>
+
+    <div class="mt-8 grid gap-6 md:grid-cols-2">
+      <section aria-labelledby="roles-heading" class="rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 sm:p-6">
+        <h2 id="roles-heading" class="text-xl font-semibold text-stone-950">What volunteers do</h2>
+        <ul class="mt-3 grid gap-2 text-base leading-7 text-stone-800">
+          {roles.map(([name, text]) => <li><strong class="font-semibold text-stone-950">{name}.</strong> {text}</li>)}
+        </ul>
+        <p class="mt-3 text-sm text-stone-700">Which roles are open changes week to week. Each shift below says what it needs.</p>
+      </section>
+      <section aria-labelledby="age-heading" class="rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 sm:p-6">
+        <h2 id="age-heading" class="text-xl font-semibold text-stone-950">Who can volunteer</h2>
+        <ul class="mt-3 grid list-disc gap-2 pl-5 text-base leading-7 text-stone-800">
+          <li>Ages {minAgeAlone} and older can volunteer on their own.</li>
+          <li>Ages {minAgeAccompanied} to {minAgeAlone - 1} can volunteer with an adult. Call or email us first so we can plan for you.</li>
+          <li>We ask for about {recommendedHoursPerMonth} hours a month, but one shift is a fine place to start.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div id="shifts" class="mt-12 scroll-mt-6"><VolunteerShifts client:load /></div>
+
+    <section aria-labelledby="faq-heading" class="mt-14 max-w-3xl">
+      <h2 id="faq-heading" class="text-2xl font-semibold tracking-tight text-stone-950">Questions volunteers ask</h2>
+      <div class="mt-4 divide-y divide-stone-300 rounded-[var(--ph-radius)] border border-stone-300 bg-white">
+        {faq.map(([question, answer]) => (
+          <details class="group px-5 py-1">
+            <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-4 py-2 text-base font-semibold text-stone-950">{question}<span aria-hidden="true" class="text-stone-700 group-open:rotate-45">+</span></summary>
+            <p class="pb-4 text-base leading-7 text-stone-800">{answer}</p>
+          </details>
+        ))}
+      </div>
+    </section>
+  </div>
 </PageShell>

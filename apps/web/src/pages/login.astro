@@ -1,6 +1,8 @@
 ---
 import PageShell from '../layouts/PageShell.astro';
-import LoginForm from '../components/LoginForm.astro';
+import { LoginPage } from '../app/auth/AuthPage';
 ---
 
-<PageShell title="Log in"><LoginForm /></PageShell>
+<PageShell title="Log in" description="Log in to PawHeaven to see your visits, applications, and saved details." noindex>
+  <LoginPage client:load />
+</PageShell>

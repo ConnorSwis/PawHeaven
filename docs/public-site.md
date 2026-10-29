@@ -41,3 +41,9 @@ Old addresses redirect through `apps/web/public/_redirects`. `astro dev` serves 
 - Words: Adopt, Foster, Volunteer, Visit. "Animal" or the animal's name, not "listing". Shelter times are America/New_York.
 - Use `SHELTER` for hours, address, fees; never retype them.
 - Pet shape: `Pet` in `@pawheaven/contracts` (name, type, breed, age, sex, size, color, weightLbs, energyLevel, goodWithKids/Dogs/Cats, tags, summary, medicalHistory, fosterAvailable, fosterUrgent, needsWalkers, visitsOpen, housing, imageUrl, galleryUrls, sourceName/sourceUrl, daysInShelter).
+
+## Status and deployment notes
+
+All pages above are built. Checked: `npm run check`, `npm run qa:demo`, `npm run db:test`, axe (WCAG 2.2 AA rules) on Home, Adopt, an animal, Visit, Volunteer, Foster and Lost a pet in the default theme, and color contrast in the dark, midnight, contrast, ocean, sunset and lavender themes. The Worker was tested locally with `wrangler dev --var API_BASE:http://localhost:8787/api` (title, description, share image, inlined data, 404 for an unknown animal, redirects).
+
+To go live: push the new migration (`20261030000000_public_availability.sql`), redeploy the API Worker (new routes `/pets/s/<id>` and `/public/availability`), then the web Worker (its `wrangler.jsonc` now has a `main` and runs the Worker first for `/`, `/adopt` and `/adopt/*`). In Stripe, change the donation link's "After payment" redirect to `/donate/thanks`. Replace the placeholder contact details in `SHELTER`.

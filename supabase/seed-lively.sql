@@ -136,6 +136,7 @@ end $$;
 update public.volunteer_registrations
 set status = 'canceled', canceled_reason = 'member', updated_at = now()
 where abs(hashtext(id::text)) % 11 = 0
+  and shift_id::text not like 'd1000000-%'
   and shift_id in (select id from public.volunteer_shifts where starts_at > now() + interval '1 day');
 
 -- Adoption applications in every status.
@@ -307,6 +308,7 @@ begin
   for v_shift in
     select sh.id, sh.starts_at, sh.ends_at, sh.capacity, sh.min_age from public.volunteer_shifts sh
     where sh.status = 'published' and sh.starts_at between now() + interval '2 days' and now() + interval '60 days'
+      and sh.id::text not like 'd1000000-%' -- the original demo shifts keep their known sign-up counts for the verifier
     order by sh.starts_at
   loop
     v_i := v_i + 1;

@@ -1,0 +1,10 @@
+---
+import PageShell from '../layouts/PageShell.astro';
+import ApplyForm from '../app/apply/ApplyForm';
+---
+
+<PageShell title="Apply" description="Apply to adopt or foster an animal at PawHeaven. Four short steps, and your answers are saved as you go." noindex>
+  <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <ApplyForm client:load />
+  </div>
+</PageShell>
