@@ -60,10 +60,10 @@
     let running = labels.slice(0, labels.length - shown.length).reduce((sum, key) => sum + (totals.get(key) ?? 0), 0);
     const cumulative = shown.map((key) => { running += totals.get(key) ?? 0; return Math.round(running * 100) / 100; });
     const niceLabel = (key: string) => new Date(`${key}T00:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', month: 'short', day: 'numeric' });
-    const brand = cssColor('--ph-brand') || '#3f5a36';
-    const accent = cssColor('--ph-accent') || '#b45309';
-    const ink = cssColor('--ph-ink-muted') || '#57534e';
-    const grid = cssColor('--ph-divider') || '#e7e5e4';
+    const brand = cssColor('--ph-brand') || 'AccentColor';
+    const accent = cssColor('--ph-accent') || 'Mark';
+    const ink = cssColor('--ph-ink-muted') || 'GrayText';
+    const grid = cssColor('--ph-divider') || 'GrayText';
     chart?.destroy();
     chart = new Chart(canvas, {
       data: {
