@@ -1,0 +1,31 @@
+---
+import ContentPage from '../layouts/ContentPage.astro';
+import { SHELTER, SITE } from '@pawheaven/contracts/site';
+---
+
+<ContentPage title="Contact and hours" description={`How to reach ${SITE.name}, where to find us, and when we are open.`}>
+  <h2>Find us</h2>
+  <p>
+    <strong>{SHELTER.name}</strong><br />
+    {SHELTER.address.line1}<br />
+    {SHELTER.address.city}, {SHELTER.address.state} {SHELTER.address.zip}
+  </p>
+  <p><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${SHELTER.address.line1}, ${SHELTER.address.city}, ${SHELTER.address.state} ${SHELTER.address.zip}`)}`}>Open in maps</a></p>
+
+  <h2>Hours</h2>
+  <table>
+    <caption class="sr-only">Opening hours</caption>
+    <thead><tr><th scope="col">Day</th><th scope="col">Hours</th></tr></thead>
+    <tbody>{SHELTER.hours.map((row) => <tr><th scope="row">{row.days}</th><td>{row.open}</td></tr>)}</tbody>
+  </table>
+  <p>{SHELTER.hoursNote} Times are Eastern.</p>
+
+  <h2>Get in touch</h2>
+  <ul>
+    <li>Phone: <a href={SHELTER.phoneHref}>{SHELTER.phone}</a></li>
+    <li>General questions: <a href={`mailto:${SHELTER.email}`}>{SHELTER.email}</a></li>
+    <li>Adoption questions: <a href={`mailto:${SHELTER.adoptionEmail}`}>{SHELTER.adoptionEmail}</a></li>
+    <li>Lost and found: <a href={`mailto:${SHELTER.lostAndFoundEmail}`}>{SHELTER.lostAndFoundEmail}</a></li>
+  </ul>
+  <div class="callout"><p>Looking for a lost pet? Visit us in person as often as you can and <a href="/lost-pet">check online</a>. A photo of your pet helps our staff recognize them.</p></div>
+</ContentPage>

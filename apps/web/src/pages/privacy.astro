@@ -1,0 +1,22 @@
+---
+import ContentPage from '../layouts/ContentPage.astro';
+import { SHELTER } from '@pawheaven/contracts/site';
+---
+
+<ContentPage title="Privacy" description="What information we collect, why, and how to ask us to remove it." intro="We collect only what we need to run adoptions, visits, volunteering, fostering, and lost pet help.">
+  <h2>What we collect</h2>
+  <ul>
+    <li><strong>Your account:</strong> name, email, and a password (stored securely, never readable by us).</li>
+    <li><strong>Details you save:</strong> phone, address, and date of birth, used to fill in forms for you.</li>
+    <li><strong>What you ask us to do:</strong> visit bookings, volunteer sign-ups, adoption and foster applications, lost pet inquiries.</li>
+    <li><strong>Photos you upload</strong> to search for a lost pet. They are kept for a short time and deleted automatically.</li>
+    <li><strong>Donations:</strong> processed by Stripe. We receive your name, email, and amount, never your card number.</li>
+  </ul>
+  <h2>How we use it</h2>
+  <p>To process your requests, send confirmations and reminders, and contact you about an animal or an application. We do not sell your information or use it for advertising.</p>
+  <h2>Who can see it</h2>
+  <p>Shelter staff who need it to do their work, and the services that run this site (hosting, database, email, and payments). Imported animal listings link to their source.</p>
+  <h2>Your choices</h2>
+  <p>Update your details any time under My PawHeaven. To delete your account and the information in it, or to ask what we hold, email <a href={`mailto:${SHELTER.email}`}>{SHELTER.email}</a>.</p>
+  <p>This page is a plain-language summary and will be reviewed by the shelter before launch.</p>
+</ContentPage>

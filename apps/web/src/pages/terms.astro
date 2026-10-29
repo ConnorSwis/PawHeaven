@@ -1,0 +1,17 @@
+---
+import ContentPage from '../layouts/ContentPage.astro';
+import { SHELTER } from '@pawheaven/contracts/site';
+---
+
+<ContentPage title="Terms of use" description="The rules for using this website and our services." intro="By using this site you agree to the following.">
+  <h2>Animals and availability</h2>
+  <p>Listings change quickly. An animal shown here may already have been adopted or may be on a medical or behavior hold. Submitting an application or booking a visit does not reserve an animal; adoption is final only when the paperwork is signed at the shelter.</p>
+  <h2>Your account</h2>
+  <p>Keep your sign-in details private and give us accurate information. You must be 18 or older to adopt, foster, or volunteer without an adult. We may block accounts that misuse the site.</p>
+  <h2>Photos and content</h2>
+  <p>Animal photos and descriptions belong to the shelter or the organization credited on the listing. Please do not copy them without permission, except to share a link or an animal's page.</p>
+  <h2>Donations</h2>
+  <p>Gifts are processed by Stripe and are final unless we make an error. Contact us if something looks wrong.</p>
+  <h2>Contact</h2>
+  <p>Questions about these terms: <a href={`mailto:${SHELTER.email}`}>{SHELTER.email}</a>. This page will be reviewed by the shelter before launch.</p>
+</ContentPage>

@@ -1,0 +1,35 @@
+---
+import PageShell from './PageShell.astro';
+
+interface Props { title: string; description: string; intro?: string }
+const { title, description, intro } = Astro.props;
+---
+
+<PageShell title={title} description={description}>
+  <div class="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+    <h1 class="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">{title}</h1>
+    {intro && <p class="mt-3 text-lg leading-8 text-stone-700">{intro}</p>}
+    <div class="prose-ph mt-8"><slot /></div>
+  </div>
+</PageShell>
+
+<style is:global>
+  .prose-ph h2 { margin-top: 2.25rem; margin-bottom: 0.5rem; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; color: var(--ph-ink-strong); }
+  .prose-ph h3 { margin-top: 1.5rem; margin-bottom: 0.25rem; font-size: 1.15rem; font-weight: 600; color: var(--ph-ink-strong); }
+  .prose-ph p, .prose-ph li, .prose-ph dd { font-size: 1.0625rem; line-height: 1.75; color: var(--ph-ink); }
+  .prose-ph p { margin-top: 0.75rem; }
+  .prose-ph ul, .prose-ph ol { margin-top: 0.75rem; padding-left: 1.4rem; }
+  .prose-ph ul { list-style: disc; } .prose-ph ol { list-style: decimal; }
+  .prose-ph li { margin-top: 0.35rem; }
+  .prose-ph a { color: var(--ph-brand-strong); text-decoration: underline; text-underline-offset: 3px; }
+  .prose-ph a:hover { color: var(--ph-ink-strong); }
+  .prose-ph table { width: 100%; margin-top: 1rem; border-collapse: collapse; font-size: 1rem; }
+  .prose-ph th, .prose-ph td { border-bottom: 1px solid var(--ph-border); padding: 0.6rem 0.5rem; text-align: left; vertical-align: top; }
+  .prose-ph th { font-weight: 600; color: var(--ph-ink-strong); }
+  .prose-ph .callout { margin-top: 1.5rem; border-left: 4px solid var(--ph-brand); background: var(--ph-brand-soft); padding: 0.9rem 1.1rem; }
+  .prose-ph .callout p { margin-top: 0; color: var(--ph-ink-strong); }
+  .prose-ph details { margin-top: 0.6rem; border: 1px solid var(--ph-border); background: var(--ph-surface); }
+  .prose-ph summary { cursor: pointer; padding: 0.85rem 1rem; font-weight: 600; font-size: 1.0625rem; color: var(--ph-ink-strong); min-height: 44px; }
+  .prose-ph details > div { padding: 0 1rem 1rem; }
+  .prose-ph details > div p:first-child { margin-top: 0; }
+</style>

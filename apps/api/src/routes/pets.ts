@@ -23,5 +23,13 @@ export async function publicPetRoutes({ request, env, path }: RouteContext): Pro
     if (error) return databaseError('pets.get', error);
     return data ? respond(petForClient(data as DatabasePet, env)) : errorResponse('Pet not found.', 404);
   }
+  // /pets/s/<8 hex>: the short id used in public addresses such as /adopt/blizzard-4f2a91c3.
+  const short = path.match(/^\/pets\/s\/([0-9a-f]{8})$/i);
+  if (short && request.method === 'GET') {
+    const prefix = short[1].toLowerCase();
+    const { data, error } = await client.from('pets').select('*').gte('id', `${prefix}-0000-0000-0000-000000000000`).lte('id', `${prefix}-ffff-ffff-ffff-ffffffffffff`).eq('status', 'Available').limit(1).maybeSingle();
+    if (error) return databaseError('pets.get_short', error);
+    return data ? respond(petForClient(data as DatabasePet, env)) : errorResponse('Pet not found.', 404);
+  }
   return errorResponse('Not found.', 404);
 }

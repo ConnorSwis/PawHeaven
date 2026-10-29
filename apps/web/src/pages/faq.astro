@@ -1,0 +1,25 @@
+---
+import ContentPage from '../layouts/ContentPage.astro';
+import { SHELTER } from '@pawheaven/contracts/site';
+
+const faqs = [
+  { q: 'Can I reserve an animal online?', a: 'No. Animals cannot be held through the website, email, or phone, so we recommend visiting as soon as you find someone you like. You can book a visit time and list the animals you want to meet.' },
+  { q: 'Do I need an account?', a: 'You can browse animals, see visit times and volunteer shifts, and use the quiz without one. You only sign in when you confirm a visit, apply, or sign up to volunteer, so we can keep your details and send confirmations.' },
+  { q: 'How much does it cost to adopt?', a: `Dogs are $${SHELTER.fees.dog} and cats are $${SHELTER.fees.cat}. Seniors over ${SHELTER.fees.seniorAge} are free this year, and adopters 55 and older pay $${SHELTER.fees.over55Fee} for pets under ${SHELTER.fees.seniorAge}. See the full list on the adoption page.` },
+  { q: 'What is included in the fee?', a: SHELTER.fees.included.join(', ') + '.' },
+  { q: 'What do I need to adopt?', a: SHELTER.requirements.join('. ') + '.' },
+  { q: 'What if it does not work out?', a: 'You can return an adopted pet by appointment during open hours. We can also help you find a new home yourself.' },
+  { q: 'How does fostering work?', a: 'You care for an animal in your home for a few weeks while they wait for adoption. Apply once, and we will reach out when an animal matches your availability. You can say yes or no to each request.' },
+  { q: 'How old do I have to be to volunteer?', a: `Volunteers must be ${SHELTER.volunteer.minAgeAlone} to volunteer on their own. Young people ${SHELTER.volunteer.minAgeAccompanied} and older can volunteer with a parent or another adult, but cannot handle animals. We suggest about ${SHELTER.volunteer.recommendedHoursPerMonth} hours a month, with no required minimum.` },
+  { q: 'I lost my pet. What should I do?', a: 'Visit the shelter often, bring a current photo, and ask staff to walk the kennels with you. You can also check our found animals online and make a flyer on our lost pet page. If your pet is microchipped, contact the chip company to confirm your details.' },
+  { q: 'I found a stray. What should I do?', a: `Call us at ${SHELTER.phone} or bring the animal during open hours. We will scan for a microchip and check for a match with lost pet reports.` },
+  { q: 'Are donations tax deductible?', a: 'Please ask us for a receipt. Stripe also emails one after every gift.' },
+];
+---
+
+<ContentPage title="Questions and answers" description="Quick answers about adopting, fostering, volunteering, visiting, and lost pets." intro="Short answers to what people ask most. Cannot find yours? Contact us.">
+  <div>
+    {faqs.map((item) => <details><summary>{item.q}</summary><div><p>{item.a}</p></div></details>)}
+  </div>
+  <div class="callout"><p>Still need help? <a href="/contact">Contact us</a> or <a href="/visit">plan a visit</a>.</p></div>
+</ContentPage>
