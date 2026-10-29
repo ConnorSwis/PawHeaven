@@ -152,3 +152,35 @@ export function lostPetInquiryStaffEmail(input: { to: string; memberName: string
   ]);
   return { to: input.to, subject: heading, html, text };
 }
+
+export function fosterRequestEmail(input: { to: string; name: string; petName: string; note: string }): EmailMessage {
+  const heading = `${input.petName} needs a foster home`;
+  const paragraphs = [
+    `Hi ${input.name},`,
+    `The shelter is looking for a foster home for ${input.petName}, and you asked to hear about these. If you can help, you can accept in one step from your PawHeaven account; we will file your foster application from your saved details.`,
+  ];
+  if (input.note) paragraphs.push(`A note from the shelter: ${input.note}`);
+  paragraphs.push('Sign in and open My PawHeaven to accept or decline. You can turn these alerts off from your profile at any time.');
+  const { html, text } = layout(heading, paragraphs);
+  return { to: input.to, subject: heading, html, text };
+}
+
+export function fosterInvitationEmail(input: { to: string; name: string }): EmailMessage {
+  const heading = 'Would you consider fostering?';
+  const { html, text } = layout(heading, [
+    `Hi ${input.name},`,
+    'Thank you for all the time you have given as a volunteer. You already know our animals and our team, which makes you a great fit to foster. A foster home gives an animal a break from the kennel and helps us make room for others.',
+    'If you are interested, sign in and open My PawHeaven to see how to apply. There is no obligation, and you can dismiss this invitation.',
+  ]);
+  return { to: input.to, subject: heading, html, text };
+}
+
+export function reminderEmail(input: { to: string; name: string; kind: 'visit' | 'shift'; title: string; startsAt: string; endsAt: string; detail: string }): EmailMessage {
+  const when = formatShelterTime(input.startsAt, input.endsAt);
+  const heading = input.kind === 'visit' ? 'Reminder: your shelter visit is coming up' : `Reminder: you volunteer soon (${input.title})`;
+  const paragraphs = [`Hi ${input.name},`, input.kind === 'visit' ? `This is a reminder of your shelter visit on ${when}.` : `This is a reminder that you are signed up for "${input.title}" on ${when}.`];
+  if (input.detail) paragraphs.push(input.kind === 'visit' ? `Reason for your visit: ${input.detail}` : `Duties: ${input.detail}`);
+  paragraphs.push('Plans changed? You can reschedule or cancel from your PawHeaven account so someone else can take the place.');
+  const { html, text } = layout(heading, paragraphs);
+  return { to: input.to, subject: heading, html, text };
+}

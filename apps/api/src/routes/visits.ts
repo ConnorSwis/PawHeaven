@@ -71,6 +71,8 @@ export async function visitSchedulingRoutes(context: RouteContext): Promise<ApiR
     const { data, error } = await client.rpc('book_visit_slot', {
       p_slot_id: parsed.value.slotId,
       p_purpose: parsed.value.purpose,
+      p_party_size: parsed.value.partySize ?? 1,
+      p_pet_ids: parsed.value.petIds ?? [],
     });
     if (error) return sessionResponse(visitMutationError('appointments.book', error), request, current);
     await sendAppointmentConfirmation(context, current, client, data as string, 'booked');

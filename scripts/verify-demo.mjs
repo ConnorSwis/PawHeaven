@@ -377,7 +377,9 @@ for (let attempt = 1; attempt <= 5; attempt += 1) {
 }
 expectStatus(await multipart('/lost-pet/searches', { cookie: limitUser.cookie, fields: { species: 'Cat' }, files: [photoFile()] }), 429, 'the daily lost-pet search limit applies');
 
-const quiz = await request('/quiz', { method: 'POST', cookie: applicantCookie, body: quizAnswers });
+let quiz = await request('/quiz', { method: 'POST', cookie: applicantCookie, body: quizAnswers });
+// The model provider occasionally returns an unusable answer (the API reports a retryable 502); try again a couple of times.
+for (let attempt = 1; attempt < 3 && quiz.response.status === 502; attempt += 1) quiz = await request('/quiz', { method: 'POST', cookie: applicantCookie, body: quizAnswers });
 const aiLive = quiz.response.status !== 503;
 if (!aiLive) {
   console.log('AI matching is not configured on this local API (no OPENROUTER_API_KEY in apps/api/.dev.vars): skipped the live quiz and photo-match checks.');
@@ -547,8 +549,94 @@ expectStatus(await request('/auth/change-password', { method: 'POST', cookie: ap
 expectStatus(await request('/auth/login', { method: 'POST', body: { email: uniqueEmail, password: 'Another-Pass-2026!' } }), 200, 'login with the changed password');
 expectStatus(await request('/auth/email', { method: 'PUT', cookie: applicantCookie, body: { email: `changed-${uniqueEmail}`, currentPassword: 'Wrong-Password-1!' } }), 400, 'email change requires the current password');
 
+// Get Involved: open hours, capacity visits with pets, events, pet quick actions, the foster pool, the schedule, and attention.
+const feed = expectStatus(await request('/get-involved'), 200, 'the public what-is-open feed');
+if (!Array.isArray(feed.visits) || !Array.isArray(feed.shifts) || !Array.isArray(feed.events) || typeof feed.foster?.open !== 'number') fail('the what-is-open feed is missing sections.');
+expectStatus(await request('/admin/availability', { cookie: applicantCookie }), 403, 'a member cannot read open hours');
+expectStatus(await request('/admin/attention', { cookie: applicantCookie }), 403, 'a member cannot read the attention report');
+expectStatus(await request('/admin/pets/flags', { method: 'POST', cookie: applicantCookie, body: { petIds: [baxterId], needsWalkers: true } }), 403, 'a member cannot change pet flags');
+
+const availability = expectStatus(await request('/admin/availability', { cookie: staffCookie }), 200, 'staff read open hours');
+if (!availability.rules?.length) fail('the seeded open hours were not returned.');
+const badRule = await request('/admin/availability/rules', { method: 'POST', cookie: staffCookie, body: { kind: 'shift', weekday: 3, startTime: '10:00', endTime: '09:00', capacity: 1 } });
+expectStatus(badRule, 400, 'an invalid open-hours rule is rejected');
+if (!badRule.body?.fieldErrors?.endTime || !badRule.body?.fieldErrors?.title) fail('the invalid rule did not name the fields to fix.');
+expectStatus(await request('/admin/availability/rules', { method: 'POST', cookie: staffCookie, body: { kind: 'visit', weekday: 1, startTime: '06:00', endTime: '07:00', capacity: 2, slotMinutes: 30, weeksAhead: 2 } }), 201, 'staff add a weekly visit rule');
+const generated = expectStatus(await request('/admin/availability/generate', { method: 'POST', cookie: staffCookie }), 200, 'staff fill in open hours');
+if (generated.visitsCreated < 1) fail('generating open hours created no visit times for the new rule.');
+const again = expectStatus(await request('/admin/availability/generate', { method: 'POST', cookie: staffCookie }), 200, 'generating twice');
+if (again.visitsCreated !== 0 || again.shiftsCreated !== 0) fail('generating a second time created duplicates.');
+expectStatus(await request('/admin/availability/exceptions', { method: 'POST', cookie: staffCookie, body: { date: isoDay(40), reason: 'QA closed day' } }), 201, 'staff close a day');
+expectStatus(await request(`/admin/availability/exceptions/${isoDay(40)}`, { method: 'DELETE', cookie: staffCookie }), 200, 'staff reopen a day');
+
+// A two-group visit time takes two groups and turns away a third; bookings name pets and party size.
+const qaStart = new Date(Date.now() + 75 * 86_400_000); qaStart.setUTCHours(15, 0, 0, 0);
+const qaSlot = expectStatus(await request('/admin/visit-slots', { method: 'POST', cookie: staffCookie, body: { startsAt: qaStart.toISOString(), endsAt: new Date(qaStart.getTime() + 1_800_000).toISOString(), capacity: 2 } }), 201, 'staff publish a two-group visit time');
+const capacityBooking = await request('/appointments', { method: 'POST', cookie: applicantCookie, body: { slotId: qaSlot.id, purpose: 'Meet Baxter', partySize: 3, petIds: [baxterId] } });
+expectStatus(capacityBooking, 201, 'book with a party size and a pet');
+expectStatus(await request('/appointments', { method: 'POST', cookie: applicantCookie, body: { slotId: qaSlot.id, purpose: 'Again' } }), 409, 'the same member cannot double book');
+expectStatus(await request('/appointments', { method: 'POST', cookie: applicantCookie, body: { slotId: qaSlot.id, purpose: 'Too many', partySize: 9 } }), 400, 'a party over six is rejected');
+const memberAppointments = expectStatus(await request('/appointments', { cookie: applicantCookie }), 200, 'appointments with pets');
+const withPets = memberAppointments.appointments.find((appointment) => appointment.id === capacityBooking.body.appointmentId);
+if (withPets?.partySize !== 3 || withPets.pets?.[0]?.id !== baxterId) fail('the booking did not keep the party size and the pet.');
+const guests = [];
+for (const label of ['b', 'c']) {
+  const guest = await request('/auth/register', { method: 'POST', body: { name: `Capacity ${label}`, email: `capacity-${label}-${Date.now()}@pawheaven.local`, password: qaPassword } });
+  expectStatus(guest, 201, `register capacity guest ${label}`);
+  guests.push(guest.cookie);
+}
+expectStatus(await request('/appointments', { method: 'POST', cookie: guests[0], body: { slotId: qaSlot.id, purpose: 'Second group' } }), 201, 'a second group fits');
+expectStatus(await request('/appointments', { method: 'POST', cookie: guests[1], body: { slotId: qaSlot.id, purpose: 'Third group' } }), 409, 'a third group is turned away');
+const fullSlot = expectStatus(await request('/visit-slots', { cookie: guests[1] }), 200, 'slots for a guest').slots.find((slot) => slot.id === qaSlot.id);
+if (fullSlot?.available !== false || fullSlot.spotsLeft !== 0 || fullSlot.capacity !== 2) fail('the full slot did not report its capacity.');
+const scheduleView = expectStatus(await request('/admin/visit-slots', { cookie: staffCookie }), 200, 'the staff schedule with bookings');
+if (scheduleView.slots.find((slot) => slot.id === qaSlot.id)?.appointments?.length !== 2) fail('staff did not see both booked groups.');
+expectStatus(await request(`/admin/visit-slots/${qaSlot.id}/capacity`, { method: 'PUT', cookie: staffCookie, body: { capacity: 1 } }), 409, 'capacity cannot drop below the booked groups');
+
+// An open house creates visits, roles, and featured pets together.
+const eventStart = new Date(Date.now() + 50 * 86_400_000); eventStart.setUTCHours(14, 0, 0, 0);
+const eventBody = { title: 'QA Open House', description: 'Meet the animals.', startsAt: eventStart.toISOString(), endsAt: new Date(eventStart.getTime() + 7_200_000).toISOString(), visitCapacity: 2, slotMinutes: 30, roles: [{ title: 'QA Greeters', capacity: 2 }], petIds: [baxterId] };
+expectStatus(await request('/admin/events', { method: 'POST', cookie: staffCookie, body: { ...eventBody, visitCapacity: 0, roles: [] } }), 400, 'an event needs visits or roles');
+expectStatus(await request('/admin/events', { method: 'POST', cookie: staffCookie, body: eventBody }), 201, 'staff create an open house');
+const events = expectStatus(await request('/admin/events', { cookie: staffCookie }), 200, 'staff list events');
+if (!events.events.some((event) => event.title === 'QA Open House' && event.pets.some((pet) => pet.id === baxterId))) fail('the event or its featured pet is missing.');
+const feedAfter = expectStatus(await request('/get-involved'), 200, 'the feed after the event');
+if (!feedAfter.events.some((event) => event.title === 'QA Open House')) fail('the public feed does not show the new event.');
+
+// Pet quick actions apply in bulk and show on the public listing.
+expectStatus(await request('/admin/pets/flags', { method: 'POST', cookie: staffCookie, body: { petIds: [] , needsWalkers: true } }), 400, 'bulk flags need a pet');
+expectStatus(await request('/admin/pets/flags', { method: 'POST', cookie: staffCookie, body: { petIds: [baxterId], needsWalkers: true, visitsOpen: false } }), 200, 'staff flag a pet in bulk');
+const flagged = expectStatus(await request(`/pets/${baxterId}`), 200, 'the flagged pet');
+if (flagged.needsWalkers !== true || flagged.visitsOpen !== false) fail('the pet flags did not reach the public listing.');
+expectStatus(await request('/admin/pets/flags', { method: 'POST', cookie: staffCookie, body: { petIds: [baxterId], needsWalkers: false, visitsOpen: true } }), 200, 'staff clear the flags');
+expectStatus(await request('/appointments', { method: 'POST', cookie: guests[1], body: { slotId: qaSlot.id, purpose: 'Hidden pet', petIds: ['00000000-0000-4000-8000-000000000000'] } }), 409, 'an unknown or unavailable pet is rejected');
+
+// Foster pool: alerts are for approved fosters; staff can ask the pool and see the request.
+expectStatus(await request('/me/foster-alerts', { method: 'PUT', cookie: guests[1], body: { optIn: true } }), 409, 'foster alerts need an approved foster application');
+const fosterAsk = expectStatus(await request('/admin/foster-requests', { method: 'POST', cookie: staffCookie, body: { petId: baxterId, note: 'QA: needs a quiet home.' } }), 201, 'staff ask the foster pool');
+if (typeof fosterAsk.notified !== 'number') fail('the foster request did not report how many people were asked.');
+expectStatus(await request('/admin/foster-requests', { method: 'POST', cookie: staffCookie, body: { petId: baxterId } }), 409, 'a pet cannot have two open requests');
+const requests = expectStatus(await request('/admin/foster-requests', { cookie: staffCookie }), 200, 'staff list foster requests');
+const openRequest = requests.requests.find((item) => item.petId === baxterId && !item.closedAt);
+if (!openRequest) fail('the open foster request is missing.');
+expectStatus(await request(`/admin/foster-requests/${openRequest.id}/close`, { method: 'POST', cookie: staffCookie }), 200, 'staff close the request');
+expectStatus(await request('/foster-requests', { cookie: guests[1] }), 200, 'a member lists their foster requests');
+expectStatus(await request('/admin/volunteer-foster-candidates', { cookie: staffCookie }), 200, 'staff list volunteers who might foster');
+
+// The member schedule, calendar export, involvement, and the staff attention report.
+const mySchedule = expectStatus(await request('/me/schedule', { cookie: applicantCookie }), 200, 'the member schedule');
+if (!mySchedule.entries.some((entry) => entry.kind === 'visit' && /Baxter/.test(entry.detail))) fail('the schedule does not show the visit with its pet.');
+const ics = await fetch(`${apiBase}/me/schedule.ics`, { headers: { Cookie: applicantCookie } });
+const icsText = await ics.text();
+if (ics.status !== 200 || !ics.headers.get('content-type')?.startsWith('text/calendar') || !icsText.startsWith('BEGIN:VCALENDAR') || !icsText.includes('SUMMARY:Shelter visit')) fail('the calendar export is not valid.');
+expectStatus(await request('/me/schedule.ics'), 401, 'the calendar export needs a session');
+const involvement = expectStatus(await request('/me/involvement', { cookie: applicantCookie }), 200, 'member involvement');
+if (typeof involvement.volunteerShifts !== 'number' || typeof involvement.approvedFoster !== 'boolean') fail('the involvement summary is incomplete.');
+const attention = expectStatus(await request('/admin/attention', { cookie: staffCookie }), 200, 'the staff attention report');
+if (!Array.isArray(attention.items) || attention.items.some((item) => !item.title || !item.action)) fail('the attention items are malformed.');
+
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: staffCookie }), 200, 'staff logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: applicantCookie }), 200, 'applicant logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: superCookie }), 200, 'superuser logout');
 
-console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, signed Stripe webhook donation recording, saved profile and pet attributes with the opt-in review shortcut, visit booking/reschedule/cancellation history, staff visit scheduling, session expiry, and logout.');
+console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, signed Stripe webhook donation recording, saved profile and pet attributes with the opt-in review shortcut, visit booking/reschedule/cancellation history, staff visit scheduling, open hours generation, capacity visits with pets, open house events, pet quick actions, the foster pool, the member schedule and calendar export, the attention report, session expiry, and logout.');

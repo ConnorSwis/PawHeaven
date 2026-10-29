@@ -16,6 +16,7 @@
   "env": {
     "production": {
       "name": "pawheaven-api",
+      "triggers": { "crons": ["0 * * * *"] },
       "vars": {
         "SUPABASE_URL": "https://zzcbjfgyibhuhlylsvhs.supabase.co",
         "SUPABASE_KEY": "sb_publishable_2ZYMf-Kra66pse17zudAqA_JjFo-gOO",
@@ -26,6 +27,8 @@
       }
     }
   },
+  // Hourly: generate open hours ahead and send reminders. Needs the ADMIN_SUPABASE_SERVICE_ROLE_KEY secret.
+  "triggers": { "crons": ["0 * * * *"] },
   "preview_urls": true,
   "previews": {
     // A Preview must never use the production Supabase project. Replace these

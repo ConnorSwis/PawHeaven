@@ -5,11 +5,13 @@ import { adminRoutes } from './routes/admin';
 import { adoptionApplicationRoutes } from './routes/applications';
 import { authRoutes } from './routes/auth';
 import { fosterApplicationRoutes } from './routes/foster-applications';
+import { getInvolvedRoutes } from './routes/get-involved';
 import { lostPetRoutes } from './routes/lost-pets';
 import { publicPetRoutes } from './routes/pets';
 import { profileRoutes } from './routes/profile';
 import { quizRoutes } from './routes/quiz';
 import { visitSchedulingRoutes } from './routes/visits';
+import { runScheduledJobs } from './scheduled';
 import { webhookRoutes } from './routes/webhooks';
 import { volunteerRoutes } from './routes/volunteer';
 
@@ -47,6 +49,7 @@ async function route(context: RouteContext): Promise<ApiResponse> {
   if (path.startsWith('/lost-pet/')) return lostPetRoutes(context);
   if (path.startsWith('/volunteer/')) return volunteerRoutes(context);
   if (path === '/visit-slots' || path === '/appointments' || path.startsWith('/appointments/')) return visitSchedulingRoutes(context);
+  if (path === '/get-involved' || path.startsWith('/me/') || path === '/foster-requests' || path.startsWith('/foster-requests/')) return getInvolvedRoutes(context);
   if (path === '/pets' || path.startsWith('/pets/')) return publicPetRoutes(context);
   return errorResponse('Not found.', 404);
 }
@@ -86,5 +89,8 @@ export default {
       console.error(JSON.stringify({ operation: 'api.request', error: error instanceof Error ? error.message : 'Unknown error' }));
       return withCors(errorResponse('The request could not be completed.', 500), origin, allowed);
     }
+  },
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runScheduledJobs(env));
   },
 } satisfies ExportedHandler<Env>;
