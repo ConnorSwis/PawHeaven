@@ -2,7 +2,6 @@
 import AdminAttention from './AdminAttention.astro';
 import AdminDonations from './AdminDonations.astro';
 import AdminFosterPool from './AdminFosterPool.astro';
-import AdminPetActions from './AdminPetActions.astro';
 import AdminSchedule from './AdminSchedule.astro';
 import AdminFosterApplications from './AdminFosterApplications.astro';
 import AdminInbox from './AdminInbox.astro';
@@ -46,7 +45,6 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
         <div data-view="schedule" hidden><AdminSchedule /></div>
         <div data-view="fosters" hidden><AdminFosterPool /></div>
         <div data-view="pets" hidden>
-    <AdminPetActions />
     <div class="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <section>
         <div class="flex flex-wrap items-baseline justify-between gap-3">
@@ -180,8 +178,18 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
 
       <section class="border-t border-stone-300 pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
         <h2 class="text-lg font-semibold text-stone-950">Existing pets</h2>
-        <p class="mt-2 text-sm leading-6 text-stone-700">Select a record to edit it.</p>
-        <div data-pet-list class="mt-5 grid gap-2"></div>
+        <p class="mt-2 text-sm leading-6 text-stone-700">Click a name to edit it. Use the buttons to open a pet to foster or visits, or flag it as needing walkers. Tick several pets to change them all at once.</p>
+        <div class="mt-4 flex flex-wrap items-center gap-2" data-bulk-bar>
+          <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-bulk-all /> Select all</label>
+          <span class="grow"></span>
+          <button type="button" class="ph-btn" data-bulk="fosterAvailable:true">Open to foster</button>
+          <button type="button" class="ph-btn" data-bulk="fosterAvailable:false">Close foster</button>
+          <button type="button" class="ph-btn" data-bulk="visitsOpen:true">Open for visits</button>
+          <button type="button" class="ph-btn" data-bulk="visitsOpen:false">Hide from visits</button>
+          <button type="button" class="ph-btn" data-bulk="needsWalkers:true">Needs walkers</button>
+          <button type="button" class="ph-btn" data-bulk="needsWalkers:false">Walkers covered</button>
+        </div>
+        <div data-pet-list class="mt-3 grid gap-2"></div>
       </section>
     </div>
 
@@ -197,20 +205,8 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
         </div>
         <div data-view="visits" hidden>
     <section class="mt-10 border-t border-stone-300 pt-8" aria-labelledby="visit-schedule-title">
-      <h2 id="visit-schedule-title" class="text-lg font-semibold text-stone-950">Shelter visit schedule</h2>
-      <p class="mt-2 max-w-2xl leading-6 text-stone-700">Publish general visit times and review confirmed visitor details. Times are entered and displayed in America/New_York.</p>
-      <form data-visit-slot-form class="mt-6 grid max-w-2xl gap-5 border-y border-stone-300 py-6 sm:grid-cols-2" novalidate>
-        <label class="block text-sm font-medium text-stone-900">Start time
-          <input data-visit-start name="startsAt" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" type="datetime-local" required />
-        </label>
-        <label class="block text-sm font-medium text-stone-900">End time
-          <input data-visit-end name="endsAt" class="mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" type="datetime-local" required />
-        </label>
-        <div class="sm:col-span-2 flex flex-wrap items-center gap-3">
-          <button data-visit-submit type="submit" class="bg-[var(--color-moss)] px-4 py-2.5 text-sm font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70">Publish visit time</button>
-          <p data-visit-form-message class="hidden text-sm" role="status"></p>
-        </div>
-      </form>
+      <h2 id="visit-schedule-title" class="text-lg font-semibold text-stone-950">Upcoming visit bookings</h2>
+      <p class="mt-2 max-w-2xl leading-6 text-stone-700">Who is coming, how many people, and which animals they want to meet. Add or change visit times on the <a class="font-medium text-[var(--color-moss-dark)] underline underline-offset-4" href="#schedule">Schedule</a> page. Times are America/New_York.</p>
       <div data-visit-slot-list class="mt-6 grid gap-4"></div>
     </section>
 
@@ -340,6 +336,30 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
     form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  const selectedPetIds = new Set<string>();
+
+  async function applyPetFlags(petIds: string[], change: Record<string, boolean>) {
+    if (!petIds.length) { message(pageMessage, 'Tick at least one pet first.'); return; }
+    try {
+      await responseJson('/admin/pets/flags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ petIds, ...change }) });
+      message(pageMessage, `Updated ${petIds.length} pet${petIds.length === 1 ? '' : 's'}.`, true);
+      await loadPets();
+      window.dispatchEvent(new CustomEvent('pawheaven:schedule-changed'));
+    } catch (exception) {
+      message(pageMessage, exception instanceof Error ? exception.message : 'We could not update those pets.');
+    }
+  }
+  for (const bulk of dashboard?.querySelectorAll<HTMLElement>('[data-bulk]') ?? []) {
+    bulk.addEventListener('click', () => {
+      const [key, value] = (bulk.dataset.bulk ?? '').split(':');
+      void applyPetFlags([...selectedPetIds], { [key]: value === 'true' });
+    });
+  }
+  dashboard?.querySelector<HTMLInputElement>('[data-bulk-all]')?.addEventListener('change', (event) => {
+    if ((event.currentTarget as HTMLInputElement).checked) for (const pet of pets) selectedPetIds.add(pet.id); else selectedPetIds.clear();
+    renderPets();
+  });
+
   function renderPets() {
     if (!petList) return;
     petList.replaceChildren();
@@ -352,7 +372,12 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
     }
     for (const pet of pets) {
       const row = document.createElement('div');
-      row.className = 'flex items-center gap-3 border border-stone-300 px-3 py-3';
+      row.className = 'flex flex-wrap items-center gap-3 border border-stone-300 px-3 py-3';
+      const pick = document.createElement('input');
+      pick.type = 'checkbox';
+      pick.checked = selectedPetIds.has(pet.id);
+      pick.setAttribute('aria-label', `Select ${pet.name}`);
+      pick.addEventListener('change', () => { if (pick.checked) selectedPetIds.add(pet.id); else selectedPetIds.delete(pet.id); });
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'min-w-0 flex-1 text-left';
@@ -361,9 +386,24 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
       name.textContent = pet.name;
       const details = document.createElement('span');
       details.className = 'mt-1 block text-sm text-stone-700';
-      details.textContent = `${pet.type} · ${pet.status}${pet.fosterAvailable ? ' · Open to foster' : ''}`;
+      const flags = [pet.fosterUrgent ? 'Foster needed now' : pet.fosterAvailable ? 'Open to foster' : '', pet.visitsOpen === false ? 'Hidden from visits' : '', pet.needsWalkers ? 'Needs walkers' : ''].filter(Boolean);
+      details.textContent = `${pet.type} · ${pet.status}${flags.length ? ` · ${flags.join(' · ')}` : ''}`;
       button.append(name, details);
       button.addEventListener('click', () => editPet(pet));
+      const quick = document.createElement('span');
+      quick.className = 'flex flex-wrap gap-2';
+      for (const [text, change] of [
+        [pet.fosterAvailable ? 'Close foster' : 'Open to foster', { fosterAvailable: !pet.fosterAvailable }],
+        [pet.visitsOpen === false ? 'Open for visits' : 'Hide from visits', { visitsOpen: pet.visitsOpen === false }],
+        [pet.needsWalkers ? 'Walkers covered' : 'Needs walkers', { needsWalkers: !pet.needsWalkers }],
+      ] as [string, Record<string, boolean>][]) {
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'ph-btn';
+        toggle.textContent = text;
+        toggle.addEventListener('click', () => void applyPetFlags([pet.id], change));
+        quick.append(toggle);
+      }
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'shrink-0 text-sm font-medium text-red-800 underline underline-offset-4 hover:text-red-950';
@@ -383,7 +423,7 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
           remove.disabled = false;
         }
       });
-      row.append(button, remove);
+      row.append(pick, button, quick, remove);
       petList.append(row);
     }
   }
@@ -564,11 +604,12 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
   function renderVisitSlots() {
     if (!visitSlotList) return;
     visitSlotList.replaceChildren();
-    if (!visitSlots.length) {
-      visitSlotList.append(textNode('p', 'text-sm leading-6 text-stone-700', 'No visit times have been published yet.'));
+    const upcoming = visitSlots.filter((slot) => slot.status === 'published' && slot.appointments.length > 0 && Date.parse(slot.endsAt) > Date.now());
+    if (!upcoming.length) {
+      visitSlotList.append(textNode('p', 'text-sm leading-6 text-stone-700', 'No upcoming visits are booked yet.'));
       return;
     }
-    for (const slot of visitSlots) {
+    for (const slot of upcoming) {
       const card = document.createElement('article');
       card.className = 'border border-stone-300 bg-white p-5';
       const heading = document.createElement('h3');
@@ -576,39 +617,23 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
       heading.textContent = formatVisitTime(slot.startsAt, slot.endsAt);
       const state = document.createElement('p');
       state.className = 'mt-1 text-sm text-stone-700';
-      state.textContent = slot.status === 'withdrawn' ? 'Withdrawn' : slot.appointment ? 'Booked' : 'Open';
+      state.textContent = `${slot.appointments.length} of ${slot.capacity} group${slot.capacity === 1 ? '' : 's'} booked`;
       card.append(heading, state);
-      if (slot.appointment) {
+      for (const appointment of slot.appointments) {
         const visitor = document.createElement('p');
         visitor.className = 'mt-4 leading-7 text-stone-800';
-        visitor.textContent = `${slot.appointment.memberName} · ${slot.appointment.memberEmail}`;
+        visitor.textContent = `${appointment.memberName} · ${appointment.memberEmail} · party of ${appointment.partySize}`;
+        card.append(visitor);
+        if (appointment.pets.length) {
+          const pets = document.createElement('p');
+          pets.className = 'mt-1 leading-7 text-stone-800';
+          pets.textContent = `Meeting: ${appointment.pets.map((pet) => pet.name).join(', ')}`;
+          card.append(pets);
+        }
         const purpose = document.createElement('p');
-        purpose.className = 'mt-2 whitespace-pre-wrap leading-7 text-stone-700';
-        purpose.textContent = `Visit purpose: ${slot.appointment.purpose}`;
-        card.append(visitor, purpose);
-      }
-      if (slot.status === 'published' && !slot.appointment && Date.parse(slot.startsAt) > Date.now()) {
-        const withdraw = document.createElement('button');
-        withdraw.type = 'button';
-        withdraw.className = 'mt-5 text-sm font-medium text-red-800 underline underline-offset-4 hover:text-red-950 disabled:cursor-wait disabled:opacity-70';
-        withdraw.textContent = 'Withdraw time';
-        const result = document.createElement('p');
-        result.className = 'mt-2 text-sm';
-        result.setAttribute('role', 'status');
-        withdraw.addEventListener('click', async () => {
-          if (!window.confirm('Withdraw this open visit time? It will no longer be available to visitors.')) return;
-          withdraw.disabled = true;
-          withdraw.textContent = 'Withdrawing…';
-          try {
-            await responseJson(`/admin/visit-slots/${encodeURIComponent(slot.id)}/withdraw`, { method: 'POST' });
-            await loadVisitSlots();
-          } catch (exception) {
-            message(result, exception instanceof Error ? exception.message : 'We could not withdraw this visit time.');
-            withdraw.disabled = false;
-            withdraw.textContent = 'Withdraw time';
-          }
-        });
-        card.append(withdraw, result);
+        purpose.className = 'mt-1 whitespace-pre-wrap leading-7 text-stone-700';
+        purpose.textContent = `Visit purpose: ${appointment.purpose}`;
+        card.append(purpose);
       }
       visitSlotList.append(card);
     }

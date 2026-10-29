@@ -1,7 +1,7 @@
 <section class="mt-10 border-t border-stone-300 pt-8" aria-labelledby="volunteer-shifts-title">
-  <h2 id="volunteer-shifts-title" class="text-lg font-semibold text-stone-950">Volunteer shifts</h2>
-  <p class="mt-2 max-w-2xl leading-6 text-stone-700">Publish shifts with duties, requirements, a minimum age, and a capacity. Times are entered and displayed in America/New_York. Canceling a shift cancels every registration and emails the volunteers.</p>
-  <form data-shift-form class="mt-6 grid max-w-3xl gap-5 border-y border-stone-300 py-6 sm:grid-cols-2" novalidate>
+  <h2 id="volunteer-shifts-title" class="text-lg font-semibold text-stone-950">Volunteer shifts and sign-ups</h2>
+  <p class="mt-2 max-w-2xl leading-6 text-stone-700">Add shifts on the <a class="font-medium text-[var(--color-moss-dark)] underline underline-offset-4" href="#schedule">Schedule</a> page. Here you see who signed up, edit a shift’s duties or times, or cancel it (which cancels every registration and emails the volunteers). Times are America/New_York.</p>
+  <form data-shift-form hidden class="mt-6 grid max-w-3xl gap-5 border-y border-stone-300 py-6 sm:grid-cols-2" novalidate>
     <div class="flex flex-wrap items-baseline justify-between gap-3 sm:col-span-2">
       <h3 data-shift-form-title class="font-semibold text-stone-950">Publish a shift</h3>
       <button data-shift-cancel-edit type="button" class="hidden text-sm font-medium text-stone-700 underline decoration-stone-400 underline-offset-4 hover:text-stone-950">Cancel editing</button>
@@ -119,6 +119,7 @@
     if (formTitle) formTitle.textContent = 'Publish a shift';
     if (submitButton) submitButton.textContent = 'Publish shift';
     cancelEdit?.classList.add('hidden');
+    if (form) form.hidden = true;
     showFieldErrors();
   }
 
@@ -137,6 +138,7 @@
     if (formTitle) formTitle.textContent = `Edit ${shift.title}`;
     if (submitButton) submitButton.textContent = 'Save changes';
     cancelEdit?.classList.remove('hidden');
+    if (form) form.hidden = false;
     form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
