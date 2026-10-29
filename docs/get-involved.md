@@ -11,9 +11,10 @@ Visits, volunteer shifts, and foster homes share one schedule, one set of pet qu
 | **Schedule** | One week calendar of visit times (green), volunteer shifts (amber), and open houses (outlined). Drag across empty space, or press **Add…**, to create visit times, a shift, or an open house. Click an item to see who booked it, change a visit time's capacity, or withdraw it. **Copy this week to the next** repeats the week. |
 | **Schedule → Open hours** | Weekly patterns ("Tuesdays 4 to 7 pm, two groups per half hour") that fill in the next 6 weeks automatically, every hour. **Days closed** removes unused generated times for a holiday and keeps anything already booked. Tick **Repeat every week** when you add a visit time or shift to turn it into a pattern. Edited or withdrawn generated items are never overwritten. |
 | **Schedule → Add… → Open house** | One form creates the visit capacity, the volunteer roles ("Greeters x 3"), and the featured animals together. Unbooked visit times it overlaps are replaced. |
-| **Pets → Quick actions** | Per-pet buttons and bulk buttons (tick several pets): open or close foster, open or hide for visits, needs walkers or covered. |
+| **Pets** | The one pet list has the quick actions built in: per-pet buttons and bulk buttons (tick several pets) to open or close foster, open or hide for visits, and mark needs walkers or covered. |
 | **Foster pool** | Ask the pool for a foster: the pet is opened to foster, marked "Foster needed now", and every approved foster who opted in is emailed. Members accept in one step and you approve the application they file. The same view lists volunteers with five or more finished shifts who never applied, with an **Invite to foster** button. |
-| **Visit and shift lists** | The detailed lists from before: edit a shift's duties and times, cancel a shift, and review every visit booking. |
+| **Visit and shift lists** | Read-and-manage lists, not creation: upcoming visit bookings (who, party size, which animals) and volunteer shifts with sign-ups, where you edit a shift's duties or times or cancel it. New visit times and shifts are added on **Schedule**. |
+| **Donations** | Totals, a chart of donations over time (daily or weekly, with a running total and a live-only filter), and every gift. |
 
 ## For visitors and members
 

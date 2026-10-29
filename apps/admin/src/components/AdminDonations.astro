@@ -2,14 +2,101 @@
   <h2 id="donations-title" class="text-lg font-semibold text-stone-950">Donations</h2>
   <p class="mt-2 max-w-2xl leading-6 text-stone-700">Gifts appear here only after Stripe confirms them to PawHeaven's signed webhook. Test-mode payments move no real money and are counted separately. Stripe emails each donor's receipt.</p>
   <div data-donation-totals class="mt-5 flex flex-wrap gap-4" aria-live="polite"></div>
+  <section class="ph-card mt-5" aria-labelledby="donation-chart-title" data-donation-chart hidden>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h3 id="donation-chart-title" class="text-base font-semibold text-stone-950">Donations over time</h3>
+      <div class="flex flex-wrap gap-2" role="group" aria-label="Chart period">
+        <button type="button" class="ph-btn" data-chart-period="day" aria-pressed="false">Daily</button>
+        <button type="button" class="ph-btn" data-chart-period="week" aria-pressed="true">Weekly</button>
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-chart-live /> Live only</label>
+      </div>
+    </div>
+    <div class="relative mt-3 h-64"><canvas data-chart-canvas role="img" aria-label="Chart of donation totals over time"></canvas></div>
+    <p class="mt-2 text-xs text-stone-600" data-chart-summary></p>
+  </section>
   <div data-donation-list class="mt-5 grid gap-3" aria-live="polite">
     <p class="text-sm text-stone-700">Loading donations…</p>
   </div>
 </section>
 
+<style is:global>
+  .ph-btn[aria-pressed='true'] { background: var(--ph-brand); border-color: var(--ph-brand); color: var(--ph-on-brand); }
+</style>
+
 <script>
-  import type { AdminDonationsResponse } from '@pawheaven/contracts';
+  import type { AdminDonation, AdminDonationsResponse } from '@pawheaven/contracts';
+  import { BarController, BarElement, CategoryScale, Chart, Legend, LinearScale, LineController, LineElement, PointElement, Tooltip } from 'chart.js';
   import { apiBase } from '../lib/api';
+
+  Chart.register(BarController, BarElement, LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend);
+  let chart: Chart | null = null;
+  let allDonations: AdminDonation[] = [];
+  let period: 'day' | 'week' = 'week';
+  let liveOnly = false;
+  const chartBox = document.querySelector<HTMLElement>('[data-donation-chart]');
+  const canvas = document.querySelector<HTMLCanvasElement>('[data-chart-canvas]');
+  const summary = document.querySelector<HTMLElement>('[data-chart-summary]');
+
+  const cssColor = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const shelterDay = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date(iso));
+  const addDays = (day: string, days: number) => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+  const weekStart = (day: string) => addDays(day, -new Date(`${day}T00:00:00Z`).getUTCDay());
+
+  function drawChart() {
+    if (!chartBox || !canvas) return;
+    const gifts = allDonations.filter((item) => item.status === 'succeeded' && (!liveOnly || item.livemode));
+    chartBox.hidden = gifts.length === 0;
+    if (!gifts.length) return;
+    const bucket = (iso: string) => (period === 'day' ? shelterDay(iso) : weekStart(shelterDay(iso)));
+    const totals = new Map<string, number>();
+    for (const gift of gifts) totals.set(bucket(gift.createdAt), (totals.get(bucket(gift.createdAt)) ?? 0) + gift.amountCents / 100);
+    // Fill the quiet days or weeks so gaps are visible, and show at most the last 12 weeks or 30 days.
+    const keys = [...totals.keys()].sort();
+    const step = period === 'day' ? 1 : 7;
+    const labels: string[] = [];
+    for (let key = keys[0]; key <= keys[keys.length - 1]; key = addDays(key, step)) labels.push(key);
+    const shown = labels.slice(period === 'day' ? -30 : -12);
+    const values = shown.map((key) => Math.round((totals.get(key) ?? 0) * 100) / 100);
+    let running = labels.slice(0, labels.length - shown.length).reduce((sum, key) => sum + (totals.get(key) ?? 0), 0);
+    const cumulative = shown.map((key) => { running += totals.get(key) ?? 0; return Math.round(running * 100) / 100; });
+    const niceLabel = (key: string) => new Date(`${key}T00:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', month: 'short', day: 'numeric' });
+    const brand = cssColor('--ph-brand') || '#3f5a36';
+    const accent = cssColor('--ph-accent') || '#b45309';
+    const ink = cssColor('--ph-ink-muted') || '#57534e';
+    const grid = cssColor('--ph-divider') || '#e7e5e4';
+    chart?.destroy();
+    chart = new Chart(canvas, {
+      data: {
+        labels: shown.map(niceLabel),
+        datasets: [
+          { type: 'bar', label: period === 'day' ? 'Per day ($)' : 'Per week ($)', data: values, backgroundColor: brand, borderRadius: 3, order: 2 },
+          { type: 'line', label: 'Running total ($)', data: cumulative, borderColor: accent, backgroundColor: accent, tension: 0.25, pointRadius: 2, yAxisID: 'total', order: 1 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { labels: { color: ink } }, tooltip: { callbacks: { label: (item) => `${item.dataset.label?.replace(' ($)', '')}: $${Number(item.parsed.y).toLocaleString()}` } } },
+        scales: {
+          x: { ticks: { color: ink, maxRotation: 0, autoSkip: true }, grid: { display: false } },
+          y: { beginAtZero: true, ticks: { color: ink, callback: (value) => `$${value}` }, grid: { color: grid } },
+          total: { position: 'right', beginAtZero: true, ticks: { color: ink, callback: (value) => `$${value}` }, grid: { drawOnChartArea: false } },
+        },
+      },
+    });
+    const sum = values.reduce((a, b) => a + b, 0);
+    if (summary) summary.textContent = `${gifts.length} succeeded gift${gifts.length === 1 ? '' : 's'}; $${sum.toLocaleString()} in the ${period === 'day' ? 'last 30 days' : 'last 12 weeks'}${liveOnly ? '' : ', test mode included'}.`;
+    canvas.setAttribute('aria-label', `Donation totals per ${period}: ${shown.map((key, index) => `${niceLabel(key)} $${values[index]}`).join(', ')}.`);
+  }
+
+  for (const toggle of document.querySelectorAll<HTMLButtonElement>('[data-chart-period]')) {
+    toggle.addEventListener('click', () => {
+      period = toggle.dataset.chartPeriod === 'day' ? 'day' : 'week';
+      for (const other of document.querySelectorAll<HTMLButtonElement>('[data-chart-period]')) other.setAttribute('aria-pressed', String(other === toggle));
+      drawChart();
+    });
+  }
+  document.querySelector<HTMLInputElement>('[data-chart-live]')?.addEventListener('change', (event) => { liveOnly = (event.currentTarget as HTMLInputElement).checked; drawChart(); });
 
   const totals = document.querySelector<HTMLElement>('[data-donation-totals]');
   const list = document.querySelector<HTMLElement>('[data-donation-list]');
@@ -25,6 +112,8 @@
 
   function render(payload: AdminDonationsResponse) {
     if (!totals || !list) return;
+    allDonations = payload.donations;
+    drawChart();
     totals.replaceChildren();
     if (!payload.totals.length) totals.append(node('p', 'text-sm text-stone-700', 'No successful donations yet.'));
     for (const total of payload.totals) {
