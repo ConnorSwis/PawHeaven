@@ -229,11 +229,11 @@ from generate_series(1, 14) as g;
 -- Open hours: weekly patterns that keep the next six weeks filled in, one blackout day, and an open house.
 insert into public.availability_rules (kind, weekday, start_time, end_time, capacity, slot_minutes, title, description, requirements, min_age, weeks_ahead)
 values
-  ('visit', 2, time '16:00', time '19:00', 2, 30, '', '', '', 0, 6),
-  ('visit', 4, time '16:00', time '19:00', 2, 30, '', '', '', 0, 6),
-  ('visit', 6, time '09:00', time '13:00', 3, 30, '', '', '', 0, 6),
-  ('shift', 6, time '09:00', time '12:00', 4, 30, 'Saturday dog walkers', 'Walk dogs on the trail behind the shelter and report how they did.', 'Closed-toe shoes. Handle a leash confidently.', 16, 6),
-  ('shift', 0, time '13:00', time '16:00', 3, 30, 'Sunday cat socializers', 'Spend time with the cats so they stay friendly and ready for visitors.', 'Be calm and gentle around cats.', 14, 6);
+  ('visit', 2, time '16:00', time '19:00', 2, 30, '', '', '', 0, 9),
+  ('visit', 4, time '16:00', time '19:00', 2, 30, '', '', '', 0, 9),
+  ('visit', 6, time '09:00', time '13:00', 3, 30, '', '', '', 0, 9),
+  ('shift', 6, time '09:00', time '12:00', 4, 30, 'Saturday dog walkers', 'Walk dogs on the trail behind the shelter and report how they did.', 'Closed-toe shoes. Handle a leash confidently.', 16, 9),
+  ('shift', 0, time '13:00', time '16:00', 3, 30, 'Sunday cat socializers', 'Spend time with the cats so they stay friendly and ready for visitors.', 'Be calm and gentle around cats.', 14, 9);
 
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 select * from public.generate_availability();
@@ -246,6 +246,85 @@ select public.create_event(
   '[{"title":"Greeters","description":"Welcome visitors at the door and hand out maps.","capacity":3},{"title":"Dog handlers","description":"Walk dogs out to meet visitors.","capacity":4,"minAge":16},{"title":"Treat table","description":"Run the donation and treat table.","capacity":2}]'::jsonb,
   array(select id from public.pets where name in ('Arlo', 'Hollie', 'Padma Patil', 'Poppy') and status = 'Available'));
 select set_config('request.jwt.claims', '', true);
+
+-- More events across the next two months (each replaces unbooked visit times it overlaps).
+select set_config('request.jwt.claims', '{"role":"authenticated","sub":"a1000000-0000-0000-0000-000000000002","email":"admin@pawheaven.local","app_metadata":{"role":"admin"}}', true);
+select public.create_event('Adopt-a-thon', 'Reduced adoption fees all afternoon, with staff on hand to answer questions and help with paperwork.',
+  date_trunc('day', now() + interval '36 days') + interval '17 hours', date_trunc('day', now() + interval '36 days') + interval '21 hours', 4, 30,
+  '[{"title":"Adoption counselors","description":"Walk visitors through the adoption process.","capacity":3,"minAge":18},{"title":"Dog handlers","description":"Bring dogs out to meet visitors.","capacity":4,"minAge":16},{"title":"Check-in desk","description":"Sign visitors in and hand out maps.","capacity":2}]'::jsonb,
+  array(select id from public.pets where status = 'Available' and source_name <> '' order by intake_date limit 6));
+select public.create_event('Volunteer Orientation', 'New volunteers: learn the routines, meet the team, and try your first shift.',
+  date_trunc('day', now() + interval '45 days') + interval '23 hours', date_trunc('day', now() + interval '45 days') + interval '25 hours', 0, 30,
+  '[{"title":"Orientation trainees","description":"Attend the orientation and shadow a volunteer.","capacity":15,"minAge":16},{"title":"Orientation mentors","description":"Lead a small group through the shelter.","capacity":4,"minAge":18}]'::jsonb, '{}');
+select public.create_event('Holiday Pet Photos', 'Bring the whole family. Photos with our animals benefit the shelter.',
+  date_trunc('day', now() + interval '56 days') + interval '15 hours', date_trunc('day', now() + interval '56 days') + interval '19 hours', 3, 30,
+  '[{"title":"Photo helpers","description":"Keep animals calm and happy during photos.","capacity":4}]'::jsonb,
+  array(select id from public.pets where status = 'Available' and species = 'Cat' order by intake_date desc limit 4));
+select set_config('request.jwt.claims', '', true);
+
+-- Two months of activity: members fill the generated visit times and shifts, with names, party sizes, and pets.
+do $$
+declare
+  v_slot record;
+  v_member record;
+  v_shift record;
+  v_appointment_id uuid;
+  v_target integer;
+  v_count integer;
+  v_i integer := 0;
+begin
+  for v_slot in
+    select s.id, s.starts_at, s.ends_at, s.capacity from public.visit_slots s
+    where s.status = 'published' and s.starts_at between now() + interval '2 days' and now() + interval '60 days'
+    order by s.starts_at
+  loop
+    v_i := v_i + 1;
+    -- Roughly half of the times are taken, some twice, so the calendar looks busy but not full.
+    v_target := case when v_i % 4 = 0 then 0 when v_i % 4 = 1 then 1 when v_i % 4 = 2 then 1 else least(v_slot.capacity, 2) end;
+    v_count := 0;
+    for v_member in select * from m order by (n * 7 + v_i) % 12 loop
+      exit when v_count >= v_target;
+      continue when exists (select 1 from public.appointments a where a.slot_id = v_slot.id and a.member_id = v_member.id and a.status = 'booked');
+      continue when (select count(*) from public.appointments a where a.slot_id = v_slot.id and a.status = 'booked') >= v_slot.capacity;
+      insert into public.appointments (member_id, member_name, member_email, slot_id, purpose, party_size, created_at, updated_at)
+      values (v_member.id, v_member.name, v_member.email, v_slot.id,
+        (array['Meet a dog I saw online', 'Learn about fostering', 'Meet the cats before adopting', 'Bring my kids to meet a few dogs', 'Ask about senior pets', 'Tour the shelter and meet staff', 'Second visit before we decide'])[1 + (v_i + v_member.n) % 7],
+        1 + (v_i + v_member.n) % 4, now() - make_interval(days => 1 + (v_i % 6)), now() - make_interval(days => 1 + (v_i % 6)))
+      returning id into v_appointment_id;
+      insert into public.appointment_events (appointment_id, member_id, event_type, slot_starts_at, slot_ends_at, created_at)
+      values (v_appointment_id, v_member.id, 'booked', v_slot.starts_at, v_slot.ends_at, now() - make_interval(days => 1 + (v_i % 6)));
+      if v_i % 2 = 0 then
+        insert into public.appointment_pets (appointment_id, pet_id, pet_name)
+        select v_appointment_id, p.id, p.name from public.pets p where p.status = 'Available' and p.visits_open
+        order by md5(p.id::text || v_i::text) limit 1 + v_i % 3
+        on conflict do nothing;
+      end if;
+      v_count := v_count + 1;
+    end loop;
+  end loop;
+
+  v_i := 0;
+  for v_shift in
+    select sh.id, sh.starts_at, sh.ends_at, sh.capacity, sh.min_age from public.volunteer_shifts sh
+    where sh.status = 'published' and sh.starts_at between now() + interval '2 days' and now() + interval '60 days'
+    order by sh.starts_at
+  loop
+    v_i := v_i + 1;
+    v_target := case when v_i % 5 = 0 then 0 else least(v_shift.capacity, 1 + (v_i * 7) % greatest(v_shift.capacity, 1)) end;
+    v_count := 0;
+    for v_member in select * from m order by (n * 5 + v_i) % 12 loop
+      exit when v_count >= v_target;
+      continue when extract(year from age(v_member.dob)) < v_shift.min_age;
+      continue when exists (select 1 from public.volunteer_registrations r where r.shift_id = v_shift.id and r.member_id = v_member.id);
+      continue when exists (
+        select 1 from public.volunteer_registrations r join public.volunteer_shifts o on o.id = r.shift_id
+        where r.member_id = v_member.id and r.status = 'registered' and tstzrange(o.starts_at, o.ends_at, '[)') && tstzrange(v_shift.starts_at, v_shift.ends_at, '[)'));
+      insert into public.volunteer_registrations (shift_id, member_id, member_name, member_email, member_phone, member_date_of_birth, created_at, updated_at)
+      values (v_shift.id, v_member.id, v_member.name, v_member.email, v_member.phone, v_member.dob, now() - make_interval(days => 1 + (v_i % 9)), now() - make_interval(days => 1 + (v_i % 9)));
+      v_count := v_count + 1;
+    end loop;
+  end loop;
+end $$;
 
 -- Pet quick actions: a few dogs need walkers, one animal is not offered for visits.
 update public.pets set needs_walkers = true where name in ('Arlo', 'Padma Patil', 'Fuerte') and species = 'Dog';

@@ -22,6 +22,7 @@
     "qa:ai": "node --experimental-strip-types --test tests/ai-matching.test.mjs",
     "qa:stripe": "node --experimental-strip-types --test tests/stripe-webhook.test.mjs",
     "qa:theme": "node --experimental-strip-types --test tests/theme-qa.test.mjs",
+    "demo:activity": "node scripts/demo-activity.mjs",
     "qa:involved": "node --experimental-strip-types --test tests/get-involved.test.mjs",
     "qa:demo": "node scripts/verify-demo.mjs",
     "build": "npm run build -w @pawheaven/web && npm run build -w @pawheaven/admin && npm run build -w @pawheaven/api",
