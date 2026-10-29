@@ -796,22 +796,29 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
   }
 
   async function load() {
+    // Only a failed identity check means "no staff access"; a failing list must not lock staff out.
+    let identity: { user: AdminUser };
     try {
-      const identity = await responseJson<{ user: AdminUser }>('/admin/me');
-      const roleName = { superuser: 'Superuser', staff: 'Staff' }[identity.user.role];
-      if (userDetail) userDetail.textContent = `Signed in as ${identity.user.email} · ${roleName}`;
-      if (identity.user.role === 'superuser') {
-        invitations?.removeAttribute('hidden');
-        await Promise.all([loadPets(), loadApplications(), loadVisitSlots(), loadAdministratorInvitations()]);
-      } else {
-        await Promise.all([loadPets(), loadApplications(), loadVisitSlots()]);
-      }
-      loading?.setAttribute('hidden', '');
-      content?.removeAttribute('hidden');
+      identity = await responseJson<{ user: AdminUser }>('/admin/me');
     } catch (exception) {
       loading?.setAttribute('hidden', '');
       if (exception instanceof Error && exception.message === 'Your session has expired.') return;
       deniedPanel?.removeAttribute('hidden');
+      return;
+    }
+    const roleName = { superuser: 'Superuser', staff: 'Staff' }[identity.user.role];
+    if (userDetail) userDetail.textContent = `Signed in as ${identity.user.email} · ${roleName}`;
+    const loaders = [loadPets(), loadApplications(), loadVisitSlots()];
+    if (identity.user.role === 'superuser') {
+      invitations?.removeAttribute('hidden');
+      loaders.push(loadAdministratorInvitations());
+    }
+    const results = await Promise.allSettled(loaders);
+    loading?.setAttribute('hidden', '');
+    content?.removeAttribute('hidden');
+    if (results.some((result) => result.status === 'rejected') && pageMessage) {
+      pageMessage.textContent = 'Some staff data could not be loaded. Refresh in a moment; if it keeps happening, the shelter database may be updating.';
+      pageMessage.className = 'mt-6 text-sm text-red-800';
     }
   }
 

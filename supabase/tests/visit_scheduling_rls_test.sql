@@ -10,9 +10,9 @@ values
 
 insert into public.visit_slots (id, starts_at, ends_at, created_by)
 values
-  ('62000000-0000-0000-0000-000000000001', now() + interval '2 days', now() + interval '2 days 30 minutes', '61000000-0000-0000-0000-000000000003'),
-  ('62000000-0000-0000-0000-000000000002', now() + interval '2 days 1 hour', now() + interval '2 days 1 hour 30 minutes', '61000000-0000-0000-0000-000000000003'),
-  ('62000000-0000-0000-0000-000000000003', now() + interval '3 days', now() + interval '3 days 30 minutes', '61000000-0000-0000-0000-000000000003');
+  ('62000000-0000-0000-0000-000000000001', now() + interval '122 days', now() + interval '122 days 30 minutes', '61000000-0000-0000-0000-000000000003'),
+  ('62000000-0000-0000-0000-000000000002', now() + interval '122 days 1 hour', now() + interval '122 days 1 hour 30 minutes', '61000000-0000-0000-0000-000000000003'),
+  ('62000000-0000-0000-0000-000000000003', now() + interval '123 days', now() + interval '123 days 30 minutes', '61000000-0000-0000-0000-000000000003');
 
 set local role anon;
 select throws_ok(
@@ -43,7 +43,7 @@ select throws_ok(
 );
 
 select throws_ok(
-  $$select public.publish_visit_slot(now() + interval '4 days', now() + interval '4 days 30 minutes')$$,
+  $$select public.publish_visit_slot(now() + interval '124 days', now() + interval '124 days 30 minutes')$$,
   '42501', null,
   'a member cannot publish visit times'
 );
@@ -137,7 +137,7 @@ select throws_ok(
 );
 
 select throws_ok(
-  $$select public.publish_visit_slot(now() + interval '3 days 15 minutes', now() + interval '3 days 45 minutes')$$,
+  $$select public.publish_visit_slot(now() + interval '123 days 15 minutes', now() + interval '123 days 45 minutes')$$,
   '23P01', null,
   'overlapping published visit times are rejected'
 );
@@ -145,7 +145,7 @@ select throws_ok(
 set local request.jwt.claims = '{"role":"authenticated","sub":"61000000-0000-0000-0000-000000000004","email":"visit-staff@example.com","app_metadata":{"role":"staff"},"user_metadata":{"name":"Visit staff"}}';
 
 select lives_ok(
-  $$select public.publish_visit_slot(now() + interval '5 days', now() + interval '5 days 30 minutes')$$,
+  $$select public.publish_visit_slot(now() + interval '125 days', now() + interval '125 days 30 minutes')$$,
   'staff can publish a visit time'
 );
 

@@ -165,3 +165,11 @@ with `node scripts/build-dekalb-seed.mjs path/to/animals.json`.
 ## Get Involved demo path
 
 Sign in as `demo.staff@pawheaven.local`: **Inbox** shows Needs attention; **Schedule** shows the week (drag to add, copy the week, edit open hours, close a day); **Pets → Quick actions** opens several pets to foster at once; **Foster pool** asks approved fosters for help. As a member, open `/get-involved`, book a visit that names a pet and a party size, then open **My PawHeaven** to see the schedule, download the calendar, and answer a foster request. See [get-involved.md](get-involved.md).
+
+## Making the site look used
+
+`npm run db:reset` seeds roughly two months of future activity (open hours generated nine weeks ahead, four events, bookings, and volunteer sign-ups spread through December). To add live-looking traffic on top, run `npm run demo:activity -- --accounts=8`: it creates new members through the real API (password `DemoMember-2026!`), and each one saves a profile, books a visit that names animals, signs up for shifts, applies to adopt and foster, and sometimes reschedules or cancels. Staff then review applications, approved fosters join the alert pool, and the shelter asks the pool for a foster. Add `--ai` to include the AI quiz, and set `DEMO_STRIPE_WEBHOOK_SECRET` to record test donations. It refuses to run against anything but a local API.
+
+### Seeding the hosted demo database
+
+`node scripts/build-production-demo-seed.mjs <staff-user-uuid>` turns the lively seed into `.cache/production-demo-seed.sql` (members use `delivered+name@resend.dev` so reminder emails never bounce, staff-authored rows are credited to that staff account, and local-only animals are swapped for hosted ones). Wrap it in `begin; ... commit;` and run it with `npx supabase db query --linked -f`. It adds members, visits, shifts, events, and applications relative to the day it runs, and fails safely (and rolls back) if the members already exist. Do not run `demo:activity` against the hosted API: it would send real notification emails to fake members.
