@@ -5,7 +5,7 @@
 </div>
 
 <script>
-  import type { ApiUser, BookVisitInput, VisitAppointmentListResponse, VisitSlot, VisitSlotListResponse } from '@pawheaven/contracts';
+  import type { ApiUser, BookVisitInput, Pet, VisitAppointmentListResponse, VisitSlot, VisitSlotListResponse } from '@pawheaven/contracts';
   import { apiBase } from '../lib/api';
 
   const shelterTimeZone = 'America/New_York';
@@ -15,6 +15,11 @@
   const requestedName = new URLSearchParams(window.location.search).get('name')?.trim().slice(0, 60) ?? '';
   const suggestedPurpose = requestedName ? `I would like to meet ${requestedName} and learn about adopting or fostering.` : '';
   let slots: VisitSlot[] = [];
+  // Animals that can be met on a visit. Arriving from a pet page (?pet=<id>) ticks that animal.
+  let meetablePets: Pet[] = [];
+  const chosenPetIds = new Set<string>();
+  const requestedPetId = new URLSearchParams(window.location.search).get('pet') ?? '';
+  let partySize = 1;
 
   function element(tag: string, className: string, content: string) {
     const node = document.createElement(tag);
@@ -81,10 +86,36 @@
       const text = document.createElement('span');
       text.className = 'min-w-0';
       text.append(element('span', 'block font-medium text-stone-950', visitTime(slot.startsAt, slot.endsAt)));
-      text.append(element('span', `mt-1 block text-sm ${slot.available ? 'text-stone-700' : 'text-stone-500'}`, slot.available ? 'Open' : 'Already booked'));
+      text.append(element('span', `mt-1 block text-sm ${slot.available ? 'text-stone-700' : 'text-stone-500'}`, slot.available ? (slot.capacity > 1 ? `${slot.spotsLeft} of ${slot.capacity} places left` : 'Open') : 'Fully booked'));
       label.append(radio, text);
       choices.append(label);
     }
+    const meetHeading = element('h2', 'mt-8 text-lg font-semibold text-stone-950', 'Who would you like to meet?');
+    const meetHint = element('p', 'mt-1 text-sm text-stone-700', 'Optional. Pick up to five animals and staff will have them ready for you.');
+    const meet = document.createElement('div');
+    meet.className = 'mt-3 grid max-h-56 gap-2 overflow-y-auto border border-stone-300 p-3 sm:grid-cols-2';
+    if (!meetablePets.length) meet.append(element('p', 'text-sm text-stone-700', 'No animals are listed for visits right now. You can still book a general visit.'));
+    for (const pet of meetablePets) {
+      const row = document.createElement('label');
+      row.className = 'flex items-center gap-2 text-sm text-stone-900';
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = chosenPetIds.has(pet.id);
+      box.addEventListener('change', () => {
+        if (box.checked && chosenPetIds.size >= 5) { box.checked = false; return; }
+        if (box.checked) chosenPetIds.add(pet.id); else chosenPetIds.delete(pet.id);
+      });
+      row.append(box, `${pet.name} (${pet.type})`);
+      meet.append(row);
+    }
+    const partyLabel = document.createElement('label');
+    partyLabel.className = 'mt-6 block max-w-xs text-sm font-medium text-stone-900';
+    partyLabel.textContent = 'How many people are coming?';
+    const party = document.createElement('select');
+    party.className = 'mt-2 block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950';
+    for (let count = 1; count <= 6; count += 1) party.append(Object.assign(document.createElement('option'), { value: String(count), textContent: String(count), selected: count === partySize }));
+    party.addEventListener('change', () => { partySize = Number(party.value); });
+    partyLabel.append(party);
     const purposeLabel = document.createElement('label');
     purposeLabel.className = 'mt-7 block text-sm font-medium text-stone-900';
     purposeLabel.textContent = 'What would you like to discuss during your visit?';
@@ -106,13 +137,13 @@
     const result = document.createElement('p');
     result.setAttribute('role', 'status');
     controls.append(submit, result);
-    form.append(choicesHeading, choices, purposeLabel, controls);
+    form.append(choicesHeading, choices, meetHeading, meetHint, meet, partyLabel, purposeLabel, controls);
     container.append(form);
     if (previousMessage) message(result, previousMessage);
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const payload: BookVisitInput = { slotId: selectedSlotId, purpose: purpose.value.trim() };
+      const payload: BookVisitInput = { slotId: selectedSlotId, purpose: purpose.value.trim(), partySize, petIds: [...chosenPetIds] };
       if (!payload.slotId) return message(result, 'Choose an available visit time.', true);
       if (!payload.purpose || payload.purpose.length > 500) return message(result, 'Tell the shelter why you would like to visit, using up to 500 characters.', true);
       submit.disabled = true;
@@ -124,6 +155,8 @@
         const responseBody = await response.json().catch(() => null) as { message?: unknown } | null;
         if (!response.ok) throw new Error(typeof responseBody?.message === 'string' ? responseBody.message : 'We could not confirm your visit.');
         selectedSlotId = '';
+        chosenPetIds.clear();
+        partySize = 1;
         await load(user, 'Your visit is confirmed. You can reschedule or cancel it from your account.');
       } catch (exception) {
         message(result, exception instanceof Error ? exception.message : 'We could not confirm your visit.', true);
@@ -161,6 +194,12 @@
       ]);
       if (!slotResponse.ok || !appointmentResponse.ok) throw new Error();
       slots = (await slotResponse.json() as VisitSlotListResponse).slots;
+      try {
+        const petResponse = await fetch(`${apiBase}/pets`, { credentials: 'include' });
+        const all = petResponse.ok ? (await petResponse.json() as { pets?: Pet[] }).pets ?? [] : [];
+        meetablePets = all.filter((pet) => pet.status === 'Available' && pet.visitsOpen !== false);
+        if (requestedPetId && meetablePets.some((pet) => pet.id === requestedPetId)) chosenPetIds.add(requestedPetId);
+      } catch { /* A general visit still works without the animal list. */ }
       const appointments = await appointmentResponse.json() as VisitAppointmentListResponse;
       const active = appointments.appointments.find((appointment) => appointment.status === 'booked' && Date.parse(appointment.startsAt) > Date.now());
       if (active && confirmation) confirmation = `${confirmation} Your appointment is ${visitTime(active.startsAt, active.endsAt)}.`;

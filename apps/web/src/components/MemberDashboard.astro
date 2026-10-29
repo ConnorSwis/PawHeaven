@@ -16,7 +16,10 @@
     type LostPetInquiryListResponse,
     type MemberProfile,
     type MemberProfileInput,
+    type MemberFosterRequest,
     type MemberProfileResponse,
+    type MyInvolvement,
+    type ScheduleEntry,
     type VisitAppointment,
     type VisitAppointmentListResponse,
     type VisitSlotListResponse,
@@ -113,7 +116,7 @@
       const text = el('div');
       const head = el('p', 'text-sm font-semibold text-stone-950', 'Shelter visit ');
       head.append(statusPill('booked'));
-      text.append(head, el('p', 'mt-1 text-sm text-stone-600', formatShelterRange(appointment.startsAt, appointment.endsAt)), el('p', 'mt-1 text-sm text-stone-600', appointment.purpose));
+      text.append(head, el('p', 'mt-1 text-sm text-stone-600', formatShelterRange(appointment.startsAt, appointment.endsAt)), el('p', 'mt-1 text-sm text-stone-600', appointment.pets?.length ? `Meeting ${appointment.pets.map((pet) => pet.name).join(', ')} · party of ${appointment.partySize}` : `${appointment.purpose} · party of ${appointment.partySize}`));
       const actions = el('div', 'flex flex-wrap items-center gap-2');
       const select = el('select', 'border border-stone-400 bg-white px-2 py-1.5 text-sm');
       select.setAttribute('aria-label', 'Reschedule to another open time');
@@ -296,6 +299,105 @@
     return section;
   }
 
+  // My schedule: visits, shifts, and foster placements together, with a calendar download -------------
+  function scheduleCard(entries: ScheduleEntry[]) {
+    const download = el('button', 'text-sm font-medium text-[var(--color-moss-dark)] underline underline-offset-4', 'Add to calendar (.ics)');
+    download.type = 'button';
+    const section = card('My schedule', download);
+    const status = el('p', 'mt-2 text-sm text-red-800'); status.setAttribute('role', 'status');
+    download.addEventListener('click', async () => {
+      try {
+        const response = await fetch(`${apiBase}/me/schedule.ics`, { credentials: 'include' });
+        if (!response.ok) throw new Error();
+        const url = URL.createObjectURL(await response.blob());
+        const a = Object.assign(document.createElement('a'), { href: url, download: 'pawheaven-schedule.ics' });
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch { status.textContent = 'The calendar file could not be made. Please try again.'; }
+    });
+    const upcoming = entries.filter((entry) => Date.parse(entry.endsAt) > Date.now());
+    if (!upcoming.length) { section.append(quiet('Visits you book, shifts you sign up for, and animals you foster will all show up here.')); return section; }
+    for (const entry of upcoming) {
+      const line = row();
+      const text = el('div');
+      text.append(el('p', 'text-sm font-semibold text-stone-950', entry.title), el('p', 'mt-1 text-sm text-stone-600', entry.allDay ? `${formatDay(entry.startsAt)} to ${formatDay(new Date(Date.parse(entry.endsAt) - 86_400_000).toISOString())}` : formatShelterRange(entry.startsAt, entry.endsAt)));
+      if (entry.detail) text.append(el('p', 'mt-1 text-sm text-stone-600', entry.detail));
+      line.append(text, pill({ visit: 'Visit', shift: 'Volunteer', foster: 'Foster' }[entry.kind], entry.kind === 'foster' ? 'good' : entry.kind === 'shift' ? 'warn' : 'neutral'));
+      section.append(line);
+    }
+    section.append(status);
+    return section;
+  }
+
+  // Foster requests from staff, accepted in one step ---------------------------------------------------
+  function fosterRequestsCard(reload: () => Promise<void>, requests: MemberFosterRequest[]) {
+    const section = card('Foster requests', pill('from the shelter', 'warn'));
+    section.classList.add('border-l-4', 'border-l-[var(--ph-warning)]');
+    for (const request of requests) {
+      const line = row();
+      const text = el('div', 'min-w-0');
+      text.append(el('p', 'text-sm font-semibold text-stone-950', `${request.petName} needs a foster home`));
+      if (request.note) text.append(el('p', 'mt-1 text-sm text-stone-600', request.note));
+      line.append(text);
+      if (request.response === 'accepted') line.append(pill('You accepted. Staff will review.', 'good'));
+      else if (request.response === 'declined') line.append(pill('Declined'));
+      else {
+        const from = Object.assign(el('input', 'border border-stone-400 bg-white px-2 py-1.5 text-sm'), { type: 'date' });
+        const until = Object.assign(el('input', 'border border-stone-400 bg-white px-2 py-1.5 text-sm'), { type: 'date' });
+        const today = new Date(); const later = new Date(Date.now() + 28 * 86_400_000);
+        from.value = today.toISOString().slice(0, 10); until.value = later.toISOString().slice(0, 10);
+        from.setAttribute('aria-label', 'Available from'); until.setAttribute('aria-label', 'Available until');
+        const accept = el('button', 'ph-btn ph-btn-primary', 'Accept'); accept.type = 'button';
+        const decline = el('button', 'ph-btn', 'Not now'); decline.type = 'button';
+        const note = el('p', 'w-full text-sm text-red-800'); note.setAttribute('role', 'status');
+        const answer = async (acceptIt: boolean) => {
+          accept.disabled = decline.disabled = true;
+          try { await api(`/foster-requests/${encodeURIComponent(request.id)}/respond`, { method: 'POST', json: { accept: acceptIt, availableFrom: from.value, availableUntil: until.value } }); await reload(); }
+          catch (error) { note.textContent = error instanceof ApiRequestError ? error.message : 'That did not work.'; accept.disabled = decline.disabled = false; }
+        };
+        accept.addEventListener('click', () => void answer(true));
+        decline.addEventListener('click', () => void answer(false));
+        const actions = el('div', 'flex flex-wrap items-center gap-2');
+        actions.append(from, 'to', until, accept, decline);
+        line.append(actions, note);
+      }
+      section.append(line);
+    }
+    return section;
+  }
+
+  // Volunteer hours, foster alerts, and an invitation to foster -------------------------------------------
+  function involvementCard(reload: () => Promise<void>, involvement: MyInvolvement) {
+    const section = card('Your involvement');
+    const hours = row();
+    hours.append(el('span', 'text-sm text-stone-700', 'Volunteering so far'), el('strong', 'text-sm text-stone-950', `${involvement.volunteerShifts} shift${involvement.volunteerShifts === 1 ? '' : 's'} · ${involvement.volunteerHours} hours`));
+    section.append(hours);
+    if (involvement.fosterInvitation) {
+      const invite = row();
+      const text = el('div');
+      text.append(el('p', 'text-sm font-semibold text-stone-950', 'The shelter invites you to foster'), el('p', 'mt-1 text-sm text-stone-600', 'You have helped a lot already. Fostering gives an animal a break from the kennel. Pick an animal marked “Open to foster” to apply.'));
+      const actions = el('div', 'flex flex-wrap gap-2');
+      const dismiss = el('button', 'ph-btn', 'Dismiss'); dismiss.type = 'button';
+      dismiss.addEventListener('click', async () => { await api('/me/foster-invitation/dismiss', { method: 'POST' }).catch(() => undefined); await reload(); });
+      actions.append(Object.assign(el('a', 'ph-btn ph-btn-primary', 'See pets to foster'), { href: '/pets?search=foster' }), dismiss);
+      invite.append(text, actions);
+      section.append(invite);
+    }
+    const alerts = row();
+    const label = el('label', 'flex items-center gap-2 text-sm text-stone-900');
+    const box = el('input'); box.type = 'checkbox'; box.checked = involvement.fosterAlerts; box.disabled = !involvement.approvedFoster;
+    label.append(box, 'Email me when the shelter needs a foster');
+    const note = el('p', 'w-full text-sm text-stone-600', involvement.approvedFoster ? '' : 'Available once one of your foster applications is approved.');
+    note.setAttribute('role', 'status');
+    box.addEventListener('change', async () => {
+      try { await api('/me/foster-alerts', { method: 'PUT', json: { optIn: box.checked } }); note.textContent = box.checked ? 'You will get an email when a pet needs a foster.' : 'Foster alerts are off.'; }
+      catch (error) { box.checked = !box.checked; note.textContent = error instanceof ApiRequestError ? error.message : 'That did not work.'; }
+    });
+    alerts.append(label, note);
+    section.append(alerts);
+    return section;
+  }
+
   // History (past and canceled) ----------------------------------------------------------------------
   function historyCard(appointments: VisitAppointmentListResponse, registrations: VolunteerRegistration[]) {
     const past = [
@@ -319,7 +421,7 @@
     if (!root) return;
     const me = await settle(api<{ user: ApiUser }>('/auth/me'));
     if (!me.ok) return showSignedOut();
-    const [appointments, slots, registrations, adoption, foster, quiz, inquiries, profile] = await Promise.all([
+    const [appointments, slots, registrations, adoption, foster, quiz, inquiries, profile, schedule, involvement, fosterRequests] = await Promise.all([
       settle(api<VisitAppointmentListResponse>('/appointments')),
       settle(api<VisitSlotListResponse>('/visit-slots')),
       settle(api<VolunteerRegistrationListResponse>('/volunteer/registrations')),
@@ -328,6 +430,9 @@
       settle(api<LatestQuizResponse>('/quiz/latest')),
       settle(api<LostPetInquiryListResponse>('/lost-pet/inquiries')),
       settle(api<MemberProfileResponse>('/profile')),
+      settle(api<{ entries: ScheduleEntry[] }>('/me/schedule')),
+      settle(api<MyInvolvement>('/me/involvement')),
+      settle(api<{ requests: MemberFosterRequest[] }>('/foster-requests')),
     ]);
 
     const header = el('div');
@@ -340,13 +445,17 @@
       adoption.ok ? adoption.value.applications : [],
       foster.ok ? foster.value.applications : [],
     ));
+    const openRequests = fosterRequests.ok ? fosterRequests.value.requests : [];
     const left = stack(
+      ...(openRequests.length ? [fosterRequestsCard(load, openRequests)] : []),
       appointments.ok && registrations.ok ? upcomingCard(load, appointments.value, slots.ok ? slots.value : null, registrations.value.registrations) : unavailable('Upcoming'),
+      schedule.ok ? scheduleCard(schedule.value.entries) : el('div'),
       adoption.ok && foster.ok ? applicationsCard(adoption.value.applications, foster.value.applications) : unavailable('Applications'),
       appointments.ok && registrations.ok ? historyCard(appointments.value, registrations.value.registrations) : el('div'),
     );
     const right = stack(
       quiz.ok ? matchesCard(quiz.value) : unavailable('Your matches'),
+      involvement.ok ? involvementCard(load, involvement.value) : el('div'),
       inquiries.ok ? inquiriesCard(inquiries.value) : unavailable('Lost-pet inquiries'),
       profile.ok ? detailsCard(profile.value.profile) : unavailable('Your details'),
       Object.assign(card('Saved pets and alerts', pill('coming later', 'later')), {}),

@@ -1,6 +1,5 @@
 ---
 const initialSearch = Astro.url.searchParams.get('search') ?? '';
-const initialTag = Astro.url.searchParams.get('tag') ?? '';
 ---
 
 <div class="mx-auto max-w-6xl px-6 py-10 sm:py-14">
@@ -84,8 +83,14 @@ const initialTag = Astro.url.searchParams.get('tag') ?? '';
       if (pet.fosterAvailable) {
         const foster = document.createElement('span');
         foster.className = 'border border-[var(--color-moss)] px-2 py-1 text-xs font-medium text-[var(--color-moss-dark)]';
-        foster.textContent = 'Open to foster';
+        foster.textContent = pet.fosterUrgent ? 'Foster needed now' : 'Open to foster';
         badges.append(foster);
+      }
+      if (pet.needsWalkers) {
+        const walkers = document.createElement('span');
+        walkers.className = 'border border-stone-300 px-2 py-1 text-xs font-medium text-stone-700';
+        walkers.textContent = 'Needs walkers';
+        badges.append(walkers);
       }
       top.append(type, badges);
       const title = document.createElement('h2');
