@@ -3,7 +3,7 @@
 Visits, volunteer shifts, and foster homes share one schedule, one set of pet quick actions, and one
 "needs attention" list. This page is the staff how-to and the map of what was built.
 
-## For staff (portal sidebar)
+## For staff (see also [admin-portal.md](admin-portal.md))
 
 | Where | What you can do |
 | --- | --- |

@@ -1,6 +1,13 @@
 ---
-import UserManagement from '../components/UserManagement.astro';
-import AdminShell from '../layouts/AdminShell.astro';
+// People moved into the portal. Old bookmarks land on the new page.
 ---
 
-<AdminShell title="Users"><UserManagement /></AdminShell>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; url=/#/people" />
+    <title>Redirecting…</title>
+  </head>
+  <body><a href="/#/people">Go to People</a></body>
+</html>
