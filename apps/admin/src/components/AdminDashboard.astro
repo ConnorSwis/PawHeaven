@@ -1,5 +1,9 @@
 ---
+import AdminAttention from './AdminAttention.astro';
 import AdminDonations from './AdminDonations.astro';
+import AdminFosterPool from './AdminFosterPool.astro';
+import AdminPetActions from './AdminPetActions.astro';
+import AdminSchedule from './AdminSchedule.astro';
 import AdminFosterApplications from './AdminFosterApplications.astro';
 import AdminInbox from './AdminInbox.astro';
 import AdminLostPetInquiries from './AdminLostPetInquiries.astro';
@@ -30,14 +34,19 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
         <a data-nav="inbox" href="#inbox" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Inbox</span> <span data-count="inbox" hidden class="rounded-full bg-[var(--color-moss)] px-2 text-xs text-on-brand"></span></a>
         <a data-nav="pets" href="#pets" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Pets</span></a>
         <a data-nav="applications" href="#applications" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Applications</span> <span data-count="applications" hidden class="rounded-full bg-[var(--color-moss)] px-2 text-xs text-on-brand"></span></a>
-        <a data-nav="visits" href="#visits" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Visits and volunteers</span> <span data-count="visits" hidden class="rounded-full bg-[var(--color-moss)] px-2 text-xs text-on-brand"></span></a>
+        <a data-nav="schedule" href="#schedule" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Schedule</span></a>
+        <a data-nav="visits" href="#visits" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Visit and shift lists</span> <span data-count="visits" hidden class="rounded-full bg-[var(--color-moss)] px-2 text-xs text-on-brand"></span></a>
+        <a data-nav="fosters" href="#fosters" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Foster pool</span></a>
         <a data-nav="lost-pets" href="#lost-pets" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Lost-pet inquiries</span> <span data-count="lost-pets" hidden class="rounded-full bg-[var(--color-moss)] px-2 text-xs text-on-brand"></span></a>
         <a data-nav="donations" href="#donations" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>Donations</span></a>
         <a data-nav="people" href="#people" class="flex items-center justify-between gap-2 border-l-4 border-transparent px-4 py-2 text-sm text-stone-800 hover:bg-stone-50"><span>People</span></a>
       </nav>
       <div class="min-w-0 flex-1">
-        <div data-view="inbox"><AdminInbox /></div>
+        <div data-view="inbox"><AdminAttention /><AdminInbox /></div>
+        <div data-view="schedule" hidden><AdminSchedule /></div>
+        <div data-view="fosters" hidden><AdminFosterPool /></div>
         <div data-view="pets" hidden>
+    <AdminPetActions />
     <div class="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <section>
         <div class="flex flex-wrap items-baseline justify-between gap-3">
@@ -806,7 +815,7 @@ import AdminVolunteerShifts from './AdminVolunteerShifts.astro';
     }
   }
 
-  const viewNames = ['inbox', 'pets', 'applications', 'visits', 'lost-pets', 'donations', 'people'];
+  const viewNames = ['inbox', 'schedule', 'pets', 'applications', 'visits', 'fosters', 'lost-pets', 'donations', 'people'];
   function showView() {
     const requested = window.location.hash.slice(1);
     const view = viewNames.includes(requested) ? requested : 'inbox';

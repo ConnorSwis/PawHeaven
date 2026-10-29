@@ -6,7 +6,7 @@ import type {
   VisitAppointment,
   VisitSlot,
 } from '@pawheaven/contracts';
-import { isoInstant, rpcErrorResponse, UUID_PATTERN, type ApiResponse } from './http';
+import { isoInstant, rpcErrorResponse, UUID_PATTERN, type ApiResponse } from './http.ts';
 
 export type DatabaseVisitSlot = {
   id: string;
@@ -14,10 +14,15 @@ export type DatabaseVisitSlot = {
   ends_at: string;
   status: 'published' | 'withdrawn';
   created_at: string;
+  capacity: number;
+  rule_id: string | null;
+  event_id: string | null;
 };
 
 export type DatabaseAvailabilitySlot = Pick<DatabaseVisitSlot, 'id' | 'starts_at' | 'ends_at'> & {
   available: boolean;
+  capacity: number;
+  spots_left: number;
 };
 
 export type DatabaseAppointment = {
@@ -30,11 +35,14 @@ export type DatabaseAppointment = {
   status: 'booked' | 'canceled';
   created_at: string;
   updated_at: string;
+  party_size?: number;
 };
 
 export type DatabaseMemberAppointment = Pick<DatabaseAppointment, 'id' | 'slot_id' | 'purpose' | 'status' | 'created_at' | 'updated_at'> & {
   starts_at: string;
   ends_at: string;
+  party_size: number;
+  pets: { id: string; name: string }[];
 };
 
 export type DatabaseAppointmentEvent = {
@@ -47,7 +55,7 @@ export type DatabaseAppointmentEvent = {
 };
 
 export function visitSlotForClient(row: DatabaseAvailabilitySlot): VisitSlot {
-  return { id: row.id, startsAt: row.starts_at, endsAt: row.ends_at, available: row.available };
+  return { id: row.id, startsAt: row.starts_at, endsAt: row.ends_at, available: row.available, capacity: row.capacity, spotsLeft: row.spots_left };
 }
 
 export function visitAppointmentForClient(row: DatabaseMemberAppointment): VisitAppointment {
@@ -60,6 +68,8 @@ export function visitAppointmentForClient(row: DatabaseMemberAppointment): Visit
     updatedAt: row.updated_at,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
+    partySize: row.party_size ?? 1,
+    pets: row.pets ?? [],
   };
 }
 
@@ -81,7 +91,9 @@ export function publishVisitSlotInput(body: unknown): { value: PublishVisitSlotI
   if (!startsAt || !endsAt || Date.parse(startsAt) <= Date.now() || Date.parse(endsAt) <= Date.parse(startsAt)) {
     return { message: 'Choose a future end time after the start time.' };
   }
-  return { value: { startsAt, endsAt } };
+  const capacity = input?.capacity === undefined ? 1 : Number(input.capacity);
+  if (!Number.isInteger(capacity) || capacity < 1 || capacity > 50) return { message: 'Visit capacity must be between 1 and 50 groups.' };
+  return { value: { startsAt, endsAt, capacity } };
 }
 
 export function bookVisitInput(body: unknown): { value: BookVisitInput } | { message: string } {
@@ -90,7 +102,11 @@ export function bookVisitInput(body: unknown): { value: BookVisitInput } | { mes
   const purpose = typeof input?.purpose === 'string' ? input.purpose.trim() : '';
   if (!UUID_PATTERN.test(slotId)) return { message: 'Choose an available visit time.' };
   if (purpose.length < 1 || purpose.length > 500) return { message: 'Tell the shelter why you would like to visit, using up to 500 characters.' };
-  return { value: { slotId, purpose } };
+  const partySize = input?.partySize === undefined ? 1 : Number(input.partySize);
+  if (!Number.isInteger(partySize) || partySize < 1 || partySize > 6) return { message: 'A visit can include 1 to 6 people.' };
+  const petIds = Array.isArray(input?.petIds) ? [...new Set(input.petIds.filter((id): id is string => typeof id === 'string'))] : [];
+  if (petIds.length > 5 || petIds.some((id) => !UUID_PATTERN.test(id))) return { message: 'Choose up to 5 animals to meet.' };
+  return { value: { slotId, purpose, partySize, petIds } };
 }
 
 export function rescheduleVisitInput(body: unknown): { value: RescheduleVisitInput } | { message: string } {

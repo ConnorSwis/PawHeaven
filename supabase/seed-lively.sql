@@ -226,4 +226,57 @@ select 'cs_test_seed_' || g, 'pi_test_seed_' || g,
   false, now() - ((g * 2) || ' days')::interval - ((g * 53 % 900) || ' minutes')::interval
 from generate_series(1, 14) as g;
 
+-- Open hours: weekly patterns that keep the next six weeks filled in, one blackout day, and an open house.
+insert into public.availability_rules (kind, weekday, start_time, end_time, capacity, slot_minutes, title, description, requirements, min_age, weeks_ahead)
+values
+  ('visit', 2, time '16:00', time '19:00', 2, 30, '', '', '', 0, 6),
+  ('visit', 4, time '16:00', time '19:00', 2, 30, '', '', '', 0, 6),
+  ('visit', 6, time '09:00', time '13:00', 3, 30, '', '', '', 0, 6),
+  ('shift', 6, time '09:00', time '12:00', 4, 30, 'Saturday dog walkers', 'Walk dogs on the trail behind the shelter and report how they did.', 'Closed-toe shoes. Handle a leash confidently.', 16, 6),
+  ('shift', 0, time '13:00', time '16:00', 3, 30, 'Sunday cat socializers', 'Spend time with the cats so they stay friendly and ready for visitors.', 'Be calm and gentle around cats.', 14, 6);
+
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+select * from public.generate_availability();
+select set_config('request.jwt.claims', '{"role":"authenticated","sub":"a1000000-0000-0000-0000-000000000002","email":"admin@pawheaven.local","app_metadata":{"role":"admin"}}', true);
+select * from public.add_availability_exception(current_date + 19, 'Staff training day');
+select public.create_event(
+  'Fall Open House', 'Come meet the animals, tour the shelter, and ask us anything. Free treats for the dogs.',
+  date_trunc('day', now() + interval '22 days') + interval '14 hours', date_trunc('day', now() + interval '22 days') + interval '18 hours',
+  3, 30,
+  '[{"title":"Greeters","description":"Welcome visitors at the door and hand out maps.","capacity":3},{"title":"Dog handlers","description":"Walk dogs out to meet visitors.","capacity":4,"minAge":16},{"title":"Treat table","description":"Run the donation and treat table.","capacity":2}]'::jsonb,
+  array(select id from public.pets where name in ('Arlo', 'Hollie', 'Padma Patil', 'Poppy') and status = 'Available'));
+select set_config('request.jwt.claims', '', true);
+
+-- Pet quick actions: a few dogs need walkers, one animal is not offered for visits.
+update public.pets set needs_walkers = true where name in ('Arlo', 'Padma Patil', 'Fuerte') and species = 'Dog';
+update public.pets set visits_open = false where name = 'Sombra';
+
+-- Visits name the animals people want to meet.
+insert into public.appointment_pets (appointment_id, pet_id, pet_name)
+select a.id, p.id, p.name
+from (select id, row_number() over (order by created_at) as r from public.appointments where status = 'booked') a
+join (select id, name, row_number() over (order by name) as r from public.pets where status = 'Available' and source_name <> '' and visits_open) p
+  on p.r = a.r
+where a.r <= 8;
+update public.appointments set party_size = 1 + (abs(hashtext(id::text)) % 4);
+
+-- Foster pool: approved fosters opted in; one open request for a long-stay pet, with a decline and one pending.
+insert into public.foster_pool_optins (member_id)
+select distinct f.applicant_id from public.foster_applications f where f.status = 'Approved';
+with stale as (
+  select id from public.pets where status = 'Available' and source_name <> '' and housing = 'Shelter' order by intake_date limit 1
+), r as (
+  insert into public.foster_requests (pet_id, note, created_by, created_at)
+  select id, 'Kennel stress is showing. A quiet home for two weeks would help a lot.', 'a1000000-0000-0000-0000-000000000002', now() - interval '3 days' from stale returning id, pet_id
+)
+insert into public.foster_request_responses (request_id, member_id, response, notified_at, responded_at)
+select r.id, o.member_id, case when row_number() over () = 1 then 'declined' else 'pending' end, now() - interval '3 days',
+  case when row_number() over () = 1 then now() - interval '2 days' end
+from r cross join public.foster_pool_optins o;
+update public.pets set foster_available = true, foster_urgent_at = now() - interval '3 days' where id in (select pet_id from public.foster_requests where closed_at is null);
+
+-- A volunteer with many finished shifts who has never fostered, and an invitation already sent to another.
+insert into public.foster_invitations (member_id, invited_by, invited_at)
+select m.id, 'a1000000-0000-0000-0000-000000000002', now() - interval '2 days' from m where m.n = 12;
+
 drop table m;

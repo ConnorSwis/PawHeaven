@@ -1,0 +1,93 @@
+<section aria-labelledby="pet-actions-title" class="mb-10 border-b border-stone-300 pb-8">
+  <h2 id="pet-actions-title" class="text-lg font-semibold text-stone-950">Quick actions</h2>
+  <p class="mt-2 max-w-2xl leading-6 text-stone-700">Open pets for foster or visits and flag dogs that need walkers, one at a time or for everyone you tick.</p>
+  <div class="mt-4 flex flex-wrap items-center gap-2" data-actions-bar>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-actions-all /> Select all</label>
+    <span class="grow"></span>
+    <button type="button" class="ph-btn" data-bulk="fosterAvailable:true">Open to foster</button>
+    <button type="button" class="ph-btn" data-bulk="fosterAvailable:false">Close foster</button>
+    <button type="button" class="ph-btn" data-bulk="visitsOpen:true">Open for visits</button>
+    <button type="button" class="ph-btn" data-bulk="visitsOpen:false">Hide from visits</button>
+    <button type="button" class="ph-btn" data-bulk="needsWalkers:true">Needs walkers</button>
+    <button type="button" class="ph-btn" data-bulk="needsWalkers:false">Walkers covered</button>
+  </div>
+  <p data-actions-message class="mt-3 hidden text-sm" role="status"></p>
+  <div class="mt-3 max-h-96 overflow-y-auto border border-stone-300 bg-white" data-actions-list></div>
+</section>
+
+<script>
+  import type { AdminPetListResponse, Pet, PetFlagsInput } from '@pawheaven/contracts';
+  import { apiRequest, el, pill } from '@pawheaven/contracts/ui';
+  import { apiBase } from '../lib/api';
+
+  const root = document.querySelector<HTMLElement>('[aria-labelledby="pet-actions-title"]');
+  const list = root?.querySelector<HTMLElement>('[data-actions-list]');
+  const message = root?.querySelector<HTMLElement>('[data-actions-message]');
+  const selectAll = root?.querySelector<HTMLInputElement>('[data-actions-all]');
+  let pets: Pet[] = [];
+  const selected = new Set<string>();
+  let loaded = false;
+
+  function say(text: string, error = false) {
+    if (!message) return;
+    message.textContent = text;
+    message.className = `mt-3 text-sm ${error ? 'text-red-800' : 'text-green-900'}`;
+  }
+
+  async function apply(petIds: string[], change: Omit<PetFlagsInput, 'petIds'>) {
+    if (!petIds.length) { say('Tick at least one pet first.', true); return; }
+    try {
+      await apiRequest(apiBase, '/admin/pets/flags', { method: 'POST', json: { petIds, ...change } });
+      say(`Updated ${petIds.length} pet${petIds.length === 1 ? '' : 's'}.`);
+      window.dispatchEvent(new CustomEvent('pawheaven:pets-changed'));
+      window.dispatchEvent(new CustomEvent('pawheaven:schedule-changed'));
+      await load();
+    } catch (error) { say(error instanceof Error ? error.message : 'That did not work.', true); }
+  }
+
+  function draw() {
+    if (!list) return;
+    list.replaceChildren();
+    for (const pet of pets) {
+      const row = el('div', 'flex flex-wrap items-center gap-3 border-b border-stone-200 px-3 py-2 text-sm');
+      const box = el('input'); box.type = 'checkbox'; box.checked = selected.has(pet.id); box.setAttribute('aria-label', `Select ${pet.name}`);
+      box.addEventListener('change', () => { if (box.checked) selected.add(pet.id); else selected.delete(pet.id); });
+      const name = el('span', 'min-w-32 font-medium text-stone-950', pet.name);
+      const state = el('span', 'flex flex-wrap gap-1');
+      state.append(pill(pet.status, pet.status === 'Available' ? 'good' : 'neutral'));
+      if (pet.fosterAvailable) state.append(pill('Open to foster', 'good'));
+      if (pet.fosterUrgent) state.append(pill('Foster needed now', 'warn'));
+      if (!pet.visitsOpen) state.append(pill('Hidden from visits', 'later'));
+      if (pet.needsWalkers) state.append(pill('Needs walkers', 'warn'));
+      const actions = el('span', 'ml-auto flex flex-wrap gap-2');
+      const toggle = (text: string, change: Omit<PetFlagsInput, 'petIds'>) => { const b = el('button', 'ph-btn', text); b.type = 'button'; b.addEventListener('click', () => void apply([pet.id], change)); return b; };
+      actions.append(
+        toggle(pet.fosterAvailable ? 'Close foster' : 'Open to foster', { fosterAvailable: !pet.fosterAvailable }),
+        toggle(pet.visitsOpen ? 'Hide from visits' : 'Open for visits', { visitsOpen: !pet.visitsOpen }),
+        toggle(pet.needsWalkers ? 'Walkers covered' : 'Needs walkers', { needsWalkers: !pet.needsWalkers }),
+      );
+      row.append(box, name, state, actions);
+      list.append(row);
+    }
+  }
+
+  async function load() {
+    try {
+      pets = (await apiRequest<AdminPetListResponse>(apiBase, '/admin/pets')).pets.filter((pet) => ['Available', 'Pending', 'Fostered'].includes(pet.status));
+      draw();
+    } catch (error) { say(error instanceof Error ? error.message : 'Pets could not be loaded.', true); }
+  }
+
+  selectAll?.addEventListener('change', () => { if (selectAll.checked) for (const pet of pets) selected.add(pet.id); else selected.clear(); draw(); });
+  for (const bulk of root?.querySelectorAll<HTMLElement>('[data-bulk]') ?? []) {
+    bulk.addEventListener('click', () => {
+      const [key, value] = (bulk.dataset.bulk ?? '').split(':');
+      void apply([...selected], { [key]: value === 'true' } as Omit<PetFlagsInput, 'petIds'>);
+    });
+  }
+  const view = root?.closest<HTMLElement>('[data-view]');
+  const start = () => { if (!loaded && view && !view.hidden) { loaded = true; void load(); } };
+  if (view) new MutationObserver(start).observe(view, { attributes: true, attributeFilter: ['hidden'] });
+  window.addEventListener('pawheaven:pets-changed', () => { if (loaded) void load(); });
+  start();
+</script>

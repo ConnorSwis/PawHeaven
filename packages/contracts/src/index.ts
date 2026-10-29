@@ -118,6 +118,12 @@ export type Pet = {
   medicalHistory: string;
   /** True when an Available pet is also open to foster applications. */
   fosterAvailable: boolean;
+  /** False hides the pet from the visit "meet a pet" picker. */
+  visitsOpen: boolean;
+  /** Staff flagged the pet as needing volunteer walkers. */
+  needsWalkers: boolean;
+  /** Set while staff have an open foster request for the pet. */
+  fosterUrgent: boolean;
   /** Empty string means not recorded. */
   sex: PetSex;
   size: PetSize;
@@ -336,6 +342,9 @@ export type VisitSlot = {
   startsAt: string;
   endsAt: string;
   available: boolean;
+  /** How many groups the slot holds, and how many places remain. */
+  capacity: number;
+  spotsLeft: number;
 };
 
 export type VisitSlotListResponse = {
@@ -354,6 +363,8 @@ export type VisitAppointment = {
   updatedAt: string;
   startsAt: string;
   endsAt: string;
+  partySize: number;
+  pets: { id: string; name: string }[];
 };
 
 export type AppointmentEvent = {
@@ -373,6 +384,10 @@ export type VisitAppointmentListResponse = {
 export type BookVisitInput = {
   slotId: string;
   purpose: string;
+  /** 1 to 6 people; defaults to 1. */
+  partySize?: number;
+  /** Up to 5 animals the visitors would like to meet. */
+  petIds?: string[];
 };
 
 export type RescheduleVisitInput = {
@@ -388,6 +403,8 @@ export type AdminVisitAppointment = {
   status: VisitAppointmentStatus;
   createdAt: string;
   updatedAt: string;
+  partySize: number;
+  pets: { id: string; name: string }[];
 };
 
 export type AdminVisitSlot = {
@@ -396,7 +413,12 @@ export type AdminVisitSlot = {
   endsAt: string;
   status: 'published' | 'withdrawn';
   createdAt: string;
+  capacity: number;
+  ruleId: string | null;
+  eventId: string | null;
+  /** The first booking, kept for older screens; `appointments` lists every booked group. */
   appointment: AdminVisitAppointment | null;
+  appointments: AdminVisitAppointment[];
 };
 
 export type AdminVisitScheduleResponse = {
@@ -406,6 +428,7 @@ export type AdminVisitScheduleResponse = {
 export type PublishVisitSlotInput = {
   startsAt: string;
   endsAt: string;
+  capacity?: number;
 };
 
 export const QUIZ_QUESTIONS = {
@@ -596,3 +619,94 @@ export function matchesPetSearch(pet: Pet, search: string): boolean {
   ].join(' '));
   return terms.every((term) => details.some((detail) => detail.includes(term)));
 }
+
+// --- Get Involved: open hours, events, pet quick actions, foster pool, schedule ----------------
+
+export type AvailabilityRuleInput = {
+  kind: 'visit' | 'shift';
+  /** 0 is Sunday. */
+  weekday: number;
+  /** "HH:MM" in the shelter's local time. */
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  /** Visit rules only: how long each bookable slot is. */
+  slotMinutes: number;
+  /** Shift rules only. */
+  title: string;
+  description: string;
+  requirements: string;
+  minAge: number;
+  weeksAhead: number;
+  active: boolean;
+};
+export type AvailabilityRule = AvailabilityRuleInput & { id: string };
+export type AvailabilityException = { date: string; reason: string };
+export type AvailabilityResponse = { rules: AvailabilityRule[]; exceptions: AvailabilityException[] };
+export type GenerateAvailabilityResponse = { visitsCreated: number; shiftsCreated: number };
+
+export type EventRoleInput = { title: string; description?: string; requirements?: string; capacity: number; minAge?: number };
+export type EventInput = {
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  /** Groups per visit slot; 0 skips visits. */
+  visitCapacity: number;
+  slotMinutes: number;
+  roles: EventRoleInput[];
+  petIds: string[];
+};
+export type ShelterEvent = { id: string; title: string; description: string; startsAt: string; endsAt: string; pets: { id: string; name: string }[] };
+
+export type PetFlagsInput = { petIds: string[]; fosterAvailable?: boolean; visitsOpen?: boolean; needsWalkers?: boolean };
+
+export type FosterRequestResponseStatus = 'pending' | 'accepted' | 'declined';
+export type AdminFosterRequest = {
+  id: string;
+  petId: string;
+  petName: string;
+  note: string;
+  createdAt: string;
+  closedAt: string | null;
+  notified: number;
+  accepted: number;
+  declined: number;
+};
+export type MemberFosterRequest = { id: string; petId: string; petName: string; species: string; note: string; createdAt: string; response: FosterRequestResponseStatus };
+export type VolunteerFosterCandidate = { memberId: string; name: string; email: string; shifts: number; hours: number; invited: boolean };
+
+export type AttentionItem = {
+  kind: string;
+  title: string;
+  detail: string;
+  /** What the staff portal should offer: generate, schedule, open_foster, fosters. */
+  action: 'generate' | 'schedule' | 'open_foster' | 'fosters';
+  refId?: string;
+  petIds?: string[];
+};
+
+export type MyInvolvement = {
+  volunteerShifts: number;
+  volunteerHours: number;
+  fosterAlerts: boolean;
+  approvedFoster: boolean;
+  fosterInvitation: boolean;
+};
+
+export type ScheduleEntry = {
+  kind: 'visit' | 'shift' | 'foster';
+  id: string;
+  title: string;
+  detail: string;
+  startsAt: string;
+  endsAt: string;
+  allDay: boolean;
+};
+
+export type GetInvolvedFeed = {
+  visits: { startsAt: string; endsAt: string; spotsLeft: number }[];
+  shifts: { id: string; title: string; startsAt: string; endsAt: string; spotsLeft: number }[];
+  events: ShelterEvent[];
+  foster: { open: number; urgent: { id: string; name: string }[] };
+};

@@ -161,3 +161,7 @@ to download their photos into local Storage; photos are never committed
 lost-pet photo matching. This data is local only; do not push it to production
 without the shelter's say-so. Regenerate the seed from a listing-saver export
 with `node scripts/build-dekalb-seed.mjs path/to/animals.json`.
+
+## Get Involved demo path
+
+Sign in as `demo.staff@pawheaven.local`: **Inbox** shows Needs attention; **Schedule** shows the week (drag to add, copy the week, edit open hours, close a day); **Pets → Quick actions** opens several pets to foster at once; **Foster pool** asks approved fosters for help. As a member, open `/get-involved`, book a visit that names a pet and a party size, then open **My PawHeaven** to see the schedule, download the calendar, and answer a foster request. See [get-involved.md](get-involved.md).

@@ -27,6 +27,9 @@ export type DatabasePet = {
   summary: string;
   medical_history: string;
   foster_available: boolean;
+  visits_open?: boolean;
+  needs_walkers?: boolean;
+  foster_urgent_at?: string | null;
   sex: PetSex;
   size: PetSize;
   color: string;
@@ -64,6 +67,9 @@ export function petForClient(row: DatabasePet, env: Env): Pet {
     summary: row.summary,
     medicalHistory: row.medical_history ?? '',
     fosterAvailable: row.foster_available ?? false,
+    visitsOpen: row.visits_open ?? true,
+    needsWalkers: row.needs_walkers ?? false,
+    fosterUrgent: Boolean(row.foster_urgent_at),
     sex: row.sex ?? '',
     size: row.size ?? '',
     color: row.color ?? '',

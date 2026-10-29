@@ -73,7 +73,7 @@
   function displayPet(pet: Pet, note?: string) {
     if (!container) return;
     container.replaceChildren();
-    const category = element('p', 'text-sm font-medium text-[var(--color-moss-dark)]', `${pet.type} · ${pet.status}${pet.fosterAvailable ? ' · Open to foster' : ''}`);
+    const category = element('p', 'text-sm font-medium text-[var(--color-moss-dark)]', `${pet.type} · ${pet.status}${pet.fosterUrgent ? ' · Foster needed now' : pet.fosterAvailable ? ' · Open to foster' : ''}`);
     const name = element('h1', 'mt-3 text-3xl font-semibold tracking-tight text-stone-950', pet.name);
     const description = element('p', 'mt-5 max-w-xl leading-7 text-stone-700', pet.summary);
     const credit = document.createElement('p');
@@ -171,7 +171,14 @@
       visit.href = `/visits?pet=${encodeURIComponent(pet.id)}&name=${encodeURIComponent(pet.name)}`;
       visit.className = 'flex flex-col items-start gap-1 border border-[var(--color-moss)] bg-white px-4 py-3 text-sm font-semibold text-[var(--color-moss-dark)] transition-colors hover:bg-stone-50 sm:col-span-2';
       visit.append(`Schedule a visit to meet ${pet.name}`, element('span', 'text-xs font-normal', 'Pick an open time; we will add the pet to your reason for visiting'));
-      buttons.append(visit);
+      if (pet.visitsOpen !== false) buttons.append(visit);
+      if (pet.needsWalkers) {
+        const walk = document.createElement('a');
+        walk.href = '/volunteer';
+        walk.className = 'flex flex-col items-start gap-1 border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-900 transition-colors hover:bg-stone-50 sm:col-span-2';
+        walk.append(`${pet.name} needs walkers`, element('span', 'text-xs font-normal', 'Sign up for a volunteer shift and help this animal get out for exercise'));
+        buttons.append(walk);
+      }
       actions.append(buttons, element('p', 'mt-3 text-xs text-stone-600', 'Not logged in? Each option asks you to log in first.'));
     } else {
       actions.append(element('p', 'mt-3 text-sm leading-6 text-stone-700', samplePet ? 'Applications and visits are available when this listing is connected to live records.' : 'This animal is not currently open to new applications.'));
