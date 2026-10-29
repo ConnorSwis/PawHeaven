@@ -16,7 +16,7 @@ function sourceFiles(dir) {
 const files = ['apps/web/src', 'apps/admin/src', 'packages/contracts/src'].flatMap(sourceFiles);
 // Two files legitimately handle raw colors: a printed flyer is deliberately dark on white whatever the theme is,
 // and the theme playground converts picker values, which are always hex strings.
-const PINNED = new Set(['apps/web/src/components/LostPetFlyer.astro', 'apps/web/src/pages/theme.astro']);
+const PINNED = new Set(['apps/web/src/pages/theme.astro']);
 
 const block = (name) => {
   const match = theme.match(new RegExp(`${name}\\s*\\{([\\s\\S]*?)\\n\\}`));

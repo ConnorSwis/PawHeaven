@@ -1,0 +1,15 @@
+# Old addresses keep working. Query strings are kept.
+/pets /adopt 301
+/pets/ /adopt 301
+/pets/details /adopt/pet 301
+/pets/details/ /adopt/pet 301
+/quiz /adopt/match 301
+/quiz/ /adopt/match 301
+/visits /visit 301
+/visits/ /visit 301
+/get-involved / 301
+/get-involved/ / 301
+/account /me?tab=details 301
+/account/ /me?tab=details 301
+/donate-success /donate/thanks 301
+/donate-success/ /donate/thanks 301

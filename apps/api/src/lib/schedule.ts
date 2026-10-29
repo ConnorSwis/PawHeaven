@@ -6,6 +6,7 @@ import type {
   EventRoleInput,
   FieldErrors,
   GetInvolvedFeed,
+  PublicAvailability,
   MemberFosterRequest,
   MyInvolvement,
   PetFlagsInput,
@@ -156,6 +157,7 @@ export function scheduleEntryForClient(row: { kind: ScheduleEntry['kind']; ref_i
 export const attentionForClient = (items: unknown): AttentionItem[] => (Array.isArray(items) ? (items as AttentionItem[]) : []);
 export const involvementForClient = (value: unknown): MyInvolvement => value as MyInvolvement;
 export const feedForClient = (value: unknown): GetInvolvedFeed => value as GetInvolvedFeed;
+export const availabilityForClient = (value: unknown): PublicAvailability => value as PublicAvailability;
 
 // --- iCalendar -------------------------------------------------------------------------------
 

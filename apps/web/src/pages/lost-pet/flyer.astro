@@ -1,8 +1,8 @@
 ---
-import LostPetFlyer from '../../components/LostPetFlyer.astro';
 import PageShell from '../../layouts/PageShell.astro';
+import { FlyerPage } from '../../app/lost/FlyerPage';
 ---
 
-<PageShell title="Lost-pet flyer" description="Fill out a template and print a lost-pet flyer.">
-  <LostPetFlyer />
+<PageShell title="Lost-pet flyer" description="Fill out a template and print a lost-pet flyer. Nothing is uploaded or saved." noindex>
+  <FlyerPage client:load />
 </PageShell>

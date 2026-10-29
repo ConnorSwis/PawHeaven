@@ -1,0 +1,40 @@
+---
+import ContentPage from '../../layouts/ContentPage.astro';
+import { SHELTER } from '@pawheaven/contracts/site';
+
+const money = (value: number) => (value === 0 ? 'Free' : `$${value}`);
+const fees = SHELTER.fees;
+---
+
+<ContentPage title="How adoption works" description="The steps to adopt, what it costs, what is included, and what you need to bring." intro="Adopting is simple and usually takes less than an hour once you have found the right match.">
+  <h2>The steps</h2>
+  <ol>
+    <li><strong>Browse</strong> the <a href="/adopt">animals</a> and use the filters to find a fit. Not sure? <a href="/adopt/match">Take the matching quiz</a>.</li>
+    <li><strong>Meet them.</strong> <a href="/visit">Plan a visit</a> and tell us who you would like to meet. Animals cannot be held through online or email requests, so visit as soon as you can.</li>
+    <li><strong>Apply</strong> on the animal's page, or at the shelter with an adoption counselor. Your saved details are filled in for you.</li>
+    <li><strong>Finalize.</strong> An adoption counselor reviews your answers, takes the fee, and you sign the adoption contract and take home your adoption packet.</li>
+  </ol>
+  <p>Animals living in foster homes: send an adoption inquiry from their page. The foster family will contact you within three days to arrange a meeting.</p>
+
+  <h2>What to bring</h2>
+  <ul>{SHELTER.requirements.map((item) => <li>{item}</li>)}</ul>
+  <p>If you rent, bring your landlord's contact details or lease terms about pets.</p>
+
+  <h2>Adoption fees</h2>
+  <table>
+    <caption class="sr-only">Adoption fees</caption>
+    <thead><tr><th scope="col">Animal</th><th scope="col">Fee</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Dogs</th><td>{money(fees.dog)}</td></tr>
+      <tr><th scope="row">Cats</th><td>{money(fees.cat)}</td></tr>
+      <tr><th scope="row">Two kittens from the same litter</th><td>{money(fees.kittenPair)} for both</td></tr>
+      <tr><th scope="row">Working (barn) cats</th><td>{money(fees.workingCat)}</td></tr>
+      <tr><th scope="row">Seniors (over {fees.seniorAge} years)</th><td>{money(fees.seniorFee)} this year</td></tr>
+      <tr><th scope="row">Adopters 55 and older</th><td>{money(fees.over55Fee)} for pets under {fees.seniorAge}</td></tr>
+    </tbody>
+  </table>
+  <h3>Every dog and cat adoption includes</h3>
+  <ul>{fees.included.map((item) => <li>{item}</li>)}</ul>
+
+  <div class="callout"><p>Not ready to adopt? <a href="/foster">Foster</a> a pet for a few weeks, or <a href="/volunteer">volunteer</a> to get to know our animals. Questions? <a href="/faq">Read the answers</a> or <a href="/contact">contact us</a>.</p></div>
+</ContentPage>

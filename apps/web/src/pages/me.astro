@@ -1,8 +1,8 @@
 ---
-import MemberDashboard from '../components/MemberDashboard.astro';
 import PageShell from '../layouts/PageShell.astro';
+import { MePage } from '../app/me/MePage';
 ---
 
-<PageShell title="My PawHeaven" description="Your visits, shifts, applications, matches, and saved details in one place." noindex>
-  <MemberDashboard />
+<PageShell title="My PawHeaven" description="Your visits, shifts, applications, saved animals, and details in one place." noindex>
+  <MePage client:load />
 </PageShell>

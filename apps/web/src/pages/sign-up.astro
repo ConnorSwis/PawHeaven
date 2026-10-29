@@ -1,6 +1,8 @@
 ---
 import PageShell from '../layouts/PageShell.astro';
-import SignUpForm from '../components/SignUpForm.astro';
+import { SignUpPage } from '../app/auth/AuthPage';
 ---
 
-<PageShell title="Create account"><SignUpForm /></PageShell>
+<PageShell title="Create your account" description="Create a PawHeaven account to book a visit, apply to adopt or foster, and sign up to volunteer." noindex>
+  <SignUpPage client:load />
+</PageShell>

@@ -1,0 +1,67 @@
+---
+import PageShell from '../layouts/PageShell.astro';
+import FosterAnimals from '../app/foster/FosterAnimals';
+import { PageHeading } from '../ui';
+import { SHELTER } from '@pawheaven/contracts/site';
+
+const faq = [
+  ['How long does a foster stay last?', 'Most stays are a few weeks. Some animals need only a weekend and some need longer, for example a litter growing up or a dog recovering from surgery. You tell us the dates you can offer and we match you to an animal that fits.'],
+  ['Do I need experience?', 'No. Tell us what experience you do have on the application. Our team explains what each animal needs and answers questions while you foster.'],
+  ['What does it cost?', 'The animal stays under the shelter’s care. Ask us about food, supplies, and vet visits when we talk, so you know exactly what we cover before you say yes.'],
+  ['Can I foster if I have other pets?', 'Often yes. Tell us about your pets on the application and we will choose an animal that suits your home.'],
+  ['What if I fall in love?', 'It happens. Tell us, and we will talk through adopting the animal you have been caring for.'],
+  ['What if it is not working out?', 'Call us. We would rather hear early and find another plan than have you struggle alone.'],
+];
+---
+
+<PageShell title="Foster" description={`Foster an animal from ${SHELTER.name}. A few weeks in a home helps a shelter animal rest, heal, and get ready for adoption.`}>
+  <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <PageHeading title="Foster an animal" intro="A foster home is a quiet place to rest, heal, or grow up while an animal waits for adoption. Most stays are a few weeks, and every one frees up space for another animal in need." />
+
+    <div class="mt-8 grid gap-6 md:grid-cols-2">
+      <section aria-labelledby="you-heading" class="rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 sm:p-6">
+        <h2 id="you-heading" class="text-xl font-semibold text-stone-950">What fostering asks of you</h2>
+        <ul class="mt-3 grid list-disc gap-2 pl-5 text-base leading-7 text-stone-800">
+          <li>A safe, calm place at home, and the dates you can offer.</li>
+          <li>Daily feeding, exercise, and company.</li>
+          <li>Photos and a few words about the animal’s personality. They help us find the right adopter.</li>
+          <li>Bringing the animal to the shelter for adoption meetings when needed.</li>
+        </ul>
+      </section>
+      <section aria-labelledby="we-heading" class="rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 sm:p-6">
+        <h2 id="we-heading" class="text-xl font-semibold text-stone-950">What we provide</h2>
+        <ul class="mt-3 grid list-disc gap-2 pl-5 text-base leading-7 text-stone-800">
+          <li>A staff contact you can call or email with any question.</li>
+          <li>Medical care arranged through the shelter.</li>
+          <li>Guidance on what each animal needs, and help finding the right match.</li>
+          <li>Help finding the animal a permanent home.</li>
+        </ul>
+      </section>
+    </div>
+
+    <section aria-labelledby="how-heading" class="mt-10 max-w-3xl">
+      <h2 id="how-heading" class="text-xl font-semibold text-stone-950">How it works</h2>
+      <ol class="mt-3 grid list-decimal gap-2 pl-5 text-base leading-7 text-stone-800">
+        <li>Choose an animal below and tell us about your home and the dates you can foster. It takes about five minutes.</li>
+        <li>Our team reads your application and emails you. We may call to talk it through.</li>
+        <li>Once you are approved, we agree on a pick-up time and go over what the animal needs.</li>
+        <li>You foster, and we help find a permanent home.</li>
+      </ol>
+    </section>
+
+    <div class="mt-12"><FosterAnimals client:load /></div>
+
+    <section aria-labelledby="faq-heading" class="mt-14 max-w-3xl">
+      <h2 id="faq-heading" class="text-2xl font-semibold tracking-tight text-stone-950">Questions about fostering</h2>
+      <div class="mt-4 divide-y divide-stone-300 rounded-[var(--ph-radius)] border border-stone-300 bg-white">
+        {faq.map(([question, answer]) => (
+          <details class="group px-5 py-1">
+            <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-4 py-2 text-base font-semibold text-stone-950">{question}<span aria-hidden="true" class="text-stone-700 group-open:rotate-45">+</span></summary>
+            <p class="pb-4 text-base leading-7 text-stone-800">{answer}</p>
+          </details>
+        ))}
+      </div>
+      <p class="mt-4 text-base text-stone-800">Something else? Call <a class="font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href={SHELTER.phoneHref}>{SHELTER.phone}</a> or email <a class="font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href={`mailto:${SHELTER.email}`}>{SHELTER.email}</a>.</p>
+    </section>
+  </div>
+</PageShell>

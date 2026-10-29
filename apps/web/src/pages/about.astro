@@ -1,0 +1,23 @@
+---
+import ContentPage from '../layouts/ContentPage.astro';
+import { SHELTER, SITE } from '@pawheaven/contracts/site';
+---
+
+<ContentPage title="About us" description={`Who ${SITE.name} is, what we do, and how you can help.`} intro={`${SITE.name} cares for lost, stray, and surrendered animals until they are reunited with their families or placed in new homes.`}>
+  <h2>What we do</h2>
+  <p>Every animal that comes through our doors gets a safe place to stay, food, veterinary care, and a chance to be matched with the right person. We work to reunite lost pets with their owners, find homes for the ones who are not claimed, and keep animals out of the kennel by placing them with foster families.</p>
+
+  <h2>How you can help</h2>
+  <ul>
+    <li><a href="/adopt">Adopt</a>: meet the animals who are ready for a home now.</li>
+    <li><a href="/foster">Foster</a>: give an animal a break from the kennel while they wait.</li>
+    <li><a href="/volunteer">Volunteer</a>: walk dogs, socialize cats, and help at events.</li>
+    <li><a href="/donate">Donate</a>: gifts pay for food, vaccines, and medical care.</li>
+  </ul>
+
+  <h2>Our promise</h2>
+  <p>We describe every animal honestly, tell you what we know about their health and behavior, and are here after the adoption. If it does not work out, you can return an adopted pet to us by appointment during open hours.</p>
+
+  <h2>Visit us</h2>
+  <p>{SHELTER.address.line1}, {SHELTER.address.city}, {SHELTER.address.state} {SHELTER.address.zip}. See our <a href="/contact">hours and contact details</a>, or <a href="/visit">plan a visit</a>.</p>
+</ContentPage>

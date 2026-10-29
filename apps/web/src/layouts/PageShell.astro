@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { SITE, THEMES } from '@pawheaven/contracts/site';
+import { SHELTER, SITE, THEMES } from '@pawheaven/contracts/site';
 import DebugMenu from '../components/DebugMenu.astro';
 
 interface Props {
@@ -10,108 +10,109 @@ interface Props {
   showFooter?: boolean;
   /** Keeps pages that make no sense out of context, such as a donation receipt, out of search results. */
   noindex?: boolean;
+  /** Absolute or site-relative address of the picture shown when the page is shared. */
+  image?: string;
 }
 
 const {
   title,
-  description = `${SITE.name} animal shelter portal`,
+  description = `${SITE.name}: ${SITE.tagline}`,
   showNavigation = true,
   showFooter = true,
   noindex = false,
+  image,
 } = Astro.props;
-const pathname = Astro.url.pathname;
 // Demo only: PUBLIC_THEME_SWITCHER=true adds a theme picker to the footer.
 const themeSwitcher = import.meta.env.PUBLIC_THEME_SWITCHER === 'true';
-const here = pathname.replace(/\/$/, '') || '/';
-const groups = [
-  {
-    label: 'Find a pet',
-    prefixes: ['/pets', '/quiz'],
-    links: [
-      { href: '/pets', label: 'Browse available pets' },
-      { href: '/quiz', label: 'Take the matching quiz' },
-      { href: '/pets?search=foster', label: 'Foster a pet' },
-    ],
-  },
-  {
-    label: 'Get involved',
-    prefixes: ['/get-involved', '/visits', '/volunteer'],
-    links: [
-      { href: '/get-involved', label: 'What is open this week' },
-      { href: '/visits', label: 'Schedule a shelter visit' },
-      { href: '/volunteer', label: 'Volunteer shifts' },
-    ],
-  },
+const here = Astro.url.pathname.replace(/\/$/, '') || '/';
+const nav = [
+  { href: '/adopt', label: 'Adopt' },
+  { href: '/foster', label: 'Foster' },
+  { href: '/volunteer', label: 'Volunteer' },
+  { href: '/visit', label: 'Visit' },
+  { href: '/lost-pet', label: 'Lost a pet?' },
 ];
-const isHere = (prefixes: string[]) => prefixes.some((prefix) => here === prefix || here.startsWith(`${prefix}/`));
-const summaryClass = 'flex cursor-pointer list-none items-center gap-1 border-b-2 py-1 transition-colors [&::-webkit-details-marker]:hidden';
-const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
-
+const isHere = (href: string) => here === href || here.startsWith(`${href}/`);
+const address = `${SHELTER.address.line1}, ${SHELTER.address.city}, ${SHELTER.address.state} ${SHELTER.address.zip}`;
+const linkBase = 'rounded-[var(--ph-radius)] px-3 py-2 text-base font-medium transition-colors';
+const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950';
 ---
 
 <!doctype html>
 <html lang="en" data-theme={import.meta.env.PUBLIC_THEME || undefined}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:title" content={`${title} | ${SITE.name}`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    {image && <meta property="og:image" content={image} />}
+    <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
     {noindex && <meta name="robots" content="noindex" />}
     <script is:inline define:vars={{ ids: THEMES.map((theme) => theme.id) }}>try { const root = document.documentElement; const saved = localStorage.getItem('ph-theme'); if (saved !== null && ids.includes(saved)) { if (saved) root.dataset.theme = saved; else delete root.dataset.theme; } const vars = JSON.parse(localStorage.getItem('ph-theme-vars') || '{}'); for (const [name, value] of Object.entries(vars)) if (/^--ph-[a-z-]+$/.test(name) && typeof value === 'string' && /^[#\w\s.,%()"'-]+$/.test(value)) root.style.setProperty(name, value); } catch { /* Storage blocked or unreadable. */ }</script>
     <script is:inline>try { const flag = new URLSearchParams(location.search).get('debug'); if (flag === '0' || flag === '1') localStorage.setItem('ph-debug', flag); } catch { /* Storage blocked. */ }</script>
     <title>{title} | {SITE.name}</title>
   </head>
   <body class="flex min-h-dvh flex-col bg-[var(--color-page)] text-stone-900 antialiased">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-[var(--ph-radius)] focus:bg-white focus:px-4 focus:py-3 focus:font-semibold focus:text-stone-950 focus:shadow-md">Skip to main content</a>
     {showNavigation && (
       <header class="border-b border-stone-300 bg-white">
-        <div class="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-6 py-3">
-          <a class="text-lg font-semibold tracking-tight text-stone-950" href="/">{SITE.name}</a>
-          <nav aria-label="Primary navigation" class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium">
-            {groups.map((group) => (
-              <details class="relative" data-nav-group>
-                <summary class:list={[summaryClass, isHere(group.prefixes) ? 'border-[var(--color-moss)] text-stone-950' : 'border-transparent text-stone-700 hover:border-stone-400 hover:text-stone-950']}>
-                  {group.label}<span aria-hidden="true" class="text-xs">▾</span>
-                </summary>
-                <div class="absolute left-0 top-full z-20 mt-2 w-60 border border-stone-300 bg-white py-2 shadow-md">
-                  {group.links.map((link) => <a class={linkClass} href={link.href}>{link.label}</a>)}
-                </div>
-              </details>
+        <div class="mx-auto flex min-h-16 max-w-6xl items-center gap-3 px-4 py-2 sm:px-6">
+          <a class="mr-2 text-xl font-semibold tracking-tight text-stone-950" href="/">{SITE.name}</a>
+          <nav aria-label="Primary" class="hidden items-center gap-1 md:flex">
+            {nav.map((item) => (
+              <a href={item.href} aria-current={isHere(item.href) ? 'page' : undefined} class:list={[linkBase, isHere(item.href) ? 'bg-[var(--ph-brand-soft)] text-stone-950' : 'text-stone-800 hover:bg-stone-100']}>{item.label}</a>
             ))}
-            <a
-              class:list={['border-b-2 py-1 transition-colors', here === '/lost-pet' || here.startsWith('/lost-pet/') ? 'border-[var(--color-moss)] text-stone-950' : 'border-transparent text-stone-700 hover:border-stone-400 hover:text-stone-950']}
-              href="/lost-pet"
-            >Lost a pet?</a>
-            <a class="bg-[var(--color-moss)] px-4 py-2 text-on-brand transition-colors hover:bg-[var(--color-moss-dark)]" href="/donate" aria-current={here === '/donate' ? 'page' : undefined}>Donate</a>
-            <span data-account-menu>
-              <a class="border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-on-brand" href="/login">Log in</a>
-            </span>
           </nav>
+          <div class="ml-auto flex items-center gap-2">
+            <a href="/donate" aria-current={here === '/donate' ? 'page' : undefined} class="inline-flex min-h-11 items-center rounded-[var(--ph-radius)] bg-[var(--ph-brand)] px-4 py-2 text-base font-semibold text-[var(--ph-on-brand)] transition-colors hover:bg-[var(--ph-brand-strong)]">Donate</a>
+            <a data-account href="/login" class="hidden min-h-11 items-center rounded-[var(--ph-radius)] border border-stone-400 px-4 py-2 text-base font-semibold text-stone-900 transition-colors hover:bg-stone-100 sm:inline-flex">Log in</a>
+            <button type="button" data-menu-button aria-expanded="false" aria-controls="mobile-nav" class="inline-flex min-h-11 items-center rounded-[var(--ph-radius)] border border-stone-400 px-4 py-2 text-base font-semibold text-stone-900 hover:bg-stone-100 md:hidden">Menu</button>
+          </div>
         </div>
+        <nav id="mobile-nav" aria-label="Primary (menu)" hidden class="border-t border-stone-200 px-4 pb-3 pt-2 md:hidden">
+          <ul class="grid gap-1">
+            {nav.map((item) => <li><a href={item.href} aria-current={isHere(item.href) ? 'page' : undefined} class:list={['block', linkBase, isHere(item.href) ? 'bg-[var(--ph-brand-soft)] text-stone-950' : 'text-stone-800 hover:bg-stone-100']}>{item.label}</a></li>)}
+            <li><a data-account-mobile href="/login" class:list={['block', linkBase, 'text-stone-800 hover:bg-stone-100']}>Log in</a></li>
+          </ul>
+        </nav>
       </header>
     )}
-    <main id="main-content" class="flex-1">
+    <main id="main-content" tabindex="-1" class="flex-1 focus:outline-none">
       <slot />
     </main>
     {showFooter && (
       <footer class="border-t border-stone-300 bg-white">
-        <div class="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-7 text-sm text-stone-700 sm:flex-row sm:items-center sm:justify-between">
-          <p>{SITE.tagline}</p>
-          {themeSwitcher && (
-            <label class="flex items-center gap-2 text-sm text-stone-700">Theme
-              <select data-theme-switcher class="border border-stone-400 bg-white px-2 py-1.5 text-stone-900">
-                {THEMES.map((theme) => <option value={theme.id}>{theme.label}</option>)}
-              </select>
-            </label>
-          )}
-          <nav aria-label="Footer navigation" class="flex flex-wrap gap-x-5 gap-y-2">
-            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/pets">Browse pets</a>
-            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/visits">Schedule a visit</a>
-            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/quiz">Pet quiz</a>
-            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/volunteer">Volunteer</a>
-            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/lost-pet">Lost a pet?</a>
-            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/donate">Donate</a>
-            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/sign-up">Create an account</a>
-            <a class="underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/me">My PawHeaven</a>
-          </nav>
+        <div class="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <div>
+            <p class="text-lg font-semibold text-stone-950">{SITE.name}</p>
+            <p class="mt-2 max-w-xs text-sm leading-6 text-stone-700">{SITE.tagline}</p>
+            <address class="mt-4 text-sm not-italic leading-6 text-stone-800">
+              {address}<br />
+              <a class={footerLink} href={SHELTER.phoneHref}>{SHELTER.phone}</a><br />
+              <a class={footerLink} href={`mailto:${SHELTER.email}`}>{SHELTER.email}</a>
+            </address>
+          </div>
+          <nav aria-labelledby="footer-help"><h2 id="footer-help" class="text-sm font-semibold text-stone-950">Ways to help</h2>
+            <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/adopt">Adopt</a></li><li><a class={footerLink} href="/foster">Foster</a></li><li><a class={footerLink} href="/volunteer">Volunteer</a></li><li><a class={footerLink} href="/donate">Donate</a></li></ul></nav>
+          <nav aria-labelledby="footer-visit"><h2 id="footer-visit" class="text-sm font-semibold text-stone-950">Visit and learn</h2>
+            <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/visit">Plan a visit</a></li><li><a class={footerLink} href="/adopt/process">How adoption works</a></li><li><a class={footerLink} href="/lost-pet">Lost a pet?</a></li><li><a class={footerLink} href="/faq">Questions and answers</a></li></ul></nav>
+          <nav aria-labelledby="footer-about"><h2 id="footer-about" class="text-sm font-semibold text-stone-950">About</h2>
+            <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/about">About us</a></li><li><a class={footerLink} href="/contact">Contact and hours</a></li><li><a class={footerLink} href="/privacy">Privacy</a></li><li><a class={footerLink} href="/terms">Terms</a></li></ul></nav>
+        </div>
+        <div class="border-t border-stone-200">
+          <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-sm text-stone-700 sm:px-6">
+            <p>© {new Date().getFullYear()} {SITE.name}</p>
+            {themeSwitcher && (
+              <label class="flex items-center gap-2 text-sm text-stone-700">Theme
+                <select data-theme-switcher class="min-h-11 border border-stone-400 bg-white px-2 py-1.5 text-stone-900">
+                  {THEMES.map((theme) => <option value={theme.id}>{theme.label}</option>)}
+                </select>
+              </label>
+            )}
+          </div>
         </div>
       </footer>
     )}
@@ -122,94 +123,38 @@ const linkClass = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
 <script>
   import { initThemeSwitcher } from '@pawheaven/contracts/ui';
   import { apiBase } from '../lib/api';
-  const accountMenu = document.querySelector<HTMLElement>('[data-account-menu]');
 
-  function showLoginAction() {
-    if (!accountMenu) return;
-    accountMenu.replaceChildren();
-    const login = document.createElement('a');
-    login.href = '/login';
-    login.className = 'border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-on-brand';
-    login.textContent = 'Log in';
-    accountMenu.append(login);
-  }
+  // Mobile menu: a real button that shows and hides the list, closes on Escape, and keeps focus sensible.
+  const button = document.querySelector<HTMLButtonElement>('[data-menu-button]');
+  const menu = document.getElementById('mobile-nav');
+  const setMenu = (open: boolean) => {
+    if (!button || !menu) return;
+    button.setAttribute('aria-expanded', String(open));
+    button.textContent = open ? 'Close' : 'Menu';
+    menu.hidden = !open;
+  };
+  button?.addEventListener('click', () => setMenu(button.getAttribute('aria-expanded') !== 'true'));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && button?.getAttribute('aria-expanded') === 'true') { setMenu(false); button.focus(); }
+  });
 
-  /** Signed in: one "My PawHeaven" menu holds the dashboard, sign-in details, and log out. */
-  function showAccountMenu() {
-    if (!accountMenu) return;
-    accountMenu.replaceChildren();
-    const details = document.createElement('details');
-    details.className = 'relative';
-    details.dataset.navGroup = '';
-    const summary = document.createElement('summary');
-    summary.className = 'flex cursor-pointer list-none items-center gap-1 border border-[var(--color-moss)] px-3 py-2 text-[var(--color-moss-dark)] transition-colors hover:bg-[var(--color-moss)] hover:text-on-brand [&::-webkit-details-marker]:hidden';
-    summary.append('My PawHeaven ');
-    const caret = document.createElement('span');
-    caret.setAttribute('aria-hidden', 'true');
-    caret.className = 'text-xs';
-    caret.textContent = '▾';
-    summary.append(caret);
-    const panel = document.createElement('div');
-    panel.className = 'absolute right-0 top-full z-20 mt-2 w-60 border border-stone-300 bg-white py-2 shadow-md';
-    for (const [href, label] of [['/me', 'Dashboard'], ['/account', 'Profile and sign-in details']]) {
-      const link = document.createElement('a');
-      link.href = href;
-      link.className = 'block px-4 py-2 text-sm text-stone-800 hover:bg-stone-100';
-      link.textContent = label;
-      panel.append(link);
+  // The account link says "Log in" until we know someone is signed in, then "My PawHeaven".
+  function showAccount(signedIn: boolean) {
+    for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-account], [data-account-mobile]')) {
+      link.href = signedIn ? '/me' : '/login';
+      link.textContent = signedIn ? 'My PawHeaven' : 'Log in';
     }
-    const logout = document.createElement('button');
-    logout.type = 'button';
-    logout.className = 'block w-full px-4 py-2 text-left text-sm text-stone-800 hover:bg-stone-100 disabled:cursor-wait disabled:opacity-70';
-    logout.textContent = 'Log out';
-    logout.addEventListener('click', async () => {
-      logout.disabled = true;
-      logout.textContent = 'Logging out…';
-      try {
-        const response = await fetch(`${apiBase}/auth/logout`, { method: 'POST', credentials: 'include' });
-        if (!response.ok) throw new Error('Logout failed.');
-        showLoginAction();
-        window.dispatchEvent(new CustomEvent('pawheaven:authchange', { detail: { signedIn: false } }));
-      } catch {
-        logout.disabled = false;
-        logout.textContent = 'Log out';
-      }
-    });
-    panel.append(logout);
-    details.append(summary, panel);
-    accountMenu.append(details);
   }
-
-  async function loadAuthAction() {
+  async function loadAccount() {
     try {
       const response = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
-      if (response.ok) showAccountMenu();
-      else showLoginAction();
-    } catch {
-      showLoginAction();
-    }
+      showAccount(response.ok);
+    } catch { showAccount(false); }
   }
-
   window.addEventListener('pawheaven:authchange', (event) => {
-    if (event instanceof CustomEvent && event.detail?.signedIn === false) showLoginAction();
-    if (event instanceof CustomEvent && event.detail?.signedIn === true) showAccountMenu();
+    if (event instanceof CustomEvent) showAccount(Boolean(event.detail?.signedIn));
   });
-
-  // Only one menu is open at a time; a click elsewhere or Escape closes it.
-  document.addEventListener('click', (event) => {
-    for (const group of document.querySelectorAll<HTMLDetailsElement>('details[data-nav-group][open]')) {
-      if (!group.contains(event.target as Node)) group.open = false;
-    }
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape') return;
-    for (const group of document.querySelectorAll<HTMLDetailsElement>('details[data-nav-group][open]')) {
-      group.open = false;
-      group.querySelector('summary')?.focus();
-    }
-  });
-
-  loadAuthAction();
+  void loadAccount();
   const themeSelect = document.querySelector<HTMLSelectElement>('[data-theme-switcher]');
   if (themeSelect) initThemeSwitcher(themeSelect);
 </script>

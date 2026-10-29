@@ -552,6 +552,10 @@ expectStatus(await request('/auth/email', { method: 'PUT', cookie: applicantCook
 // Get Involved: open hours, capacity visits with pets, events, pet quick actions, the foster pool, the schedule, and attention.
 const feed = expectStatus(await request('/get-involved'), 200, 'the public what-is-open feed');
 if (!Array.isArray(feed.visits) || !Array.isArray(feed.shifts) || !Array.isArray(feed.events) || typeof feed.foster?.open !== 'number') fail('the what-is-open feed is missing sections.');
+const publicAvailability = expectStatus(await request('/public/availability'), 200, 'guests can read open visit times and shifts');
+if (!Array.isArray(publicAvailability.visits) || !Array.isArray(publicAvailability.shifts)) fail('the public availability is missing sections.');
+if (publicAvailability.visits.some((visit) => !visit.id || visit.spotsLeft < 1) || publicAvailability.shifts.some((shift) => !shift.id || shift.spotsLeft < 1 || typeof shift.minAge !== 'number')) fail('the public availability returned a full or unidentified entry.');
+if (JSON.stringify(publicAvailability).includes('@')) fail('the public availability leaked an email address.');
 expectStatus(await request('/admin/availability', { cookie: applicantCookie }), 403, 'a member cannot read open hours');
 expectStatus(await request('/admin/attention', { cookie: applicantCookie }), 403, 'a member cannot read the attention report');
 expectStatus(await request('/admin/pets/flags', { method: 'POST', cookie: applicantCookie, body: { petIds: [baxterId], needsWalkers: true } }), 403, 'a member cannot change pet flags');

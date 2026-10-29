@@ -1,0 +1,8 @@
+---
+import PageShell from '../../layouts/PageShell.astro';
+import Quiz from '../../app/adopt/Quiz';
+---
+
+<PageShell title="Find your match" description="Answer a few questions about your home and lifestyle and see which PawHeaven animals might suit you.">
+  <Quiz client:load />
+</PageShell>

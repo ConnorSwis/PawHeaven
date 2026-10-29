@@ -1,0 +1,9 @@
+---
+import PageShell from '../../layouts/PageShell.astro';
+import PetProfile from '../../app/adopt/PetProfile';
+---
+
+<!-- The one built template for every animal. The Worker serves it at /adopt/<name>-<id> with the animal's data inlined. -->
+<PageShell title="Meet an animal" description="Meet an animal looking for a home at PawHeaven.">
+  <PetProfile client:load />
+</PageShell>
