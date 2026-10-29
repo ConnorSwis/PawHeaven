@@ -1,6 +1,6 @@
 ---
-import AdminDashboard from '../components/AdminDashboard.astro';
-import AdminShell from '../layouts/AdminShell.astro';
+import PortalShell from '../layouts/PortalShell.astro';
+import { App } from '../portal/App';
 ---
 
-<AdminShell title="Portal"><AdminDashboard /></AdminShell>
+<PortalShell title="Portal"><App client:only="react" /></PortalShell>
