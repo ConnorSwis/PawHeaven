@@ -18,6 +18,11 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.15",
+    "@fullcalendar/daygrid": "^6.1.15",
+    "@fullcalendar/interaction": "^6.1.15",
+    "@fullcalendar/list": "^6.1.15",
+    "@fullcalendar/timegrid": "^6.1.15",
     "@pawheaven/contracts": "0.1.0",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.3.5",

@@ -311,7 +311,9 @@ begin
   loop
     v_i := v_i + 1;
     v_target := case when v_i % 5 = 0 then 0 else least(v_shift.capacity, 1 + (v_i * 7) % greatest(v_shift.capacity, 1)) end;
-    v_count := 0;
+    -- Count sign-ups already on the shift so it never ends up over capacity.
+    select count(*) into v_count from public.volunteer_registrations r where r.shift_id = v_shift.id and r.status = 'registered';
+    v_target := least(v_target + v_count, v_shift.capacity);
     for v_member in select * from m order by (n * 5 + v_i) % 12 loop
       exit when v_count >= v_target;
       continue when extract(year from age(v_member.dob)) < v_shift.min_age;
