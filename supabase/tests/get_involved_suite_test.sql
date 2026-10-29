@@ -99,10 +99,10 @@ select results_eq(
 
 -- Capacity, party size, pets -------------------------------------------------
 select lives_ok(
-  $$select public.publish_visit_slot(now() + interval '20 days', now() + interval '20 days 1 hour', 2)$$,
+  $$select public.publish_visit_slot(now() + interval '130 days', now() + interval '130 days 1 hour', 2)$$,
   'an administrator can publish a visit time with capacity two'
 );
-create temp table gi_slot as select id from public.visit_slots where capacity = 2 and rule_id is null and created_by = 'e1000000-0000-0000-0000-000000000001' and starts_at > now() + interval '19 days' limit 1;
+create temp table gi_slot as select id from public.visit_slots where capacity = 2 and rule_id is null and created_by = 'e1000000-0000-0000-0000-000000000001' and starts_at > now() + interval '129 days' limit 1;
 grant select on gi_slot to authenticated;
 
 set local request.jwt.claims = '{"role":"authenticated","sub":"e1000000-0000-0000-0000-000000000002","email":"gi-one@example.com","app_metadata":{},"user_metadata":{"name":"GI One"}}';
@@ -151,7 +151,7 @@ select throws_ok(
 
 -- Events -------------------------------------------------------------------
 select lives_ok(
-  $$select public.create_event('Gi Open House', 'Meet the animals.', now() + interval '30 days', now() + interval '30 days 2 hours', 3, 30,
+  $$select public.create_event('Gi Open House', 'Meet the animals.', now() + interval '150 days', now() + interval '150 days 2 hours', 3, 30,
       '[{"title":"Greeter","description":"Welcome visitors at the door.","capacity":2},{"title":"Walker","capacity":3,"minAge":16}]'::jsonb,
       array['e2000000-0000-0000-0000-000000000001']::uuid[])$$,
   'an administrator can create an open house'
@@ -221,6 +221,7 @@ select throws_ok($$select public.my_involvement()$$, '42501', null, 'anonymous v
 
 -- Reminders (service role) ---------------------------------------------------
 reset role;
+update public.visit_slots set status = 'withdrawn' where id <> (select id from gi_slot) and tstzrange(starts_at, ends_at, '[)') && tstzrange(now() + interval '5 hours', now() + interval '6 hours', '[)');
 update public.visit_slots set starts_at = now() + interval '5 hours', ends_at = now() + interval '6 hours' where id = (select id from gi_slot);
 update public.appointments set created_at = now() - interval '1 day' where slot_id = (select id from gi_slot);
 set local role service_role;
