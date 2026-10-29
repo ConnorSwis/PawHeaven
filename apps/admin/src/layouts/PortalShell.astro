@@ -1,0 +1,21 @@
+---
+import '../styles/global.css';
+import { SITE, THEMES } from '@pawheaven/contracts/site';
+
+interface Props { title: string }
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-theme={import.meta.env.PUBLIC_THEME || undefined}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{title} | {SITE.adminName}</title>
+    <script is:inline define:vars={{ ids: THEMES.map((theme) => theme.id) }}>try { const root = document.documentElement; const saved = localStorage.getItem('ph-theme'); if (saved !== null && ids.includes(saved)) { if (saved) root.dataset.theme = saved; else delete root.dataset.theme; } const vars = JSON.parse(localStorage.getItem('ph-theme-vars') || '{}'); for (const [name, value] of Object.entries(vars)) if (/^--ph-[a-z-]+$/.test(name) && typeof value === 'string' && /^[#\w\s.,%()"'-]+$/.test(value)) root.style.setProperty(name, value); } catch { /* Storage blocked or unreadable. */ }</script>
+  </head>
+  <body class="min-h-dvh bg-[var(--color-page)] text-stone-900 antialiased">
+    <slot />
+  </body>
+</html>
