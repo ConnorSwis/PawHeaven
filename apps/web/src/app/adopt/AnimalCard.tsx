@@ -5,6 +5,7 @@ import { HeartFilledIcon, HeartIcon, PawIcon } from '../../ui/icons';
 import { isSenior } from './age';
 import { useSaved } from './saved';
 import { petPath } from './slug';
+import { helpLabel } from '../status/help';
 
 /** Short facts for one line: "Labrador mix · 2 years · Male · Large". */
 export function petFacts(pet: Pet): string {
@@ -57,6 +58,7 @@ export function SaveButton({ pet, variant = 'icon', className }: { pet: Pet; var
 export function PetBadges({ pet }: { pet: Pet }) {
   return (
     <>
+      {helpLabel(pet) && <Badge tone="warn">{helpLabel(pet)}</Badge>}
       {pet.fosterUrgent && <Badge tone="danger">Foster needed now</Badge>}
       {isSenior(pet.age) && <Badge tone="neutral">Senior</Badge>}
       {pet.goodWithKids === 'Yes' && <Badge tone="good">Good with kids</Badge>}

@@ -8,6 +8,8 @@ import { CalendarIcon, ClockIcon, PawIcon, PinIcon, SearchIcon } from '../../ui/
 import { AnimalCard, AnimalCardSkeleton } from '../adopt/AnimalCard';
 import { ClientOnly } from '../adopt/client';
 import { petPath } from '../adopt/slug';
+import { NeedsHelpRow } from '../status/NeedsHelp';
+import { StatusBanner } from '../status/StatusBanner';
 
 const quickLinks = [
   { label: 'Dogs', href: '/adopt?species=dog' },
@@ -54,6 +56,14 @@ function Hero() {
       </div>
     </section>
   );
+}
+
+/** Animals staff flagged as needing help, above the general featured grid. Absent while loading, on error, and when no one is flagged. */
+function NeedsHelp() {
+  const inline = useMemo(() => inlineData<{ pets: Pet[] }>(), []);
+  const { data } = useApi<{ pets: Pet[] }>('/pets', { initialData: inline ?? undefined });
+  if (!data) return null;
+  return <NeedsHelpRow pets={data.pets} id="needs-help-title" action={<ButtonLink href="/adopt?sort=help">See all</ButtonLink>} />;
 }
 
 function FeaturedSkeleton() {
@@ -205,6 +215,8 @@ export default function Home() {
   return (
     <Providers>
       <Hero />
+      <StatusBanner contained />
+      <ClientOnly fallback={null}><NeedsHelp /></ClientOnly>
       <ClientOnly fallback={<FeaturedSkeleton />}><Featured /></ClientOnly>
       <WaysToHelp />
       <HowItWorks />

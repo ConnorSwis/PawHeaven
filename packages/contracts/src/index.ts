@@ -97,6 +97,24 @@ export const PET_SIZES = ['Small', 'Medium', 'Large', 'Extra large'] as const;
 export const ENERGY_LEVELS = ['Low', 'Medium', 'High'] as const;
 export const YES_NO_UNKNOWN = ['Yes', 'No', 'Unknown'] as const;
 
+/** Why staff flagged an animal as needing help. A fixed list, so nothing private is ever shown publicly. */
+export const HELP_REASONS = ['home_soon', 'foster', 'long_stay', 'medical'] as const;
+export type HelpReason = (typeof HELP_REASONS)[number];
+/** The wording shown to visitors and staff for each reason. */
+export const HELP_REASON_LABELS: Record<HelpReason, string> = {
+  home_soon: 'Needs a home soon',
+  foster: 'Needs a foster',
+  long_stay: 'Here a long time',
+  medical: 'Needs medical care',
+};
+/** One line of context on the animal page: why this animal is listed first. */
+export const HELP_REASON_DETAILS: Record<HelpReason, string> = {
+  home_soon: 'Space is tight, so a home this week would make a real difference.',
+  foster: 'A foster home, even for a few weeks, would get this animal out of a kennel.',
+  long_stay: 'This animal has waited longer than most. The right person just has not met them yet.',
+  medical: 'This animal needs medical care that a quiet home would help with.',
+};
+
 export type PetSex = (typeof PET_SEXES)[number] | '';
 export type PetSize = (typeof PET_SIZES)[number] | '';
 export type PetEnergyLevel = (typeof ENERGY_LEVELS)[number] | '';
@@ -124,6 +142,10 @@ export type Pet = {
   needsWalkers: boolean;
   /** Set while staff have an open foster request for the pet. */
   fosterUrgent: boolean;
+  /** Why staff flagged the animal as needing help; empty when not flagged. Shown publicly. */
+  helpReason: HelpReason | '';
+  /** When the current flag was set; null when not flagged. */
+  helpSince: string | null;
   /** Empty string means not recorded. */
   sex: PetSex;
   size: PetSize;
@@ -146,7 +168,7 @@ export type Pet = {
 
 /** Pet attributes are optional on input: an attribute left out is not changed. */
 export type PetInput = Pick<Pet, 'name' | 'type' | 'breed' | 'age' | 'intakeDate' | 'tags' | 'status' | 'summary' | 'medicalHistory' | 'fosterAvailable'>
-  & Partial<Pick<Pet, 'sex' | 'size' | 'color' | 'weightLbs' | 'spayedNeutered' | 'goodWithKids' | 'goodWithDogs' | 'goodWithCats' | 'energyLevel'>>;
+  & Partial<Pick<Pet, 'sex' | 'size' | 'color' | 'weightLbs' | 'spayedNeutered' | 'goodWithKids' | 'goodWithDogs' | 'goodWithCats' | 'energyLevel' | 'helpReason'>>;
 
 export type AdminPetListResponse = {
   pets: Pet[];
@@ -680,8 +702,8 @@ export type AttentionItem = {
   kind: string;
   title: string;
   detail: string;
-  /** What the staff portal should offer: generate, schedule, open_foster, fosters. */
-  action: 'generate' | 'schedule' | 'open_foster' | 'fosters';
+  /** What the staff portal should offer: generate, schedule, open_foster, fosters, animals (go to the Animals page), mark_help (flag petIds as needing help). */
+  action: 'generate' | 'schedule' | 'open_foster' | 'fosters' | 'animals' | 'mark_help';
   refId?: string;
   petIds?: string[];
 };
@@ -716,3 +738,23 @@ export type PublicAvailability = {
   visits: { id: string; startsAt: string; endsAt: string; spotsLeft: number }[];
   shifts: { id: string; title: string; description: string; requirements: string; minAge: number; startsAt: string; endsAt: string; capacity: number; spotsLeft: number }[];
 };
+
+/** How full a species group's kennels are. `unset` means staff have not entered a kennel count. */
+export type ShelterLevel = 'unset' | 'ok' | 'busy' | 'full' | 'over';
+export type ShelterGroupStatus = {
+  group: 'Dog' | 'Cat' | 'Other';
+  kennels: number;
+  heldBack: number;
+  /** Animals using a kennel: Available or Pending, not in a foster home. */
+  used: number;
+  /** Animals open for adoption in this group. */
+  ready: number;
+  /** Used kennels as a whole percent of usable kennels; null when unset. */
+  percent: number | null;
+  level: ShelterLevel;
+};
+/** GET /public/shelter-status and GET /admin/capacity: counts and levels only, nothing about individual animals. */
+export type ShelterStatus = { groups: ShelterGroupStatus[]; needHelp: number };
+export type CapacityInput = { kennels: number; heldBack: number };
+/** POST /admin/pets/help: an empty reason clears the flag. */
+export type PetHelpInput = { petIds: string[]; reason: HelpReason | '' };

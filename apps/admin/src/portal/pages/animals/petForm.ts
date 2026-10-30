@@ -1,4 +1,4 @@
-import type { Pet, PetFlagsInput, PetInput } from '@pawheaven/contracts';
+import type { HelpReason, Pet, PetFlagsInput, PetInput } from '@pawheaven/contracts';
 
 /** The editable shape of a pet, kept as strings so inputs stay controlled. */
 export type PetDraft = {
@@ -6,13 +6,15 @@ export type PetDraft = {
   sex: Pet['sex']; size: Pet['size']; color: string; weight: string; energyLevel: Pet['energyLevel'];
   spayedNeutered: Pet['spayedNeutered']; goodWithKids: Pet['goodWithKids']; goodWithDogs: Pet['goodWithDogs']; goodWithCats: Pet['goodWithCats'];
   fosterAvailable: boolean; visitsOpen: boolean; needsWalkers: boolean;
+  /** Why staff flagged this animal as needing help; empty when not flagged. */
+  helpReason: HelpReason | '';
 };
 
 export function emptyDraft(today: string): PetDraft {
   return {
     name: '', status: 'Available', type: '', breed: '', age: '', intakeDate: today, tags: '', summary: '', medicalHistory: '',
     sex: '', size: '', color: '', weight: '', energyLevel: '', spayedNeutered: 'Unknown', goodWithKids: 'Unknown', goodWithDogs: 'Unknown', goodWithCats: 'Unknown',
-    fosterAvailable: false, visitsOpen: true, needsWalkers: false,
+    fosterAvailable: false, visitsOpen: true, needsWalkers: false, helpReason: '',
   };
 }
 
@@ -21,7 +23,7 @@ export function draftFromPet(pet: Pet): PetDraft {
     name: pet.name, status: pet.status, type: pet.type, breed: pet.breed, age: pet.age, intakeDate: pet.intakeDate.slice(0, 10), tags: pet.tags.join(', '),
     summary: pet.summary, medicalHistory: pet.medicalHistory, sex: pet.sex, size: pet.size, color: pet.color, weight: pet.weightLbs === null ? '' : String(pet.weightLbs),
     energyLevel: pet.energyLevel, spayedNeutered: pet.spayedNeutered, goodWithKids: pet.goodWithKids, goodWithDogs: pet.goodWithDogs, goodWithCats: pet.goodWithCats,
-    fosterAvailable: pet.fosterAvailable, visitsOpen: pet.visitsOpen !== false, needsWalkers: pet.needsWalkers,
+    fosterAvailable: pet.fosterAvailable, visitsOpen: pet.visitsOpen !== false, needsWalkers: pet.needsWalkers, helpReason: pet.helpReason ?? '',
   };
 }
 
@@ -34,6 +36,7 @@ export function inputFromDraft(draft: PetDraft): PetInput {
     tags: draft.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
     sex: draft.sex, size: draft.size, color: draft.color, weightLbs: weight === '' ? null : Number(weight), energyLevel: draft.energyLevel,
     spayedNeutered: draft.spayedNeutered, goodWithKids: draft.goodWithKids, goodWithDogs: draft.goodWithDogs, goodWithCats: draft.goodWithCats,
+    helpReason: draft.helpReason,
   };
 }
 

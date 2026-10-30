@@ -1,6 +1,7 @@
 ---
 import PageShell from '../layouts/PageShell.astro';
 import FosterAnimals from '../app/foster/FosterAnimals';
+import StatusBannerIsland from '../app/status/StatusBannerIsland';
 import { PageHeading } from '../ui';
 import { SHELTER } from '@pawheaven/contracts/site';
 
@@ -14,9 +15,11 @@ const faq = [
 ];
 ---
 
-<PageShell title="Foster" description={`Foster an animal from ${SHELTER.name}. A few weeks in a home helps a shelter animal rest, heal, and get ready for adoption.`}>
+<PageShell title="Foster" statusBanner description={`Foster an animal from ${SHELTER.name}. A few weeks in a home helps a shelter animal rest, heal, and get ready for adoption.`}>
   <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
     <PageHeading title="Foster an animal" intro="A foster home is a quiet place to rest, heal, or grow up while an animal waits for adoption. Most stays are a few weeks, and every one frees up space for another animal in need." />
+
+    <StatusBannerIsland client:load className="mt-8" />
 
     <div class="mt-8 grid gap-6 md:grid-cols-2">
       <section aria-labelledby="you-heading" class="rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 sm:p-6">

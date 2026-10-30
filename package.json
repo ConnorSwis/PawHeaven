@@ -24,8 +24,9 @@
     "qa:theme": "node --experimental-strip-types --test tests/theme-qa.test.mjs",
     "demo:activity": "node scripts/demo-activity.mjs",
     "qa:involved": "node --experimental-strip-types --test tests/get-involved.test.mjs",
+    "qa:status": "node --experimental-strip-types --test tests/shelter-status.test.mjs",
     "qa:demo": "node scripts/verify-demo.mjs",
     "build": "npm run build -w @pawheaven/web && npm run build -w @pawheaven/admin && npm run build -w @pawheaven/api",
-    "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run check:astro -w @pawheaven/admin && npm run workers:deploy:dry-run -w @pawheaven/api && npm run workers:deploy:dry-run -w @pawheaven/admin && npm run qa:discovery && npm run qa:ai && npm run qa:stripe && npm run qa:theme && npm run qa:involved"
+    "check": "npm run build && npm run check:astro -w @pawheaven/web && npm run check:astro -w @pawheaven/admin && npm run workers:deploy:dry-run -w @pawheaven/api && npm run workers:deploy:dry-run -w @pawheaven/admin && npm run qa:discovery && npm run qa:ai && npm run qa:stripe && npm run qa:theme && npm run qa:involved && npm run qa:status"
   }
 }

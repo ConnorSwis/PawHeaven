@@ -1,10 +1,12 @@
 import {
   ENERGY_LEVELS,
+  HELP_REASONS,
   PET_SEXES,
   PET_SIZES,
   PET_STATUSES,
   YES_NO_UNKNOWN,
   type FieldErrors,
+  type HelpReason,
   type Pet,
   type PetInput,
   type PetEnergyLevel,
@@ -30,6 +32,8 @@ export type DatabasePet = {
   visits_open?: boolean;
   needs_walkers?: boolean;
   foster_urgent_at?: string | null;
+  help_reason?: HelpReason | '';
+  help_since?: string | null;
   sex: PetSex;
   size: PetSize;
   color: string;
@@ -70,6 +74,8 @@ export function petForClient(row: DatabasePet, env: Env): Pet {
     visitsOpen: row.visits_open ?? true,
     needsWalkers: row.needs_walkers ?? false,
     fosterUrgent: Boolean(row.foster_urgent_at),
+    helpReason: row.help_reason ?? '',
+    helpSince: row.help_since ?? null,
     sex: row.sex ?? '',
     size: row.size ?? '',
     color: row.color ?? '',
@@ -105,7 +111,7 @@ export function petInput(body: unknown): { value: PetInput } | { fieldErrors: Fi
     : [];
   const intakeTime = /^\d{4}-\d{2}-\d{2}$/.test(intakeDate) ? Date.parse(`${intakeDate}T00:00:00Z`) : Number.NaN;
   const errors: FieldErrors = {};
-  const attributes: Partial<Pick<PetInput, 'sex' | 'size' | 'color' | 'weightLbs' | 'spayedNeutered' | 'goodWithKids' | 'goodWithDogs' | 'goodWithCats' | 'energyLevel'>> = {};
+  const attributes: Partial<Pick<PetInput, 'sex' | 'size' | 'color' | 'weightLbs' | 'spayedNeutered' | 'goodWithKids' | 'goodWithDogs' | 'goodWithCats' | 'energyLevel' | 'helpReason'>> = {};
   /** An attribute that is absent is left alone; one that is present must be a listed value (or empty where "not recorded" is allowed). */
   const choice = <T extends string>(key: string, allowed: readonly T[], emptyAllowed: boolean, label: string): T | '' | undefined => {
     const raw = input?.[key];
@@ -119,6 +125,7 @@ export function petInput(body: unknown): { value: PetInput } | { fieldErrors: Fi
   assign('sex', choice('sex', PET_SEXES, true, 'a sex'));
   assign('size', choice('size', PET_SIZES, true, 'a size'));
   assign('energyLevel', choice('energyLevel', ENERGY_LEVELS, true, 'an energy level'));
+  assign('helpReason', choice('helpReason', HELP_REASONS, true, 'a reason'));
   assign('spayedNeutered', choice('spayedNeutered', YES_NO_UNKNOWN, false, 'Yes, No, or Unknown') as YesNoUnknown | undefined);
   assign('goodWithKids', choice('goodWithKids', YES_NO_UNKNOWN, false, 'Yes, No, or Unknown') as YesNoUnknown | undefined);
   assign('goodWithDogs', choice('goodWithDogs', YES_NO_UNKNOWN, false, 'Yes, No, or Unknown') as YesNoUnknown | undefined);
@@ -177,5 +184,6 @@ export function petRow(input: PetInput) {
     ...(input.goodWithDogs !== undefined && { good_with_dogs: input.goodWithDogs }),
     ...(input.goodWithCats !== undefined && { good_with_cats: input.goodWithCats }),
     ...(input.energyLevel !== undefined && { energy_level: input.energyLevel }),
+    ...(input.helpReason !== undefined && { help_reason: input.helpReason }),
   };
 }

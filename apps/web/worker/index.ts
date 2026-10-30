@@ -6,8 +6,10 @@
  *   /adopt/<name>-<8 hex>   one animal  → built page /adopt/pet/ + that animal
  *   /adopt and /            the animals → built page + the animal list
  */
+import { HELP_REASON_LABELS, type HelpReason } from '@pawheaven/contracts';
+
 interface Env { ASSETS: Fetcher; API_BASE?: string }
-type PublicPet = { id: string; name: string; type: string; breed: string; age: string; summary: string; imageUrl: string | null; sex?: string; size?: string };
+type PublicPet = { id: string; name: string; type: string; breed: string; age: string; summary: string; imageUrl: string | null; sex?: string; size?: string; helpReason?: HelpReason | '' };
 
 const RESERVED = new Set(['pet', 'match', 'process']);
 const SITE_NAME = 'PawHeaven';
@@ -47,7 +49,9 @@ async function animalPage(request: Request, env: Env, slug: string): Promise<Res
   const { status, body: pet } = await getJson<PublicPet>(`${apiBase(request, env)}/pets/s/${shortId}`);
   if (!pet) return status === 404 ? withData(template, { missing: true }, 404) : template; // API trouble: let the page load it itself
   const about = [pet.breed, pet.age, pet.sex, pet.size].filter(Boolean).join(' · ');
-  const description = clip(`${pet.name} is a ${pet.type.toLowerCase()} looking for a home. ${about}. ${pet.summary}`.replace(/\s+/g, ' '), 200);
+  // A flagged animal leads with why ("Needs a home soon. Meet ..."), using only the fixed public wording.
+  const reason = pet.helpReason ? HELP_REASON_LABELS[pet.helpReason] : '';
+  const description = clip(`${reason ? `${reason}. Meet ${pet.name}, a` : `${pet.name} is a`} ${pet.type.toLowerCase()} looking for a home. ${about}. ${pet.summary}`.replace(/\s+/g, ' '), 200);
   const title = `${pet.name}, ${pet.breed || pet.type} | ${SITE_NAME}`;
   const canonical = `${url.origin}/adopt/${slug}`;
   return withData(template, { pet }, 200, (rewriter) => rewriter

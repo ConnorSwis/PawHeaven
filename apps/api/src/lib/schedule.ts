@@ -190,4 +190,3 @@ export function scheduleToIcs(entries: ScheduleEntry[], now = new Date()): strin
   lines.push('END:VCALENDAR');
   return `${lines.map(fold).join('\r\n')}\r\n`;
 }
-

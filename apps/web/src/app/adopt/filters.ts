@@ -1,5 +1,6 @@
 import { matchesPetSearch, type Pet } from '@pawheaven/contracts';
 import { ageBand, type AgeBand } from './age';
+import { byHelpSince, helpLabel } from '../status/help';
 
 /** Every filter lives in the address (`/adopt?species=dog&size=small&kids=1`), so a filtered view can be shared. */
 export type Filters = {
@@ -13,7 +14,7 @@ export type Filters = {
   dogs: boolean;
   cats: boolean;
   foster: boolean;
-  sort: 'waiting' | 'newest' | 'name';
+  sort: 'waiting' | 'help' | 'newest' | 'name';
 };
 
 export const DEFAULT_FILTERS: Filters = { q: '', species: '', size: '', age: '', sex: '', energy: '', kids: false, dogs: false, cats: false, foster: false, sort: 'waiting' };
@@ -22,7 +23,7 @@ export const SPECIES_OPTIONS = [{ value: 'dog', label: 'Dogs' }, { value: 'cat',
 export const SIZE_OPTIONS = [{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }, { value: 'extra-large', label: 'Extra large' }] as const;
 export const SEX_OPTIONS = [{ value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }] as const;
 export const ENERGY_OPTIONS = [{ value: 'low', label: 'Low: relaxed' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High: very active' }] as const;
-export const SORT_OPTIONS = [{ value: 'waiting', label: 'Waiting longest' }, { value: 'newest', label: 'Newest arrivals' }, { value: 'name', label: 'Name, A to Z' }] as const;
+export const SORT_OPTIONS = [{ value: 'waiting', label: 'Waiting longest' }, { value: 'help', label: 'Needs help first' }, { value: 'newest', label: 'Newest arrivals' }, { value: 'name', label: 'Name, A to Z' }] as const;
 
 const pick = <T extends string>(value: string | null, allowed: readonly { value: T }[], fallback: '' | T = ''): '' | T => allowed.find((option) => option.value === value)?.value ?? fallback;
 
@@ -76,5 +77,8 @@ export function applyFilters(pets: Pet[], filters: Filters): Pet[] {
     return true;
   });
   const byName = (a: Pet, b: Pet) => a.name.localeCompare(b.name);
-  return result.sort(filters.sort === 'name' ? byName : filters.sort === 'newest' ? (a, b) => a.daysInShelter - b.daysInShelter || byName(a, b) : (a, b) => b.daysInShelter - a.daysInShelter || byName(a, b));
+  const byWaiting = (a: Pet, b: Pet) => b.daysInShelter - a.daysInShelter || byName(a, b);
+  // "Needs help first": flagged animals (longest flagged first), then everyone else the way "Waiting longest" does.
+  const byHelp = (a: Pet, b: Pet) => (helpLabel(b) ? 1 : 0) - (helpLabel(a) ? 1 : 0) || (helpLabel(a) ? byHelpSince(a, b) : byWaiting(a, b));
+  return result.sort(filters.sort === 'name' ? byName : filters.sort === 'newest' ? (a, b) => a.daysInShelter - b.daysInShelter || byName(a, b) : filters.sort === 'help' ? byHelp : byWaiting);
 }

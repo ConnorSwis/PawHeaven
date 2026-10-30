@@ -9,6 +9,8 @@ import { ClientOnly } from './client';
 import { AGE_BANDS } from './age';
 import { DEFAULT_FILTERS, ENERGY_OPTIONS, SEX_OPTIONS, SIZE_OPTIONS, SORT_OPTIONS, SPECIES_OPTIONS, activeFilterCount, applyFilters, filtersToSearch, hasAnyFilter, parseFilters, type Filters } from './filters';
 import { useSaved } from './saved';
+import { NeedsHelpRow } from '../status/NeedsHelp';
+import { StatusBanner } from '../status/StatusBanner';
 
 const Grid = ({ children }: { children: React.ReactNode }) => <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{children}</div>;
 
@@ -59,6 +61,8 @@ function Directory() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
       <PageHeading title="Adopt a pet" intro="Every animal here is looking for a home. Search, filter, and save the ones you love." />
+
+      <StatusBanner className="mt-6" />
 
       <div className="mt-6 flex flex-col gap-3 rounded-[var(--ph-radius)] border border-[var(--ph-brand)] bg-[var(--ph-brand-soft)] p-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-base text-stone-950"><span className="font-semibold">Not sure? Find your match.</span> Answer a few questions about your home and lifestyle.</p>
@@ -118,6 +122,15 @@ function Directory() {
         </div>
         <p role="status" className="sr-only">{announced}</p>
       </form>
+
+      {pets && !hasAnyFilter(filters) && filters.sort !== 'help' && (
+        <NeedsHelpRow
+          pets={pets}
+          id="directory-needs-help"
+          className="mt-8"
+          action={<Button onClick={() => { set('sort', 'help'); document.getElementById('pet-sort')?.focus(); }}>Sort all animals by who needs help first</Button>}
+        />
+      )}
 
       <div className="mt-6">
         {isError && !pets ? (

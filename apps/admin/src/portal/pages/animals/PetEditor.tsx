@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ENERGY_LEVELS, PET_SEXES, PET_SIZES, PET_STATUSES, YES_NO_UNKNOWN, type Pet } from '@pawheaven/contracts';
+import { ENERGY_LEVELS, HELP_REASONS, HELP_REASON_LABELS, PET_SEXES, PET_SIZES, PET_STATUSES, YES_NO_UNKNOWN, type HelpReason, type Pet } from '@pawheaven/contracts';
 import { apiBase } from '../../../lib/api';
-import { ApiRequestError, api, errorMessage, useRefresh } from '../../lib/api';
+import { ApiRequestError, api, errorMessage, useApi, useRefresh } from '../../lib/api';
 import { shelterDay } from '../../lib/format';
 import { useRoute } from '../../lib/router';
 import { Badge, Button, ConfirmDialog, Detail, Field, Input, Select, Sheet, StatusBadge, Tabs, Textarea } from '../../ui';
@@ -41,9 +41,12 @@ export function PetEditor({ id, pet, onClose }: { id: string; pet: Pet | undefin
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [askFoster, setAskFoster] = useState(false);
+  const fosterRequests = useApi<{ requests: { petId: string; closedAt: string | null }[] }>('/admin/foster-requests');
+  const requestOpen = !isNew && Boolean(fosterRequests.data?.requests.some((item) => item.petId === id && !item.closedAt));
 
   // Switching to another animal (or the list finishing its load) resets the form.
-  useEffect(() => { setDraft(initial); setErrors({}); setFile(null); setFileError(''); setTab('basics'); }, [initial, id]);
+  useEffect(() => { setDraft(initial); setErrors({}); setFile(null); setFileError(''); setTab('basics'); setAskFoster(false); }, [initial, id]);
   useEffect(() => {
     if (!file) { setPreview(null); return undefined; }
     const url = URL.createObjectURL(file);
@@ -52,7 +55,7 @@ export function PetEditor({ id, pet, onClose }: { id: string; pet: Pet | undefin
   }, [file]);
 
   const set = <K extends keyof PetDraft>(key: K, value: PetDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
-  const dirty = JSON.stringify(draft) !== JSON.stringify(initial) || file !== null;
+  const dirty = JSON.stringify(draft) !== JSON.stringify(initial) || file !== null || askFoster;
   const err = (key: string) => errors[key];
   const tabHasError = (fields: readonly string[]) => fields.some((field) => errors[field]);
 
@@ -92,8 +95,15 @@ export function PetEditor({ id, pet, onClose }: { id: string; pet: Pet | undefin
           return;
         }
       }
-      await refresh('/admin/pets');
-      toast.success(isNew ? `${saved.name} was added.` : `${saved.name} was saved.`);
+      let message = isNew ? `${saved.name} was added.` : `${saved.name} was saved.`;
+      if (askFoster && draft.helpReason === 'foster' && !requestOpen) {
+        try {
+          const result = await api<{ notified: number }>('/admin/foster-requests', { method: 'POST', json: { petId: saved.id, note: '' } });
+          message += result.notified ? ` Asked ${result.notified} approved foster${result.notified === 1 ? '' : 's'}.` : ' The foster request is open, but nobody has opted in to alerts yet.';
+        } catch (error) { toast.error(`${saved.name} was saved, but the foster pool could not be asked: ${errorMessage(error)}`); }
+      }
+      await refresh('/admin/pets', '/admin/capacity', '/admin/attention', '/admin/foster-requests');
+      toast.success(message);
       onClose();
     } catch (error) {
       if (error instanceof ApiRequestError && error.fieldErrors) {
@@ -143,6 +153,18 @@ export function PetEditor({ id, pet, onClose }: { id: string; pet: Pet | undefin
         <Field label="Breed" error={err('breed')}><Input value={draft.breed} onChange={(event) => set('breed', event.target.value)} placeholder="Mixed breed" /></Field>
         <Field label="Age" error={err('age')}><Input value={draft.age} onChange={(event) => set('age', event.target.value)} placeholder="2 years" /></Field>
         <Field label="Intake date" error={err('intakeDate')}><Input type="date" value={draft.intakeDate} onChange={(event) => set('intakeDate', event.target.value)} /></Field>
+        <Field label="Needs help" error={err('helpReason')} help="Lists this animal first on the public site with a badge. Visitors see only the reason, never staff notes." className="sm:col-span-2">
+          <Select value={draft.helpReason} onChange={(event) => { set('helpReason', event.target.value as HelpReason | ''); if (event.target.value !== 'foster') setAskFoster(false); }}>
+            <option value="">Not flagged</option>
+            {HELP_REASONS.map((reason) => <option key={reason} value={reason}>{HELP_REASON_LABELS[reason]}</option>)}
+          </Select>
+        </Field>
+        {draft.helpReason === 'foster' && ['Available', 'Pending'].includes(draft.status) && (
+          <label className="flex items-start gap-3 text-sm text-stone-900 sm:col-span-2">
+            <input type="checkbox" className="mt-1" checked={askFoster && !requestOpen} disabled={requestOpen} onChange={(event) => setAskFoster(event.target.checked)} />
+            <span><span className="block font-medium text-stone-950">Also ask the foster pool for a foster home</span><span className="mt-0.5 block text-stone-700">{requestOpen ? 'A foster request is already open for this animal.' : 'After saving, emails every approved foster who opted in to alerts.'}</span></span>
+          </label>
+        )}
         <Field label="Tags" error={err('tags')} help="Separate up to 20 tags with commas, such as big-dog, gentle." className="sm:col-span-2"><Input value={draft.tags} onChange={(event) => set('tags', event.target.value)} placeholder="big-dog, gentle, family-friendly" /></Field>
         <Field label="Description" error={err('summary')} help="Shown on the animal's public page." className="sm:col-span-2"><Textarea rows={5} value={draft.summary} onChange={(event) => set('summary', event.target.value)} /></Field>
         <Field label="Medical history" error={err('medicalHistory')} help="Shown publicly. Do not include private staff notes." className="sm:col-span-2"><Textarea rows={3} value={draft.medicalHistory} onChange={(event) => set('medicalHistory', event.target.value)} placeholder="Vaccinations, spay/neuter, ongoing care" /></Field>
