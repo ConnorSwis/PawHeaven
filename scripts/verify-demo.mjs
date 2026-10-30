@@ -549,6 +549,8 @@ expectStatus(await request('/auth/change-password', { method: 'POST', cookie: ap
 expectStatus(await request('/auth/login', { method: 'POST', body: { email: uniqueEmail, password: 'Another-Pass-2026!' } }), 200, 'login with the changed password');
 expectStatus(await request('/auth/email', { method: 'PUT', cookie: applicantCookie, body: { email: `changed-${uniqueEmail}`, currentPassword: 'Wrong-Password-1!' } }), 400, 'email change requires the current password');
 
+const attentionHas = (payload, kind) => Array.isArray(payload.items) && payload.items.some((item) => item.kind === kind);
+
 // Get Involved: open hours, capacity visits with pets, events, pet quick actions, the foster pool, the schedule, and attention.
 const feed = expectStatus(await request('/get-involved'), 200, 'the public what-is-open feed');
 if (!Array.isArray(feed.visits) || !Array.isArray(feed.shifts) || !Array.isArray(feed.events) || typeof feed.foster?.open !== 'number') fail('the what-is-open feed is missing sections.');
@@ -556,6 +558,12 @@ const publicAvailability = expectStatus(await request('/public/availability'), 2
 if (!Array.isArray(publicAvailability.visits) || !Array.isArray(publicAvailability.shifts)) fail('the public availability is missing sections.');
 if (publicAvailability.visits.some((visit) => !visit.id || visit.spotsLeft < 1) || publicAvailability.shifts.some((shift) => !shift.id || shift.spotsLeft < 1 || typeof shift.minAge !== 'number')) fail('the public availability returned a full or unidentified entry.');
 if (JSON.stringify(publicAvailability).includes('@')) fail('the public availability leaked an email address.');
+const shelterStatus = expectStatus(await request('/public/shelter-status'), 200, 'guests can read the shelter status');
+if (!Array.isArray(shelterStatus.groups) || shelterStatus.groups.length !== 3 || typeof shelterStatus.needHelp !== 'number' || shelterStatus.groups.some((group) => !['unset', 'ok', 'busy', 'full', 'over'].includes(group.level) || typeof group.used !== 'number')) fail('the shelter status is malformed.');
+if (JSON.stringify(shelterStatus).includes('@')) fail('the shelter status leaked an email address.');
+expectStatus(await request('/admin/capacity', { cookie: applicantCookie }), 403, 'a member cannot read the staff capacity view');
+expectStatus(await request('/admin/capacity/Dog', { method: 'PUT', cookie: applicantCookie, body: { kennels: 20, heldBack: 0 } }), 403, 'a member cannot change capacity');
+expectStatus(await request('/admin/pets/help', { method: 'POST', cookie: applicantCookie, body: { petIds: [baxterId], reason: 'foster' } }), 403, 'a member cannot flag a pet as needing help');
 expectStatus(await request('/admin/availability', { cookie: applicantCookie }), 403, 'a member cannot read open hours');
 expectStatus(await request('/admin/attention', { cookie: applicantCookie }), 403, 'a member cannot read the attention report');
 expectStatus(await request('/admin/pets/flags', { method: 'POST', cookie: applicantCookie, body: { petIds: [baxterId], needsWalkers: true } }), 403, 'a member cannot change pet flags');
@@ -601,7 +609,14 @@ expectStatus(await request(`/admin/visit-slots/${qaSlot.id}/capacity`, { method:
 const eventStart = new Date(Date.now() + 50 * 86_400_000); eventStart.setUTCHours(14, 0, 0, 0);
 const eventBody = { title: 'QA Open House', description: 'Meet the animals.', startsAt: eventStart.toISOString(), endsAt: new Date(eventStart.getTime() + 7_200_000).toISOString(), visitCapacity: 2, slotMinutes: 30, roles: [{ title: 'QA Greeters', capacity: 2 }], petIds: [baxterId] };
 expectStatus(await request('/admin/events', { method: 'POST', cookie: staffCookie, body: { ...eventBody, visitCapacity: 0, roles: [] } }), 400, 'an event needs visits or roles');
-expectStatus(await request('/admin/events', { method: 'POST', cookie: staffCookie, body: eventBody }), 201, 'staff create an open house');
+// Demo bookings can fill a day, so try the following days until one has no booked visits in the way.
+let openHouse = await request('/admin/events', { method: 'POST', cookie: staffCookie, body: eventBody });
+for (let day = 1; openHouse.response.status === 409 && day <= 6; day += 1) {
+  const later = new Date(eventStart.getTime() + day * 86_400_000);
+  Object.assign(eventBody, { startsAt: later.toISOString(), endsAt: new Date(later.getTime() + 7_200_000).toISOString() });
+  openHouse = await request('/admin/events', { method: 'POST', cookie: staffCookie, body: eventBody });
+}
+expectStatus(openHouse, 201, 'staff create an open house');
 const events = expectStatus(await request('/admin/events', { cookie: staffCookie }), 200, 'staff list events');
 if (!events.events.some((event) => event.title === 'QA Open House' && event.pets.some((pet) => pet.id === baxterId))) fail('the event or its featured pet is missing.');
 const feedAfter = expectStatus(await request('/get-involved'), 200, 'the feed after the event');
@@ -639,8 +654,26 @@ if (typeof involvement.volunteerShifts !== 'number' || typeof involvement.approv
 const attention = expectStatus(await request('/admin/attention', { cookie: staffCookie }), 200, 'the staff attention report');
 if (!Array.isArray(attention.items) || attention.items.some((item) => !item.title || !item.action)) fail('the attention items are malformed.');
 
+// Shelter status: capacity and the needs-help flag, restored to what they were.
+const capacityBefore = expectStatus(await request('/admin/capacity', { cookie: staffCookie }), 200, 'staff read kennel capacity');
+const dogBefore = capacityBefore.groups.find((group) => group.group === 'Dog');
+expectStatus(await request('/admin/capacity/Dog', { method: 'PUT', cookie: staffCookie, body: { kennels: 5, heldBack: 6 } }), 400, 'held-back kennels cannot exceed kennels');
+expectStatus(await request('/admin/capacity/Bird', { method: 'PUT', cookie: staffCookie, body: { kennels: 5, heldBack: 0 } }), 404, 'capacity needs a known group');
+const capacityTight = expectStatus(await request('/admin/capacity/Dog', { method: 'PUT', cookie: staffCookie, body: { kennels: dogBefore.used, heldBack: 0 } }), 200, 'staff set dog capacity to the number of dogs');
+if (capacityTight.groups.find((group) => group.group === 'Dog')?.level !== 'full') fail('dogs should be full when kennels equal dogs.');
+if (!attentionHas(expectStatus(await request('/admin/attention', { cookie: staffCookie }), 200, 'attention with full kennels'), 'capacity_high')) fail('the attention report should warn when kennels are full.');
+expectStatus(await request('/admin/capacity/Dog', { method: 'PUT', cookie: staffCookie, body: { kennels: dogBefore.kennels, heldBack: dogBefore.heldBack } }), 200, 'staff restore dog capacity');
+const baxterBefore = expectStatus(await request(`/pets/${baxterId}`), 200, 'the public pet before flagging');
+expectStatus(await request('/admin/pets/help', { method: 'POST', cookie: staffCookie, body: { petIds: [baxterId], reason: 'sad' } }), 400, 'the help reason must be on the list');
+expectStatus(await request('/admin/pets/help', { method: 'POST', cookie: staffCookie, body: { petIds: [], reason: 'foster' } }), 400, 'the help flag needs at least one pet');
+expectStatus(await request('/admin/pets/help', { method: 'POST', cookie: staffCookie, body: { petIds: [baxterId], reason: 'medical' } }), 200, 'staff flag a pet as needing help');
+const baxterFlagged = expectStatus(await request(`/pets/${baxterId}`), 200, 'the public pet after flagging');
+if (baxterFlagged.helpReason !== 'medical' || !baxterFlagged.helpSince) fail('the public pet should show the help reason.');
+if (JSON.stringify(baxterFlagged).includes('helpNote')) fail('a private help note leaked.');
+expectStatus(await request('/admin/pets/help', { method: 'POST', cookie: staffCookie, body: { petIds: [baxterId], reason: baxterBefore.helpReason } }), 200, 'staff restore the pet flag');
+
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: staffCookie }), 200, 'staff logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: applicantCookie }), 200, 'applicant logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: superCookie }), 200, 'superuser logout');
 
-console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, signed Stripe webhook donation recording, saved profile and pet attributes with the opt-in review shortcut, visit booking/reschedule/cancellation history, staff visit scheduling, open hours generation, capacity visits with pets, open house events, pet quick actions, the foster pool, the member schedule and calendar export, the attention report, session expiry, and logout.');
+console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, signed Stripe webhook donation recording, saved profile and pet attributes with the opt-in review shortcut, visit booking/reschedule/cancellation history, staff visit scheduling, open hours generation, capacity visits with pets, open house events, pet quick actions, the foster pool, the member schedule and calendar export, the attention report, shelter status (capacity levels and the needs-help flag), session expiry, and logout.');

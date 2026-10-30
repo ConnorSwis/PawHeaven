@@ -45,7 +45,7 @@ The public app already has an ignored local `.env` pointing at port 8787. For a 
 The public site retains clearly labeled sample pets if the API is unavailable. With an empty real `pets` table, the API returns an empty list.
 
 For a repeatable local presentation, reset the database and follow the
-[demo runbook](docs/demo-runbook.md). Visits, volunteering, and fostering share one schedule and pool; see [docs/get-involved.md](docs/get-involved.md). It seeds varied pet listings plus
+[demo runbook](docs/demo-runbook.md). Visits, volunteering, and fostering share one schedule and pool; see [docs/get-involved.md](docs/get-involved.md). Kennel capacity and the "needs help" flag are described in [docs/shelter-status.md](docs/shelter-status.md). It seeds varied pet listings plus
 local-only applicant and administrator accounts, and documents the end-to-end
 verification and screenshot flow.
 

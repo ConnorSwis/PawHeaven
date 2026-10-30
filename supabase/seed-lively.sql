@@ -363,3 +363,22 @@ insert into public.foster_invitations (member_id, invited_by, invited_at)
 select m.id, 'a1000000-0000-0000-0000-000000000002', now() - interval '2 days' from m where m.n = 12;
 
 drop table m;
+
+-- Shelter status: kennel counts sized from today's animals (dogs about 90 percent full, cats and
+-- others roomy), and a handful of animals flagged as needing help with different reasons.
+update public.shelter_capacity c set
+  kennels = case c.species_group when 'Dog' then greatest(ceil(u.used / 0.9)::integer, 1) when 'Cat' then greatest(u.used * 4, 12) else 10 end,
+  held_back = 0, updated_at = now()
+from (
+  select public.species_group(species) as species_group, count(*)::integer as used
+  from public.pets where status in ('Available', 'Pending') and housing <> 'Foster home' group by 1
+) u
+where u.species_group = c.species_group;
+
+with ranked as (
+  select id, row_number() over (order by intake_date, name) as n
+  from public.pets where status = 'Available' and housing <> 'Foster home' and species = 'Dog'
+)
+update public.pets p set help_reason = case when r.n <= 2 then 'long_stay' when r.n = 3 then 'home_soon' else 'medical' end
+from ranked r where p.id = r.id and r.n <= 4;
+update public.pets set help_reason = 'foster' where foster_urgent_at is not null and status = 'Available' and help_reason = '';

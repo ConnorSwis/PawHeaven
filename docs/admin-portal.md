@@ -4,8 +4,8 @@ The staff portal (`apps/admin`) is one React app, mounted by Astro at `/`. Seven
 
 | Page | Layout | What it covers |
 | --- | --- | --- |
-| Home | Overview | Needs-you queue, today's visits and shifts, a few numbers, quick actions |
-| Animals | List + side panel | Search, filters, bulk actions (foster, visits, walkers, status), editor panel with photo upload |
+| Home | Overview | Needs-you queue, shelter capacity, today's visits and shifts, a few numbers, quick actions |
+| Animals | List + side panel | Search, filters, bulk actions (foster, visits, walkers, status, needs help), capacity meters, editor panel with photo upload |
 | Requests | List + side panel | Adoption applications, foster applications, lost-pet inquiries; review in the panel |
 | Schedule | Calendar + side panel | Visits, shifts, events; drag to add; open hours, closed days, copy week; bookings and sign-ups in the panel |
 | Fostering | List + side panel | Active placements, ask the foster pool, volunteers to invite |
@@ -13,6 +13,23 @@ The staff portal (`apps/admin`) is one React app, mounted by Astro at `/`. Seven
 | People | List + side panel | Accounts, password reset, block, delete; staff invitations and roles (superuser) |
 
 **Search everything:** press ⌘K (or Ctrl+K) to jump to a page, an animal, a person, or an action. **State lives in the address** (`#/animals?status=Available&id=<pet>`), so back, refresh and shared links work. The account menu (top right) holds the theme picker, the compact-table setting, and sign out.
+
+## Capacity and the needs-help flag
+
+**Capacity.** On Animals (the **Capacity…** button) and Home (**Edit capacity**), staff enter how many kennels the shelter has for Dogs, Cats and Other animals, and how many are **held back** (quarantine or repairs; they do not count as space). The meters show animals in a kennel out of usable kennels, for example "Dogs 17 of 19", with the percent and a level word: Roomy, Getting full (85% or more), Full, or Over capacity. A group with 0 kennels shows "Not set" and no public banner. Animals count while they are Available or Pending and are not in a foster home. Each meter is a labelled `role="meter"`, so the level never depends on color alone.
+
+**Needs help.** A flag on an individual animal, set three ways: the **Needs help** select in the animal editor (Basics tab), the **Needs help…** menu in the bulk bar on Animals (or **Clear flag**), or **Mark needs help** on a Home item. Filter with the **Needs help** chip (`#/animals?help=1`); flagged animals carry a badge in the list. In the editor, choosing *Needs a foster* also offers **Also ask the foster pool for a foster home**, which sends the usual foster request after saving.
+
+| Reason | Use it when |
+| --- | --- |
+| Needs a home soon | Space is tight and a quick adoption would help |
+| Needs a foster | A foster home would get the animal out of a kennel |
+| Here a long time | The animal has waited longer than most |
+| Needs medical care | A quiet home would help with ongoing care |
+
+**What the public sees.** Only the reason label (for example "Needs a foster") on the animal's page and in listings, the kennel level banner, and flagged animals listed first. Staff notes, medical history and anything else about the flag are never shown.
+
+**Home prompts.** The Needs you list can say kennels are nearly full (opens Animals), that flagged animals have gone a week without applications (opens the flagged list), or that animals here over 90 days could be marked as needing help.
 
 ## How it is built
 

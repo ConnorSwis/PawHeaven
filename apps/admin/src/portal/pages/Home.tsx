@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import type { AdminDonationsResponse, AdminVisitScheduleResponse, AdminVolunteerShiftListResponse, AdminAdoptionApplicationListResponse, AdminFosterApplicationListResponse, AdminLostPetInquiryListResponse, AttentionItem } from '@pawheaven/contracts';
+import { HELP_REASONS, HELP_REASON_LABELS, type HelpReason, type AdminDonationsResponse, type AdminVisitScheduleResponse, type AdminVolunteerShiftListResponse, type AdminAdoptionApplicationListResponse, type AdminFosterApplicationListResponse, type AdminLostPetInquiryListResponse, type AttentionItem } from '@pawheaven/contracts';
 import { api, errorMessage, useApi, useRefresh } from '../lib/api';
 import { formatMoney, formatTime, shelterDay } from '../lib/format';
 import { useRoute } from '../lib/router';
 import type { PageProps } from '../routes';
-import { Badge, Button, Card, EmptyState, PageHeader, Skeleton, StatCard } from '../ui';
+import { Badge, Button, Card, EmptyState, PageHeader, Select, Skeleton, StatCard } from '../ui';
+import { CapacityCard, CapacitySheet } from './animals/Capacity';
 import { PlusIcon } from '../ui/icons';
 import { useToast } from '../ui/toast';
 
-const actionLabel: Record<AttentionItem['action'], string> = { generate: 'Fill in open hours', schedule: 'Open schedule', open_foster: 'Open to foster', fosters: 'Go to fostering' };
+const itemKey = (item: AttentionItem) => `${item.kind}-${item.refId ?? item.title}`;
+const actionLabel: Record<AttentionItem['action'], string> = { generate: 'Fill in open hours', schedule: 'Open schedule', open_foster: 'Open to foster', fosters: 'Go to fostering', animals: 'Open animals', mark_help: 'Mark needs help' };
 
 function greeting() {
   const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
@@ -20,6 +22,9 @@ export default function Home({ user }: PageProps) {
   const toast = useToast();
   const refresh = useRefresh();
   const [working, setWorking] = useState<string | null>(null);
+  const [capacityOpen, setCapacityOpen] = useState(false);
+  const [choosing, setChoosing] = useState<string | null>(null);
+  const [reason, setReason] = useState<HelpReason>('long_stay');
   const attention = useApi<{ items: AttentionItem[] }>('/admin/attention', { refetchSeconds: 120 });
   const visits = useApi<AdminVisitScheduleResponse>('/admin/visit-slots');
   const shifts = useApi<AdminVolunteerShiftListResponse>('/admin/volunteer-shifts');
@@ -43,11 +48,23 @@ export default function Home({ user }: PageProps) {
   const run = async (item: AttentionItem) => {
     if (item.action === 'schedule') return navigate('/schedule');
     if (item.action === 'fosters') return navigate('/fostering');
+    if (item.action === 'animals') return navigate(item.petIds?.length ? '/animals?help=1' : '/animals');
+    if (item.action === 'mark_help') { setReason('long_stay'); setChoosing(itemKey(item)); return; }
     setWorking(item.title);
     try {
       if (item.action === 'generate') { const result = await api<{ visitsCreated: number; shiftsCreated: number }>('/admin/availability/generate', { method: 'POST' }); toast.success(`Added ${result.visitsCreated} visit times and ${result.shiftsCreated} shifts.`); }
       else { await api('/admin/pets/flags', { method: 'POST', json: { petIds: item.petIds ?? [], fosterAvailable: true } }); toast.success('Those animals are now open to foster.'); }
-      await refresh('/admin/attention', '/admin/pets', '/admin/visit-slots', '/admin/volunteer-shifts');
+      await refresh('/admin/attention', '/admin/pets', '/admin/visit-slots', '/admin/volunteer-shifts', '/admin/capacity');
+    } catch (error) { toast.error(errorMessage(error)); } finally { setWorking(null); }
+  };
+
+  const markHelp = async (item: AttentionItem) => {
+    setWorking(item.title);
+    try {
+      await api('/admin/pets/help', { method: 'POST', json: { petIds: item.petIds ?? [], reason } });
+      toast.success(`Marked as: ${HELP_REASON_LABELS[reason]}.`);
+      setChoosing(null);
+      await refresh('/admin/attention', '/admin/pets', '/admin/capacity');
     } catch (error) { toast.error(errorMessage(error)); } finally { setWorking(null); }
   };
 
@@ -77,7 +94,13 @@ export default function Home({ user }: PageProps) {
               {attention.data.items.slice(0, 7).map((item, index) => (
                 <li key={`${item.kind}-${item.refId ?? index}`} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div className="min-w-0 flex-1"><p className="text-sm font-medium text-stone-950">{item.title}</p><p className="text-xs leading-5 text-stone-600">{item.detail}</p></div>
-                  <Button size="sm" disabled={working === item.title} onClick={() => void run(item)}>{working === item.title ? 'Working…' : actionLabel[item.action]}</Button>
+                  {item.action === 'mark_help' && choosing === itemKey(item) ? (
+                    <div className="flex w-full flex-wrap items-center gap-2" role="group" aria-label={`Why does this need help? ${item.title}`}>
+                      <Select aria-label="Reason" autoFocus value={reason} onChange={(event) => setReason(event.target.value as HelpReason)} className="min-h-11 w-auto! flex-1 sm:max-w-xs">{HELP_REASONS.map((value) => <option key={value} value={value}>{HELP_REASON_LABELS[value]}</option>)}</Select>
+                      <Button size="sm" variant="primary" className="min-h-11" disabled={working === item.title} onClick={() => void markHelp(item)}>{working === item.title ? 'Working…' : 'Mark'}</Button>
+                      <Button size="sm" variant="ghost" className="min-h-11" disabled={working === item.title} onClick={() => setChoosing(null)}>Cancel</Button>
+                    </div>
+                  ) : <Button size="sm" className="min-h-11" disabled={working === item.title} onClick={() => void run(item)}>{working === item.title ? 'Working…' : actionLabel[item.action]}</Button>}
                 </li>
               ))}
               {attention.data.items.length > 7 && <li className="pt-3 text-xs text-stone-600">And {attention.data.items.length - 7} more.</li>}
@@ -85,6 +108,8 @@ export default function Home({ user }: PageProps) {
           )}
         </Card>
 
+        <div className="grid gap-6">
+        <CapacityCard showEdit onEdit={() => setCapacityOpen(true)} onHelp={() => navigate('/animals?help=1')} />
         <Card>
           <h2 className="text-base font-semibold text-stone-950">Today</h2>
           <h3 className="mt-3 text-xs font-semibold uppercase tracking-wide text-stone-600">Visits</h3>
@@ -110,7 +135,9 @@ export default function Home({ user }: PageProps) {
             </ul>
           )}
         </Card>
+        </div>
       </div>
+      <CapacitySheet open={capacityOpen} onOpenChange={setCapacityOpen} />
     </div>
   );
 }

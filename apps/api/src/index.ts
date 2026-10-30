@@ -50,7 +50,7 @@ async function route(context: RouteContext): Promise<ApiResponse> {
   if (path.startsWith('/volunteer/')) return volunteerRoutes(context);
   if (path === '/visit-slots' || path === '/appointments' || path.startsWith('/appointments/')) return visitSchedulingRoutes(context);
   if (path === '/get-involved' || path === '/public/availability' || path.startsWith('/me/') || path === '/foster-requests' || path.startsWith('/foster-requests/')) return getInvolvedRoutes(context);
-  if (path === '/pets' || path.startsWith('/pets/')) return publicPetRoutes(context);
+  if (path === '/pets' || path.startsWith('/pets/') || path === '/public/shelter-status') return publicPetRoutes(context);
   return errorResponse('Not found.', 404);
 }
 

@@ -19,6 +19,7 @@ import {
   ruleInput,
   type DatabaseRule,
 } from '../lib/schedule';
+import { capacityInput, petHelpInput, shelterStatusForClient } from '../lib/shelter';
 import type { AdminContext } from '../lib/session';
 import { userSupabase } from '../lib/supabase';
 
@@ -31,7 +32,7 @@ const rpcError = (operation: string, error: { message: string; code?: string }) 
  */
 export async function adminScheduleRoutes(context: AdminContext): Promise<ApiResponse | null> {
   const { request, env, path, current } = context;
-  const scoped = ['/admin/availability', '/admin/schedule', '/admin/events', '/admin/pets/flags', '/admin/foster-requests', '/admin/volunteer-foster-candidates', '/admin/attention'];
+  const scoped = ['/admin/availability', '/admin/schedule', '/admin/events', '/admin/pets/flags', '/admin/pets/help', '/admin/capacity', '/admin/foster-requests', '/admin/volunteer-foster-candidates', '/admin/attention'];
   if (!scoped.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) return null;
   const client = userSupabase(env, current.accessToken);
 
@@ -146,6 +147,32 @@ export async function adminScheduleRoutes(context: AdminContext): Promise<ApiRes
     });
     if (error) return rpcError('admin.pets.flags', error);
     return respond({ updated: data });
+  }
+
+  // Needs-help flag ---------------------------------------------------------------------------
+  if (path === '/admin/pets/help' && request.method === 'POST') {
+    const parsed = petHelpInput(await jsonBody(request));
+    if ('message' in parsed) return errorResponse(parsed.message, 400);
+    const { data, error } = await client.rpc('set_pet_help', { p_pet_ids: parsed.value.petIds, p_reason: parsed.value.reason });
+    if (error) return rpcError('admin.pets.help', error);
+    return respond({ updated: data });
+  }
+
+  // Kennel capacity ---------------------------------------------------------------------------
+  if (path === '/admin/capacity' && request.method === 'GET') {
+    const { data, error } = await client.rpc('get_shelter_status');
+    if (error) return rpcError('admin.capacity.get', error);
+    return respond(shelterStatusForClient(data));
+  }
+  const capacityMatch = path.match(/^\/admin\/capacity\/(Dog|Cat|Other)$/);
+  if (capacityMatch && request.method === 'PUT') {
+    const parsed = capacityInput(await jsonBody(request));
+    if ('message' in parsed) return errorResponse(parsed.message, 400);
+    const { error } = await client.rpc('set_shelter_capacity', { p_group: capacityMatch[1], p_kennels: parsed.value.kennels, p_held_back: parsed.value.heldBack });
+    if (error) return rpcError('admin.capacity.set', error);
+    const { data, error: statusError } = await client.rpc('get_shelter_status');
+    if (statusError) return rpcError('admin.capacity.get', statusError);
+    return respond(shelterStatusForClient(data));
   }
 
   // Foster requests (pool alerts) -------------------------------------------------------------

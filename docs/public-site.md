@@ -7,7 +7,7 @@ Plan: https://claude.ai/artifact/4UtckZsihLsmTnPL4RFukz. This file is the build 
 | Page | Address | Notes |
 | --- | --- | --- |
 | Home | `/` | Search-first hero with featured animals, ways to help with live counts, how adoption works, hours |
-| Adopt | `/adopt` | Photo grid, real filters in the address, sort by longest waiting, quiz banner, saved animals |
+| Adopt | `/adopt` | Photo grid, real filters in the address, sort by longest waiting or who needs help first, quiz banner, saved animals |
 | Animal | `/adopt/<name>-<8 hex id>` | One built page `/adopt/pet/` (the Worker serves it for every animal and inlines the data) |
 | Match quiz | `/adopt/match` | Public; results, then optional save |
 | How adoption works | `/adopt/process` | Done (content page) |
@@ -41,6 +41,14 @@ Old addresses redirect through `apps/web/public/_redirects`. `astro dev` serves 
 - Words: Adopt, Foster, Volunteer, Visit. "Animal" or the animal's name, not "listing". Shelter times are America/New_York.
 - Use `SHELTER` for hours, address, fees; never retype them.
 - Pet shape: `Pet` in `@pawheaven/contracts` (name, type, breed, age, sex, size, color, weightLbs, energyLevel, goodWithKids/Dogs/Cats, tags, summary, medicalHistory, fosterAvailable, fosterUrgent, needsWalkers, visitsOpen, housing, imageUrl, galleryUrls, sourceName/sourceUrl, daysInShelter).
+
+## Shelter status and animals who need help
+
+Staff control both from the staff portal; the public site only reads them.
+
+- **Status banner** (`src/app/status/`: `useShelterStatus()`, `<StatusBanner />`). Reads `GET /public/shelter-status` (cached 60 s). Shown on Home, Adopt (above the grid), Foster and Volunteer only when a kennel group is `busy` (works as "nearly full"), `full` or `over` ("full"). It picks the most pressed group, and the first listed when equal. Text: heading, a `role="meter"` bar with "89% full" in words, one sentence, and two links (Foster a dog; See dogs who can go home today, `/adopt?species=dog`, or cat / other). It renders nothing while loading, on error, and when every group is `ok` or `unset`. Staff change it by editing kennel counts and held-back kennels in the staff portal; nothing else switches it on.
+- **Footer line.** When the banner is not showing, `PageShell` fills a quiet "28 dogs and 6 cats ready to meet" line (links to `/adopt`) from the same endpoint. `src/lib/shelter-status.ts` caches one fetch per page load on `window`, shared by the banner and the footer script; the line stays hidden if the fetch fails. Pages that show the banner pass `statusBanner` to `PageShell` so the footer skips the line while the banner is up.
+- **Needs help most.** Staff flag an animal with a reason (`home_soon`, `foster`, `long_stay`, `medical`) in the staff portal; the wording comes from `HELP_REASON_LABELS` and `HELP_REASON_DETAILS` in `@pawheaven/contracts`. Public surfaces: a "Needs help most" section on Home (up to 4, oldest flag first, "See all" goes to `/adopt?sort=help`, hidden when no one is flagged); the same row on Adopt when no search or filter is active (and the sort is not already "Needs help first"); a badge on every animal card; the sort option "Needs help first" (`sort=help`: flagged first, oldest flag first, then waiting longest); a callout on the animal page with Adopt, Foster and Share (the share sheet where the browser has one, otherwise the address is copied and a toast confirms); and the page description the Worker inlines for link previews ("Needs a home soon. Meet Rocco, a ...").
 
 ## Status and deployment notes
 

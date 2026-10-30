@@ -1,11 +1,20 @@
 import { matchesPetSearch } from '@pawheaven/contracts';
 import { databaseError, errorResponse, respond, type ApiResponse } from '../lib/http';
 import { petForClient, type DatabasePet } from '../lib/pets';
+import { shelterStatusForClient } from '../lib/shelter';
 import type { RouteContext } from '../lib/session';
 import { supabase } from '../lib/supabase';
 
 export async function publicPetRoutes({ request, env, path }: RouteContext): Promise<ApiResponse> {
   const client = supabase(env);
+  // How full each kennel group is, and how many animals need help. Counts only; cached briefly.
+  if (path === '/public/shelter-status' && request.method === 'GET') {
+    const { data, error } = await client.rpc('get_shelter_status');
+    if (error) return databaseError('public.shelter_status', error);
+    const response = respond(shelterStatusForClient(data));
+    response.headers.set('Cache-Control', 'public, max-age=60');
+    return response;
+  }
   if (path === '/pets' && request.method === 'GET') {
     const url = new URL(request.url);
     const search = url.searchParams.get('search')?.trim().toLowerCase().slice(0, 100) ?? '';

@@ -9,6 +9,8 @@ import { AnimalCard, AnimalCardSkeleton, PetBadges, PetPhoto, SaveButton, petFac
 import { isSenior } from './age';
 import { ClientOnly } from './client';
 import { petPath, shortIdFromPath } from './slug';
+import { helpDetail, helpLabel } from '../status/help';
+import { useToast } from '../../ui/toast';
 
 const money = (dollars: number) => (dollars === 0 ? 'Free' : `$${dollars}`);
 const SIZE_ORDER = ['Small', 'Medium', 'Large', 'Extra large'];
@@ -92,6 +94,41 @@ function Actions({ pet, compact = false }: { pet: Pet; compact?: boolean }) {
       <ButtonLink className={size} href={`/apply?type=adopt&pet=${id}`}>Apply to adopt</ButtonLink>
       {!compact && pet.fosterAvailable && <ButtonLink className={size} href={`/apply?type=foster&pet=${id}`}>Foster {pet.name}</ButtonLink>}
     </>
+  );
+}
+
+/** Why staff listed this animal first, with three plain things a visitor can do about it. */
+function HelpCallout({ pet, className }: { pet: Pet; className?: string }) {
+  const toast = useToast();
+  const id = encodeURIComponent(pet.id);
+  const label = helpLabel(pet);
+  if (!label) return null;
+
+  async function share() {
+    const url = new URL(petPath(pet), window.location.origin).href;
+    const title = `${pet.name} at PawHeaven`;
+    if (typeof navigator.share === 'function') {
+      try { await navigator.share({ title, text: `${label}: meet ${pet.name}.`, url }); } catch (failure) {
+        if (!(failure instanceof DOMException && failure.name === 'AbortError')) toast.error('We could not open sharing. You can copy the address from your browser instead.');
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success(`Link to ${pet.name} copied. Thank you for sharing.`);
+    } catch { toast.error('We could not copy the link. You can copy the address from your browser instead.'); }
+  }
+
+  return (
+    <div className={cx('rounded-[var(--ph-radius)] border border-amber-700 bg-amber-50 p-4 text-amber-900', className)} data-help-callout>
+      <p className="text-lg font-semibold text-stone-950">{label}</p>
+      <p className="mt-1 text-base leading-7 text-stone-900">{helpDetail(pet)}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <ButtonLink variant="primary" href={`/apply?type=adopt&pet=${id}`}>Adopt<span className="sr-only"> {pet.name}</span></ButtonLink>
+        <ButtonLink href={pet.fosterAvailable ? `/apply?type=foster&pet=${id}` : '/foster'}>Foster<span className="sr-only"> {pet.name}</span></ButtonLink>
+        <Button onClick={() => void share()}>Share<span className="sr-only"> {pet.name}</span></Button>
+      </div>
+    </div>
   );
 }
 
@@ -198,6 +235,8 @@ function Profile({ pet }: { pet: Pet }) {
         <div>
           <Gallery pet={pet} />
 
+          <HelpCallout pet={pet} className="mt-6 lg:hidden" />
+
           {(pet.fosterUrgent || pet.needsWalkers) && (
             <div className="mt-6 grid gap-3">
               {pet.fosterUrgent && <Notice tone="warning" title={`${pet.name} needs a foster home now`}>A foster home gives {pet.name} room to relax while the right family is found. <TextLink href={`/apply?type=foster&pet=${encodeURIComponent(pet.id)}`}>Foster {pet.name}</TextLink> or <TextLink href="/foster">learn how fostering works</TextLink>.</Notice>}
@@ -233,6 +272,7 @@ function Profile({ pet }: { pet: Pet }) {
 
         <aside className="hidden lg:block" aria-label={`Next steps for ${pet.name}`}>
           <Card className="sticky top-6 grid gap-3">
+            <HelpCallout pet={pet} />
             <p className="text-lg font-semibold text-stone-950">Ready to meet {pet.name}?</p>
             <p className="text-sm leading-6 text-stone-700">Visit first to see if you click. You can apply any time; applying does not hold an animal.</p>
             <Actions pet={pet} />

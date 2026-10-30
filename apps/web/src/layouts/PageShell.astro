@@ -12,6 +12,8 @@ interface Props {
   noindex?: boolean;
   /** Absolute or site-relative address of the picture shown when the page is shared. */
   image?: string;
+  /** True on pages that show the shelter status banner, so the footer skips its quieter "ready to meet" line when the banner is up. */
+  statusBanner?: boolean;
 }
 
 const {
@@ -21,6 +23,7 @@ const {
   showFooter = true,
   noindex = false,
   image,
+  statusBanner = false,
 } = Astro.props;
 // Demo only: PUBLIC_THEME_SWITCHER=true adds a theme picker to the footer.
 const themeSwitcher = import.meta.env.PUBLIC_THEME_SWITCHER === 'true';
@@ -84,11 +87,12 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
       <slot />
     </main>
     {showFooter && (
-      <footer class="border-t border-stone-300 bg-white">
+      <footer class="border-t border-stone-300 bg-white" data-status-banner-page={statusBanner ? '' : undefined}>
         <div class="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <p class="text-lg font-semibold text-stone-950">{SITE.name}</p>
             <p class="mt-2 max-w-xs text-sm leading-6 text-stone-700">{SITE.tagline}</p>
+            <p data-ready-line hidden class="mt-2 text-sm leading-6"><a data-ready-link class="inline-flex min-h-11 items-center font-medium text-stone-900 underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950" href="/adopt"></a></p>
             <address class="mt-4 text-sm not-italic leading-6 text-stone-800">
               {address}<br />
               <a class={footerLink} href={SHELTER.phoneHref}>{SHELTER.phone}</a><br />
@@ -123,6 +127,8 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
 <script>
   import { initThemeSwitcher } from '@pawheaven/contracts/ui';
   import { apiBase } from '../lib/api';
+  import { loadShelterStatus } from '../lib/shelter-status';
+  import { pressedGroup, readyLine } from '../app/status/status';
 
   // Mobile menu: a real button that shows and hides the list, closes on Escape, and keeps focus sensible.
   const button = document.querySelector<HTMLButtonElement>('[data-menu-button]');
@@ -155,6 +161,17 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
     if (event instanceof CustomEvent) showAccount(Boolean(event.detail?.signedIn));
   });
   void loadAccount();
+
+  // A quiet count in the footer, unless this page is already showing the status banner. Absent if the fetch fails.
+  void loadShelterStatus().then((status) => {
+    const line = document.querySelector<HTMLElement>('[data-ready-line]');
+    const link = document.querySelector<HTMLAnchorElement>('[data-ready-link]');
+    const text = readyLine(status);
+    const bannerPage = document.querySelector('footer[data-status-banner-page]') !== null;
+    if (!line || !link || !text || (bannerPage && pressedGroup(status))) return;
+    link.textContent = text;
+    line.hidden = false;
+  });
   const themeSelect = document.querySelector<HTMLSelectElement>('[data-theme-switcher]');
   if (themeSelect) initThemeSwitcher(themeSelect);
 </script>
