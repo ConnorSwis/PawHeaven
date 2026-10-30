@@ -4,6 +4,7 @@ import Animals from './pages/Animals';
 import Donations from './pages/Donations';
 import Fostering from './pages/Fostering';
 import Home from './pages/Home';
+import Outreach from './pages/Outreach';
 import People from './pages/People';
 import Requests from './pages/Requests';
 import Schedule from './pages/Schedule';
@@ -16,5 +17,6 @@ export const routes: { path: string; component: ComponentType<PageProps> }[] = [
   { path: '/schedule', component: Schedule },
   { path: '/fostering', component: Fostering },
   { path: '/donations', component: Donations },
+  { path: '/outreach', component: Outreach },
   { path: '/people', component: People },
 ];

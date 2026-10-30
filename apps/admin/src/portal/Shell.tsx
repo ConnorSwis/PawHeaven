@@ -6,7 +6,7 @@ import { SITE, THEMES } from '@pawheaven/contracts/site';
 import { saveTheme } from '@pawheaven/contracts/ui';
 import { api, useApi } from './lib/api';
 import { useRoute } from './lib/router';
-import { CalendarIcon, CoinIcon, ExternalIcon, HeartIcon, HomeIcon, InboxIcon, MenuIcon, PawIcon, SearchIcon, UsersIcon } from './ui/icons';
+import { CalendarIcon, CoinIcon, ExternalIcon, HeartIcon, HomeIcon, InboxIcon, MailIcon, MenuIcon, PawIcon, SearchIcon, UsersIcon } from './ui/icons';
 import { Badge, Button, DensityContext, cx } from './ui';
 
 export const NAV = [
@@ -16,6 +16,7 @@ export const NAV = [
   { path: '/schedule', label: 'Schedule', icon: CalendarIcon },
   { path: '/fostering', label: 'Fostering', icon: HeartIcon },
   { path: '/donations', label: 'Donations', icon: CoinIcon },
+  { path: '/outreach', label: 'Outreach', icon: MailIcon },
   { path: '/people', label: 'People', icon: UsersIcon },
 ] as const;
 
@@ -69,6 +70,7 @@ function Palette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: b
         <Command.Group heading="Actions" className={heading}>
           <Command.Item value="action add pet new animal" onSelect={() => go('/animals?id=new')} className={item}><PawIcon />Add an animal</Command.Item>
           <Command.Item value="action add schedule visit shift event" onSelect={() => go('/schedule?add=1')} className={item}><CalendarIcon />Add to the schedule</Command.Item>
+          <Command.Item value="action write newsletter issue email subscribers" onSelect={() => go('/outreach?tab=newsletter&id=new')} className={item}><MailIcon />Write a newsletter issue</Command.Item>
           <Command.Item value="action ask foster pool request" onSelect={() => go('/fostering?tab=pool')} className={item}><HeartIcon />Ask the foster pool for help</Command.Item>
         </Command.Group>
         {pets.data && (

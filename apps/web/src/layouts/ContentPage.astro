@@ -1,11 +1,11 @@
 ---
 import PageShell from './PageShell.astro';
 
-interface Props { title: string; description: string; intro?: string }
-const { title, description, intro } = Astro.props;
+interface Props { title: string; description: string; intro?: string; noindex?: boolean }
+const { title, description, intro, noindex = false } = Astro.props;
 ---
 
-<PageShell title={title} description={description}>
+<PageShell title={title} description={description} noindex={noindex}>
   <div class="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
     <h1 class="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">{title}</h1>
     {intro && <p class="mt-3 text-lg leading-8 text-stone-700">{intro}</p>}

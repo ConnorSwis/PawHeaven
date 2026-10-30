@@ -1,0 +1,8 @@
+---
+import ContentPage from '../../layouts/ContentPage.astro';
+import { ConfirmPage } from '../../app/newsletter/Confirm';
+---
+
+<ContentPage title="Newsletter subscription" description="Confirm that you want the PawHeaven adoption newsletter." noindex>
+  <ConfirmPage client:load />
+</ContentPage>
