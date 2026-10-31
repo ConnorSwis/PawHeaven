@@ -47,7 +47,30 @@ test('event: a paid checkout session becomes a succeeded donation with trimmed d
   assert.deepEqual(donationFromEvent(session()), {
     sessionId: 'cs_test_123', paymentIntent: 'pi_123', amountCents: 2500, currency: 'usd', status: 'succeeded',
     donorName: 'Pat Donor', donorEmail: 'pat@example.com', livemode: false, createdAt: new Date(now * 1000).toISOString(),
+    publicOptIn: false, publicDisplayName: null, publicMessage: null,
   });
+});
+
+test('event: an explicit supporter-wall opt-in carries only the supplied public fields', () => {
+  const record = donationFromEvent(session({ custom_fields: [
+    { key: 'supporter_opt_in', dropdown: { value: 'yes' } },
+    { key: 'supporter_display_name', text: { value: ' The Pawsome Pack ' } },
+    { key: 'supporter_message', text: { value: ' Keep going! ' } },
+  ] }));
+  assert.equal(record.publicOptIn, true);
+  assert.equal(record.publicDisplayName, 'The Pawsome Pack');
+  assert.equal(record.publicMessage, 'Keep going!');
+});
+
+test('event: supporter-wall text stays private without an explicit opt-in', () => {
+  const record = donationFromEvent(session({ custom_fields: [
+    { key: 'supporter_opt_in', dropdown: { value: 'no' } },
+    { key: 'supporter_display_name', text: { value: 'Do not publish me' } },
+    { key: 'supporter_message', text: { value: 'This must stay private.' } },
+  ] }));
+  assert.equal(record.publicOptIn, false);
+  assert.equal(record.publicDisplayName, null);
+  assert.equal(record.publicMessage, null);
 });
 
 test('event: an unpaid session is pending, and async outcomes decide the final status', () => {

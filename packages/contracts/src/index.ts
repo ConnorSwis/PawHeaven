@@ -580,6 +580,7 @@ export function matchStrength(confidence: number): MatchStrength {
 }
 
 export type DonationStatus = 'pending' | 'succeeded' | 'failed';
+export type DonationPublicationStatus = 'private' | 'pending' | 'published' | 'hidden';
 
 export type AdminDonation = {
   id: string;
@@ -591,6 +592,13 @@ export type AdminDonation = {
   donorEmail: string | null;
   /** False for Stripe test-mode payments, which move no real money. */
   livemode: boolean;
+  /** The donor explicitly allowed a public display at Stripe Checkout. */
+  publicOptIn: boolean;
+  /** Never falls back to the donor's billing name. */
+  publicDisplayName: string | null;
+  /** Donor-written text that staff may publish or hide, but never edit. */
+  publicMessage: string | null;
+  publicStatus: DonationPublicationStatus;
   createdAt: string;
 };
 
@@ -605,6 +613,24 @@ export type AdminDonationsResponse = {
   /** Succeeded donations only, with test and live kept apart. */
   totals: DonationTotal[];
   donations: AdminDonation[];
+};
+
+export type DonationPublicationInput = {
+  publicStatus: Extract<DonationPublicationStatus, 'published' | 'hidden'>;
+};
+
+/** A deliberately small, public-safe donation projection. */
+export type PublicDonation = {
+  displayName: string;
+  message: string | null;
+  amountCents: number;
+  /** Lowercase ISO 4217 code, such as `usd`. */
+  currency: string;
+  createdAt: string;
+};
+
+export type PublicDonationsResponse = {
+  donations: PublicDonation[];
 };
 
 function searchableWords(value: string): string[] {

@@ -9,7 +9,7 @@ The staff portal (`apps/admin`) is one React app, mounted by Astro at `/`. Seven
 | Requests | List + side panel | Adoption applications, foster applications, lost-pet inquiries; review in the panel |
 | Schedule | Calendar + side panel | Visits, shifts, events; drag to add; open hours, closed days, copy week; bookings and sign-ups in the panel |
 | Fostering | List + side panel | Active placements, ask the foster pool, volunteers to invite |
-| Donations | List + chart | Totals, donations over time, gift table, CSV export |
+| Donations | List + chart | Totals, donations over time, gift table, CSV export, and review/publish/hide opted-in supporter-wall submissions |
 | People | List + side panel | Accounts, password reset, block, delete; staff invitations and roles (superuser) |
 
 **Search everything:** press ⌘K (or Ctrl+K) to jump to a page, an animal, a person, or an action. **State lives in the address** (`#/animals?status=Available&id=<pet>`), so back, refresh and shared links work. The account menu (top right) holds the theme picker, the compact-table setting, and sign out.

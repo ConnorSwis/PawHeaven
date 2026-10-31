@@ -1,17 +1,19 @@
 import { BarController, BarElement, CategoryScale, Chart, Legend, LinearScale, LineController, LineElement, PointElement, Tooltip } from 'chart.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AdminDonation, AdminDonationsResponse } from '@pawheaven/contracts';
-import { errorMessage, useApi } from '../lib/api';
+import type { AdminDonation, AdminDonationsResponse, DonationPublicationStatus } from '@pawheaven/contracts';
+import { api, errorMessage, useApi, useRefresh } from '../lib/api';
 import { formatDate, formatMoney, shelterDay } from '../lib/format';
 import type { PageProps } from '../routes';
 import { Button, Card, type Column, DataTable, Detail, EmptyState, FilterSelect, PageHeader, SearchBox, Sheet, StatCard, StatusBadge, Toolbar } from '../ui';
 import { useRoute } from '../lib/router';
+import { useToast } from '../ui/toast';
 
 Chart.register(BarController, BarElement, LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 const cssColor = (name: string, fallback: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 const addDays = (day: string, days: number) => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 const weekStart = (day: string) => addDays(day, -new Date(`${day}T00:00:00Z`).getUTCDay());
+const publicationLabel: Record<DonationPublicationStatus, string> = { private: 'Private', pending: 'Awaiting review', published: 'Published', hidden: 'Hidden' };
 
 function DonationChart({ gifts, period }: { gifts: AdminDonation[]; period: 'day' | 'week' }) {
   const canvas = useRef<HTMLCanvasElement | null>(null);
@@ -57,10 +59,13 @@ function DonationChart({ gifts, period }: { gifts: AdminDonation[]; period: 'day
 
 export default function Donations(_props: PageProps) {
   const { params, setParams } = useRoute();
+  const refresh = useRefresh();
+  const toast = useToast();
   const data = useApi<AdminDonationsResponse>('/admin/donations');
   const [period, setPeriod] = useState<'day' | 'week'>('week');
   const [liveOnly, setLiveOnly] = useState(false);
   const [search, setSearch] = useState('');
+  const [publicationBusy, setPublicationBusy] = useState(false);
   const status = params.get('status') ?? '';
   const selectedId = params.get('id');
 
@@ -75,9 +80,23 @@ export default function Donations(_props: PageProps) {
   }, [all, search, status, liveOnly]);
   const selected = all.find((item) => item.id === selectedId);
 
+  const updatePublication = async (publicStatus: Extract<DonationPublicationStatus, 'published' | 'hidden'>) => {
+    if (!selected) return;
+    setPublicationBusy(true);
+    try {
+      await api(`/admin/donations/${selected.id}/publication`, { method: 'PUT', json: { publicStatus } });
+      toast.success(publicStatus === 'published' ? 'Donation published to the supporter wall.' : 'Donation removed from the supporter wall.');
+      await refresh('/admin/donations');
+    } catch (error) {
+      toast.error(errorMessage(error, 'The supporter-wall setting could not be saved.'));
+    } finally {
+      setPublicationBusy(false);
+    }
+  };
+
   const exportCsv = () => {
-    const header = ['Date', 'Donor', 'Email', 'Amount', 'Currency', 'Status', 'Mode'];
-    const lines = rows.map((item) => [item.createdAt, item.donorName ?? '', item.donorEmail ?? '', (item.amountCents / 100).toFixed(2), item.currency, item.status, item.livemode ? 'live' : 'test'].map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(','));
+    const header = ['Date', 'Donor', 'Email', 'Amount', 'Currency', 'Status', 'Mode', 'Public opt-in', 'Supporter-wall status', 'Display name', 'Message'];
+    const lines = rows.map((item) => [item.createdAt, item.donorName ?? '', item.donorEmail ?? '', (item.amountCents / 100).toFixed(2), item.currency, item.status, item.livemode ? 'live' : 'test', item.publicOptIn ? 'yes' : 'no', item.publicStatus, item.publicDisplayName ?? '', item.publicMessage ?? ''].map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(','));
     const url = URL.createObjectURL(new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv' }));
     const link = Object.assign(document.createElement('a'), { href: url, download: 'pawheaven-donations.csv' });
     link.click();
@@ -89,6 +108,7 @@ export default function Donations(_props: PageProps) {
     { key: 'donor', header: 'Donor', sort: (row) => (row.donorName ?? '').toLowerCase(), cell: (row) => <div><p className="font-medium text-stone-950">{row.donorName ?? 'Name not provided'}</p><p className="text-xs text-stone-600">{row.donorEmail ?? 'No email'}</p></div> },
     { key: 'amount', header: 'Amount', sort: (row) => row.amountCents, className: 'text-right', cell: (row) => <span className="font-semibold text-stone-950">{formatMoney(row.amountCents, row.currency)}</span> },
     { key: 'status', header: 'Status', hideBelow: 'sm', cell: (row) => <span className="flex items-center gap-2"><StatusBadge status={row.status} />{!row.livemode && <span className="text-xs text-stone-600">test</span>}</span> },
+    { key: 'wall', header: 'Supporter wall', hideBelow: 'lg', sort: (row) => row.publicStatus, cell: (row) => row.publicOptIn ? <StatusBadge status={row.publicStatus} label={publicationLabel[row.publicStatus]} /> : <span className="text-sm text-stone-600">No opt-in</span> },
   ];
   const totals = data.data?.totals ?? [];
 
@@ -128,6 +148,21 @@ export default function Donations(_props: PageProps) {
             <Detail label="Email">{selected.donorEmail}</Detail>
             <div className="col-span-2"><Detail label="Received">{new Date(selected.createdAt).toLocaleString()}</Detail></div>
           </dl>
+          <section className="mt-6 border-t border-stone-200 pt-5" aria-labelledby="supporter-wall-heading">
+            <h3 id="supporter-wall-heading" className="text-base font-semibold text-stone-950">Supporter wall</h3>
+            {!selected.publicOptIn ? <p className="mt-2 text-sm leading-6 text-stone-700">This donor did not opt in to a public display.</p> : (
+              <div className="mt-3 grid gap-4">
+                <Detail label="Review status"><StatusBadge status={selected.publicStatus} label={publicationLabel[selected.publicStatus]} /></Detail>
+                <Detail label="Display name">{selected.publicDisplayName ?? 'No display name supplied'}</Detail>
+                <Detail label="Message">{selected.publicMessage ?? 'No message supplied'}</Detail>
+                <p className="text-xs leading-5 text-stone-600">Only opted-in successful live donations with a display name can be published. Published messages appear exactly as submitted.</p>
+                <div className="flex flex-wrap gap-2">
+                  {selected.publicStatus !== 'published' && <Button variant="primary" disabled={publicationBusy || !selected.livemode || selected.status !== 'succeeded' || !selected.publicDisplayName} onClick={() => void updatePublication('published')}>{publicationBusy ? 'Saving…' : 'Approve & publish'}</Button>}
+                  {selected.publicStatus !== 'hidden' && <Button disabled={publicationBusy} onClick={() => void updatePublication('hidden')}>{publicationBusy ? 'Saving…' : selected.publicStatus === 'published' ? 'Unpublish' : 'Keep private'}</Button>}
+                </div>
+              </div>
+            )}
+          </section>
         </Sheet>
       )}
     </div>

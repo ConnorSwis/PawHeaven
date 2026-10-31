@@ -55,6 +55,9 @@ export type DonationRecord = {
   donorEmail: string | null;
   livemode: boolean;
   createdAt: string;
+  publicOptIn: boolean;
+  publicDisplayName: string | null;
+  publicMessage: string | null;
 };
 
 const EVENT_OUTCOME: Record<string, 'from-payment-status' | 'succeeded' | 'failed'> = {
@@ -64,6 +67,28 @@ const EVENT_OUTCOME: Record<string, 'from-payment-status' | 'succeeded' | 'faile
 };
 
 const text = (value: unknown, limit: number): string | null => typeof value === 'string' && value.trim() ? value.trim().slice(0, limit) : null;
+
+type StripeCustomField = { key?: unknown; text?: { value?: unknown }; dropdown?: { value?: unknown }; numeric?: { value?: unknown } };
+
+/**
+ * The Payment Link owns these labels; code recognizes its stable keys only.
+ * Nothing is public without an explicit `supporter_opt_in=yes`, and we do not
+ * retain wall text for people who chose to keep their donation private.
+ */
+function supporterWallFields(value: unknown): Pick<DonationRecord, 'publicOptIn' | 'publicDisplayName' | 'publicMessage'> {
+  const fields = Array.isArray(value) ? value as StripeCustomField[] : [];
+  const fieldValue = (key: string) => {
+    const field = fields.find((candidate) => candidate?.key === key);
+    return field ? field.text?.value ?? field.dropdown?.value ?? field.numeric?.value : null;
+  };
+  const publicOptIn = fieldValue('supporter_opt_in') === 'yes';
+  if (!publicOptIn) return { publicOptIn: false, publicDisplayName: null, publicMessage: null };
+  return {
+    publicOptIn,
+    publicDisplayName: text(fieldValue('supporter_display_name'), 80),
+    publicMessage: text(fieldValue('supporter_message'), 240),
+  };
+}
 
 /**
  * Turns a verified Stripe event into a donation record, or null when the event
@@ -97,5 +122,6 @@ export function donationFromEvent(event: unknown): DonationRecord | null {
     donorEmail: text(customer.email, 254),
     livemode: root?.livemode === true,
     createdAt: created.toISOString(),
+    ...supporterWallFields(session.custom_fields),
   };
 }
