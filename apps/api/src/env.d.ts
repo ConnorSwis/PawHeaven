@@ -21,4 +21,10 @@ interface Env {
   SHELTER_NOTIFICATION_EMAIL?: string;
   /** Cloudflare secret (`whsec_...`) that verifies Stripe webhook signatures. Without it donations are not recorded. */
   STRIPE_WEBHOOK_SECRET?: string;
+  /** Public address of the website, used for links in email. Defaults to https://pawheaven.online. */
+  SITE_URL?: string;
+  /** Cloudflare secret that signs unsubscribe links. Defaults to the service-role key, so it only needs setting to rotate links on their own. */
+  UNSUBSCRIBE_SECRET?: string;
+  /** Set to "true" to send only to @resend.dev addresses (Resend's test inboxes), so a demo can never email a real person. */
+  EMAIL_SAFE_MODE?: string;
 }

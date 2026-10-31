@@ -16,7 +16,7 @@ function SavedPhoto({ pet }: { pet: Pet }) {
 
 /** Animals saved on this device. Works for guests too, because nothing here needs an account. */
 export function Saved() {
-  const { ids, remove } = useSavedIds();
+  const { ids, remove, signedIn } = useSavedIds();
   const pets = useApi<{ pets: Pet[] }>(ids.length ? '/pets' : null, { staleSeconds: 60 });
   const [message, setMessage] = useState('');
   const byId = new Map((pets.data?.pets ?? []).map((pet) => [pet.id, pet]));
@@ -27,7 +27,7 @@ export function Saved() {
 
   return (
     <Section id="saved" title="Saved animals" aside={ids.length ? <a className="inline-flex min-h-11 items-center font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href="/adopt">Find more animals</a> : undefined}>
-      <Muted className="mb-4 text-sm">Saved animals are kept on this device only. They are not tied to your account.</Muted>
+      <Muted className="mb-4 text-sm">{signedIn ? 'Saved to your account, so they show on every device.' : 'Saved animals are kept on this device only. They are not tied to an account.'}</Muted>
       <p role="status" className="mb-3 text-sm text-stone-800">{message}</p>
       {!ids.length ? (
         <EmptyState title="You have not saved any animals yet" action={<ButtonLink variant="primary" href="/adopt" className="mt-2">Meet the animals</ButtonLink>}>

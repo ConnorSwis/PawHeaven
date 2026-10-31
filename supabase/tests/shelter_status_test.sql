@@ -1,6 +1,9 @@
 begin;
 select plan(39);
 
+-- Start from a database with no kennel counts set, as it is after the migration.
+update public.shelter_capacity set kennels = 0, held_back = 0;
+
 -- Only the pets made here count: everything already in the database is moved out of the kennels.
 update public.pets set status = 'Adopted' where status in ('Available', 'Pending', 'Unavailable');
 

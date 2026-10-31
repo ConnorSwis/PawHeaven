@@ -2,6 +2,7 @@ import { errorResponse, respond, type ApiResponse } from './lib/http';
 import { configurationError } from './lib/supabase';
 import type { RouteContext } from './lib/session';
 import { adminRoutes } from './routes/admin';
+import { alertsRoutes, isAlertsPath } from './routes/alerts';
 import { adoptionApplicationRoutes } from './routes/applications';
 import { authRoutes } from './routes/auth';
 import { fosterApplicationRoutes } from './routes/foster-applications';
@@ -52,6 +53,7 @@ async function route(context: RouteContext): Promise<ApiResponse> {
   if (path.startsWith('/lost-pet/')) return lostPetRoutes(context);
   if (path.startsWith('/volunteer/')) return volunteerRoutes(context);
   if (path === '/visit-slots' || path === '/appointments' || path.startsWith('/appointments/')) return visitSchedulingRoutes(context);
+  if (isAlertsPath(path)) return alertsRoutes(context);
   if (path === '/get-involved' || path === '/public/availability' || path.startsWith('/me/') || path === '/foster-requests' || path.startsWith('/foster-requests/')) return getInvolvedRoutes(context);
   if (path === '/pets' || path.startsWith('/pets/') || path === '/public/shelter-status') return publicPetRoutes(context);
   return errorResponse('Not found.', 404);

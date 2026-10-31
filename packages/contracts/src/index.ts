@@ -728,8 +728,8 @@ export type AttentionItem = {
   kind: string;
   title: string;
   detail: string;
-  /** What the staff portal should offer: generate, schedule, open_foster, fosters, animals (go to the Animals page), mark_help (flag petIds as needing help). */
-  action: 'generate' | 'schedule' | 'open_foster' | 'fosters' | 'animals' | 'mark_help';
+  /** What the staff portal should offer: generate, schedule, open_foster, fosters, animals (go to the Animals page), mark_help (flag petIds as needing help), outreach (go to the Outreach page). */
+  action: 'generate' | 'schedule' | 'open_foster' | 'fosters' | 'animals' | 'mark_help' | 'outreach';
   refId?: string;
   petIds?: string[];
 };
@@ -784,3 +784,80 @@ export type ShelterStatus = { groups: ShelterGroupStatus[]; needHelp: number };
 export type CapacityInput = { kennels: number; heldBack: number };
 /** POST /admin/pets/help: an empty reason clears the flag. */
 export type PetHelpInput = { petIds: string[]; reason: HelpReason | '' };
+
+// --- Alerts, saved animals, and the newsletter ---------------------------------------------------
+
+/** Directory filters a member can save for email alerts. Booleans are only ever `true`; an absent key means "any". */
+export type SavedSearchFilters = {
+  species?: 'dog' | 'cat' | 'other';
+  size?: 'small' | 'medium' | 'large' | 'extra-large';
+  age?: 'baby' | 'young' | 'adult' | 'senior';
+  sex?: 'male' | 'female';
+  energy?: 'low' | 'medium' | 'high';
+  kids?: true;
+  dogs?: true;
+  cats?: true;
+  foster?: true;
+};
+export type SavedSearch = { id: string; label: string; filters: SavedSearchFilters; createdAt: string };
+export type SavedSearchInput = { label: string; filters: SavedSearchFilters };
+export type SavedSearchListResponse = { searches: SavedSearch[] };
+
+/** GET /me/saved and the responses of the calls that change it. Newest first. */
+export type SavedPetsResponse = { petIds: string[] };
+
+/** A member's optional-email choices. Service messages (your visit, shift, or application) are always sent. */
+export type EmailPrefs = {
+  /** Daily email when a new animal fits one of the member's saved searches. */
+  matchDigest: boolean;
+  /** Daily email when an animal the member saved becomes available, pending, or adopted. */
+  savedChanges: boolean;
+  newsletter: boolean;
+  /** Only approved fosters can turn this on. */
+  fosterAlerts: boolean;
+  approvedFoster: boolean;
+  savedSearches: number;
+  savedAnimals: number;
+};
+export type EmailPrefsInput = Partial<Pick<EmailPrefs, 'matchDigest' | 'savedChanges' | 'newsletter'>>;
+
+/** POST /public/subscribe. `pending` means a confirmation email was sent; `confirmed` means the address was already subscribed. */
+export type SubscribeResponse = { status: 'pending' | 'confirmed' };
+/** POST /public/unsubscribe, with the signed token from the link in an email. */
+export type UnsubscribeScope = 'newsletter' | 'alerts' | 'all';
+export type UnsubscribeResponse = { scope: UnsubscribeScope };
+
+export const NEWSLETTER_BLOCKS = ['help', 'newest', 'events', 'shifts'] as const;
+export type NewsletterBlock = (typeof NEWSLETTER_BLOCKS)[number];
+export const NEWSLETTER_BLOCK_LABELS: Record<NewsletterBlock, string> = {
+  help: 'Animals who need help',
+  newest: 'Newest arrivals',
+  events: 'Upcoming events',
+  shifts: 'Open volunteer shifts',
+};
+export type NewsletterStatus = 'draft' | 'sending' | 'sent';
+export type Newsletter = {
+  id: string;
+  subject: string;
+  body: string;
+  blocks: NewsletterBlock[];
+  status: NewsletterStatus;
+  recipientCount: number;
+  createdAt: string;
+  updatedAt: string;
+  sentAt: string | null;
+};
+export type NewsletterInput = { subject: string; body: string; blocks: NewsletterBlock[] };
+export type NewsletterListResponse = { newsletters: Newsletter[] };
+/** GET /admin/newsletters/<id>/preview: the email as subscribers will see it. */
+export type NewsletterPreviewResponse = { subject: string; html: string; text: string };
+
+export type Subscriber = { id: string; email: string; status: 'pending' | 'confirmed' | 'unsubscribed'; createdAt: string; confirmedAt: string | null };
+export type SubscriberListResponse = { subscribers: Subscriber[] };
+/** GET /admin/outreach: what people have signed up for and whether email is flowing. */
+export type OutreachSummary = {
+  subscribers: { confirmed: number; pending: number; unsubscribed: number };
+  searches: { total: number; members: number; bySpecies: { species: string; count: number }[] };
+  savedAnimals: number;
+  outbox: { queued: number; failed: number; sentLast7Days: number };
+};

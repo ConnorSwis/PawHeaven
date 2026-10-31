@@ -1,0 +1,8 @@
+---
+import ContentPage from '../layouts/ContentPage.astro';
+import { UnsubscribePage } from '../app/newsletter/Unsubscribe';
+---
+
+<ContentPage title="Unsubscribe" description="Choose to stop getting PawHeaven emails." noindex>
+  <UnsubscribePage client:load />
+</ContentPage>

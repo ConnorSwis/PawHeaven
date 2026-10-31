@@ -107,6 +107,28 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
             <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/about">About us</a></li><li><a class={footerLink} href="/contact">Contact and hours</a></li><li><a class={footerLink} href="/privacy">Privacy</a></li><li><a class={footerLink} href="/terms">Terms</a></li></ul></nav>
         </div>
         <div class="border-t border-stone-200">
+          <div class="mx-auto grid max-w-6xl gap-4 px-4 py-8 sm:px-6 md:grid-cols-2 md:items-start md:gap-10">
+            <div>
+              <h2 id="footer-news" class="text-sm font-semibold text-stone-950">Adoption news</h2>
+              <p id="newsletter-hint" class="mt-1 text-sm leading-6 text-stone-700">Adoption news, about once a month. Unsubscribe any time.</p>
+            </div>
+            <div>
+              <form data-newsletter hidden novalidate aria-labelledby="footer-news" class="grid gap-2">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <div class="flex-1">
+                    <label for="newsletter-email" class="mb-1.5 block text-sm font-semibold text-stone-950">Email for adoption news</label>
+                    <input id="newsletter-email" data-newsletter-email type="email" name="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254" aria-describedby="newsletter-hint" class="block min-h-11 w-full border border-stone-500 bg-white px-3.5 py-2.5 text-base text-stone-950 placeholder:text-stone-600 aria-[invalid=true]:border-red-800" />
+                  </div>
+                  <button type="submit" data-newsletter-button class="inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-[var(--ph-radius)] border border-transparent bg-[var(--ph-brand)] px-5 py-2.5 text-base font-semibold text-[var(--ph-on-brand)] transition-colors hover:bg-[var(--ph-brand-strong)] disabled:cursor-not-allowed disabled:opacity-60">Subscribe</button>
+                </div>
+                <p id="newsletter-error" data-newsletter-error hidden class="text-sm font-semibold text-red-800"></p>
+              </form>
+              <p role="status" data-newsletter-status class="text-sm font-semibold text-stone-950 [&:not(:empty)]:mt-2"></p>
+              <noscript><p class="text-sm text-stone-700">Turn on JavaScript to subscribe here, or email us at <a class={footerLink} href={`mailto:${SHELTER.email}`}>{SHELTER.email}</a>.</p></noscript>
+            </div>
+          </div>
+        </div>
+        <div class="border-t border-stone-200">
           <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-sm text-stone-700 sm:px-6">
             <p>© {new Date().getFullYear()} {SITE.name}</p>
             {themeSwitcher && (
@@ -125,7 +147,7 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
 </html>
 
 <script>
-  import { initThemeSwitcher } from '@pawheaven/contracts/ui';
+  import { ApiRequestError, apiRequest, initThemeSwitcher } from '@pawheaven/contracts/ui';
   import { apiBase } from '../lib/api';
   import { loadShelterStatus } from '../lib/shelter-status';
   import { pressedGroup, readyLine } from '../app/status/status';
@@ -172,6 +194,46 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
     link.textContent = text;
     line.hidden = false;
   });
+  // Newsletter sign-up. The form stays hidden until this script runs, so it never shows a button that does nothing.
+  const newsletter = document.querySelector<HTMLFormElement>('form[data-newsletter]');
+  if (newsletter) {
+    const field = newsletter.querySelector<HTMLInputElement>('[data-newsletter-email]');
+    const submit = newsletter.querySelector<HTMLButtonElement>('[data-newsletter-button]');
+    const problem = newsletter.querySelector<HTMLElement>('[data-newsletter-error]');
+    const status = document.querySelector<HTMLElement>('[data-newsletter-status]');
+    const showError = (text: string) => {
+      if (!field || !problem) return;
+      problem.textContent = text;
+      problem.hidden = !text;
+      field.setAttribute('aria-invalid', text ? 'true' : 'false');
+      field.setAttribute('aria-describedby', text ? 'newsletter-hint newsletter-error' : 'newsletter-hint');
+    };
+    newsletter.hidden = false;
+    field?.addEventListener('input', () => showError(''));
+    newsletter.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!field || !submit || submit.disabled) return;
+      const email = field.value.trim();
+      if (status) status.textContent = '';
+      if (!email) { showError('Enter your email address.'); field.focus(); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('Enter an email address like name@example.com.'); field.focus(); return; }
+      showError('');
+      submit.disabled = true;
+      submit.textContent = 'Subscribing…';
+      try {
+        const result = await apiRequest<{ status: 'pending' | 'confirmed' }>(apiBase, '/public/subscribe', { method: 'POST', json: { email } });
+        field.value = '';
+        if (status) status.textContent = result.status === 'confirmed' ? 'You are already subscribed.' : 'Check your email to confirm your subscription.';
+      } catch (error) {
+        const fieldMessage = error instanceof ApiRequestError ? error.fieldErrors?.email : undefined;
+        showError(fieldMessage || (error instanceof ApiRequestError ? error.message : 'We could not reach the sign-up service. Check your connection and try again.'));
+        field.focus();
+      } finally {
+        submit.disabled = false;
+        submit.textContent = 'Subscribe';
+      }
+    });
+  }
   const themeSelect = document.querySelector<HTMLSelectElement>('[data-theme-switcher]');
   if (themeSelect) initThemeSwitcher(themeSelect);
 </script>

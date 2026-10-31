@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { createContext, forwardRef, useContext, useEffect, useMemo, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { createContext, forwardRef, useContext, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, SearchIcon, SortIcon } from './icons';
 
 export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
@@ -55,6 +55,27 @@ export function Field({ label, error, help, children, className }: { label: stri
       {error && <span className="mt-1.5 block text-xs font-medium text-red-800" role="alert">{error}</span>}
     </label>
   );
+}
+
+/** Lists every problem in a form with links that move focus to the field. Pass a new `focusSignal` after each failed submit so it takes focus again. */
+export function ErrorSummary({ errors, focusSignal = 0 }: { errors: { id: string; message: string }[]; focusSignal?: number }) {
+  const box = useRef<HTMLDivElement | null>(null);
+  useEffect(() => { if (focusSignal > 0 && errors.length > 0) box.current?.focus(); }, [focusSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (errors.length === 0) return null;
+  return (
+    <div ref={box} tabIndex={-1} role="alert" className="border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+      <p className="font-semibold">{errors.length === 1 ? 'There is 1 problem' : `There are ${errors.length} problems`}</p>
+      <ul className="mt-1.5 list-disc space-y-1 pl-5">
+        {errors.map((error) => <li key={error.id}><a href={`#${error.id}`} className="underline" onClick={(event) => { event.preventDefault(); const target = document.getElementById(error.id); target?.scrollIntoView({ block: 'center' }); target?.focus(); }}>{error.message}</a></li>)}
+      </ul>
+    </div>
+  );
+}
+
+/** A short in-page message. Use `warn` for things staff should act on. */
+export function Notice({ tone = 'neutral', title, children }: { tone?: 'neutral' | 'warn' | 'danger'; title?: string; children: ReactNode }) {
+  const classes = { neutral: 'border-stone-300 bg-stone-50 text-stone-800', warn: 'border-[var(--ph-warning)] bg-amber-50 text-amber-900', danger: 'border-red-300 bg-red-50 text-red-900' };
+  return <div className={cx('border p-4 text-sm leading-6', classes[tone])}>{title && <p className="font-semibold">{title}</p>}<div>{children}</div></div>;
 }
 
 export function SearchBox({ value, onChange, placeholder = 'Search…', className }: { value: string; onChange: (value: string) => void; placeholder?: string; className?: string }) {
@@ -167,9 +188,9 @@ export function ConfirmDialog({ open, onCancel, onConfirm, title, description, c
 export type Column<T> = { key: string; header: string; cell: (row: T) => ReactNode; sort?: (row: T) => string | number; className?: string; hideBelow?: 'sm' | 'md' | 'lg' };
 const hide = { sm: 'hidden sm:table-cell', md: 'hidden md:table-cell', lg: 'hidden lg:table-cell' };
 
-export function DataTable<T>({ rows, columns, rowId, loading, error, onRowClick, selectedId, selection, pageSize = 25, empty, initialSort }: {
+export function DataTable<T>({ rows, columns, rowId, loading, error, onRowClick, selectedId, selection, pageSize = 25, empty, initialSort, tableClassName }: {
   rows: T[]; columns: Column<T>[]; rowId: (row: T) => string; loading?: boolean; error?: string | null; onRowClick?: (row: T) => void; selectedId?: string | null;
-  selection?: { selected: Set<string>; onChange: (next: Set<string>) => void }; pageSize?: number; empty?: ReactNode; initialSort?: { key: string; dir: 'asc' | 'desc' };
+  selection?: { selected: Set<string>; onChange: (next: Set<string>) => void }; pageSize?: number; empty?: ReactNode; initialSort?: { key: string; dir: 'asc' | 'desc' }; /** Replaces the default minimum width when a table has few columns and should fit a phone. */ tableClassName?: string;
 }) {
   const density = useDensity();
   const [sort, setSort] = useState(initialSort ?? null);
@@ -191,7 +212,7 @@ export function DataTable<T>({ rows, columns, rowId, loading, error, onRowClick,
   return (
     <div className="overflow-hidden rounded-[var(--ph-radius)] border border-stone-300 bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[34rem] border-collapse text-sm">
+        <table className={cx('w-full border-collapse text-sm', tableClassName ?? 'min-w-[34rem]')}>
           <thead>
             <tr className="border-b border-stone-300 bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-600">
               {selection && <th className="w-10 px-3 py-2"><input type="checkbox" aria-label="Select all on this page" checked={Boolean(allVisibleSelected)} onChange={(event) => { const next = new Set(selection.selected); for (const row of visible) { if (event.target.checked) next.add(rowId(row)); else next.delete(rowId(row)); } selection.onChange(next); }} /></th>}

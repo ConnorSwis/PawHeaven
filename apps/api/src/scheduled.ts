@@ -1,5 +1,6 @@
 import { sendEmail } from './lib/email';
 import { reminderEmail } from './lib/email-templates';
+import { runOutbox } from './lib/notifications';
 import { supabaseAdmin } from './lib/supabase';
 
 /**
@@ -25,5 +26,6 @@ export async function runScheduledJobs(env: Env): Promise<void> {
   for (const reminder of due) {
     await sendEmail(env, reminderEmail({ to: reminder.member_email, name: reminder.member_name, kind: reminder.kind, title: reminder.title, startsAt: reminder.starts_at, endsAt: reminder.ends_at, detail: reminder.detail }));
   }
-  console.info(JSON.stringify({ operation: 'scheduled.done', reminders: due.length }));
+  const outbox = await runOutbox(env);
+  console.info(JSON.stringify({ operation: 'scheduled.done', reminders: due.length, outbox }));
 }
