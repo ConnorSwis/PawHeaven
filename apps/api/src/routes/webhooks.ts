@@ -43,6 +43,9 @@ export async function webhookRoutes({ request, env, path }: RouteContext): Promi
     p_donor_email: donation.donorEmail,
     p_livemode: donation.livemode,
     p_stripe_created_at: donation.createdAt,
+    p_public_opt_in: donation.publicOptIn,
+    p_public_display_name: donation.publicDisplayName,
+    p_public_message: donation.publicMessage,
   });
   if (error) {
     // A non-2xx response makes Stripe retry later, so a database outage never loses a donation.

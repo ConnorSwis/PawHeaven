@@ -16,7 +16,7 @@ Plan: https://claude.ai/artifact/4UtckZsihLsmTnPL4RFukz. This file is the build 
 | Volunteer | `/volunteer` | Roles, open shifts by week, sign up |
 | Visit | `/visit` | Hours/location, times without login, choose animals, sign in only to confirm |
 | Lost a pet? | `/lost-pet`, `/lost-pet/flyer` | Check by photo (no login to look), flyer, report |
-| Donate | `/donate`, `/donate/thanks` | |
+| Donate | `/donate`, `/donate/thanks` | `/donate` shows the six newest staff-approved opted-in live supporters, with only their chosen display name, amount, and optional message. |
 | Auth | `/login`, `/sign-up` | Honor `?next=` |
 | My PawHeaven | `/me?tab=overview\|visits\|applications\|saved\|details` | One tabbed page |
 | Newsletter | `/newsletter/confirm?t=<token>`, `/unsubscribe?t=<signed token>` | Reached from emails. No sign-in. Both `noindex`, both act only on a button press |

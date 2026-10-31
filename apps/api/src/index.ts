@@ -9,6 +9,7 @@ import { fosterApplicationRoutes } from './routes/foster-applications';
 import { getInvolvedRoutes } from './routes/get-involved';
 import { lostPetRoutes } from './routes/lost-pets';
 import { publicPetRoutes } from './routes/pets';
+import { publicDonationRoutes } from './routes/public-donations';
 import { profileRoutes } from './routes/profile';
 import { quizRoutes } from './routes/quiz';
 import { visitSchedulingRoutes } from './routes/visits';
@@ -43,6 +44,8 @@ async function route(context: RouteContext): Promise<ApiResponse> {
   if (path.startsWith('/webhooks/')) return webhookRoutes(context);
   if (path.startsWith('/auth/')) return authRoutes(context);
   if (path.startsWith('/admin/')) return adminRoutes(context);
+  const publicDonations = await publicDonationRoutes(context);
+  if (publicDonations) return publicDonations;
   if (path === '/applications' || path.startsWith('/applications/')) return adoptionApplicationRoutes(context);
   if (path === '/foster-applications' || path.startsWith('/foster-applications/')) return fosterApplicationRoutes(context);
   if (path === '/profile') return profileRoutes(context);

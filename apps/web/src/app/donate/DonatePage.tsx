@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import type { PublicDonationsResponse } from '@pawheaven/contracts';
 import { SHELTER } from '@pawheaven/contracts/site';
 import { DONATE_URL, isTestDonateLink } from '../../lib/donate';
+import { useApi } from '../../lib/fetch';
 import { Card, Notice, PageHeading, buttonClass, cx } from '../../ui';
 import { Providers } from '../../lib/providers';
 
@@ -14,6 +16,29 @@ const USES = [
   { title: 'Vaccines and checkups', text: 'Vaccinations, parasite prevention, and health checks to keep the animals well.' },
   { title: 'Medical care', text: 'Treatment for animals who come in sick or hurt, so they can get healthy and go home.' },
 ] as const;
+
+function SupporterWall() {
+  const supporters = useApi<PublicDonationsResponse>('/public/donations', { staleSeconds: 60 });
+  const donations = supporters.data?.donations ?? [];
+  if (!donations.length) return null;
+  return (
+    <section aria-labelledby="supporters-heading" className="border-t border-stone-300 pt-6">
+      <h2 id="supporters-heading" className="text-xl font-semibold text-stone-950">Recent generosity</h2>
+      <p className="mt-2 text-base leading-7 text-stone-800">Thank you to the supporters who chose to share their gift.</p>
+      <ul className="mt-4 grid gap-3" aria-live="polite">
+        {donations.map((donation) => (
+          <li key={`${donation.displayName}-${donation.createdAt}`} className="border border-stone-300 bg-white p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <p className="font-semibold text-stone-950">{donation.displayName}</p>
+              <p className="font-semibold text-stone-950">{new Intl.NumberFormat(undefined, { style: 'currency', currency: donation.currency.toUpperCase() }).format(donation.amountCents / 100)}</p>
+            </div>
+            {donation.message && <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-stone-700">{donation.message}</p>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 function DonateContent() {
   const [amount, setAmount] = useState<number | null>(50);
@@ -89,6 +114,7 @@ function DonateContent() {
             </ul>
             <p className="mt-3 text-sm leading-6 text-stone-700">Questions about giving? Email <a className="font-medium underline underline-offset-4" href={`mailto:${SHELTER.email}`}>{SHELTER.email}</a> or call <a className="font-medium underline underline-offset-4" href={SHELTER.phoneHref}>{SHELTER.phone}</a>.</p>
           </section>
+          <SupporterWall />
         </div>
       </div>
     </div>

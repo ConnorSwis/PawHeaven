@@ -33,7 +33,7 @@ export function Badge({ tone = 'neutral', children, className }: { tone?: Tone; 
 }
 /** One status vocabulary for every record in the portal. */
 export function statusTone(status: string): Tone {
-  if (['Approved', 'Resolved', 'Available', 'registered', 'booked', 'succeeded', 'accepted', 'active', 'Open', 'Fostered'].includes(status)) return 'good';
+  if (['Approved', 'Resolved', 'Available', 'registered', 'booked', 'succeeded', 'accepted', 'active', 'Open', 'Fostered', 'published'].includes(status)) return 'good';
   if (['In review', 'In progress', 'New', 'Pending', 'pending', 'awaiting_setup', 'Foster needed'].includes(status)) return 'warn';
   if (['Declined', 'failed', 'blocked', 'Blocked', 'declined'].includes(status)) return 'danger';
   return 'neutral';
