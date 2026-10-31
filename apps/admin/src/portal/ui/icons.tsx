@@ -21,3 +21,4 @@ export const ChevronRightIcon = icon(['M9 6l6 6-6 6']);
 export const SortIcon = icon(['M8 9l4-4 4 4', 'M8 15l4 4 4-4']);
 export const ExternalIcon = icon(['M14 4h6v6', 'M20 4l-9 9', 'M18 14v5H5V6h5']);
 export const SettingsIcon = icon(['M12 15a3 3 0 100-6 3 3 0 000 6z', 'M19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 002 1.2l.4 2.6h4l.4-2.6a7 7 0 002-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z']);
+export const MailIcon = icon(['M3 6h18v12H3z', 'M3.5 7l8.5 6.5L20.5 7']);

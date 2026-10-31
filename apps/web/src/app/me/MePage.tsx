@@ -17,8 +17,9 @@ const TABS = [
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
 
+/** `?tab=details` or, for links in emails, `#details`. */
 const readTab = (): TabId => {
-  const value = new URLSearchParams(window.location.search).get('tab');
+  const value = new URLSearchParams(window.location.search).get('tab') ?? window.location.hash.slice(1);
   return TABS.find((tab) => tab.id === value)?.id ?? 'overview';
 };
 
@@ -44,7 +45,8 @@ function MeContent() {
     setReady(true);
     const onPop = () => setTab(readTab());
     window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
+    window.addEventListener('hashchange', onPop);
+    return () => { window.removeEventListener('popstate', onPop); window.removeEventListener('hashchange', onPop); };
   }, []);
 
   useEffect(() => {

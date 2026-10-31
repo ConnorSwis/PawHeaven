@@ -672,8 +672,62 @@ if (baxterFlagged.helpReason !== 'medical' || !baxterFlagged.helpSince) fail('th
 if (JSON.stringify(baxterFlagged).includes('helpNote')) fail('a private help note leaked.');
 expectStatus(await request('/admin/pets/help', { method: 'POST', cookie: staffCookie, body: { petIds: [baxterId], reason: baxterBefore.helpReason } }), 200, 'staff restore the pet flag');
 
+// Alerts, saved animals, email choices, and the newsletter.
+expectStatus(await request('/me/saved'), 401, 'saved animals need a session');
+expectStatus(await request('/me/email-prefs'), 401, 'email choices need a session');
+const prefsBefore = expectStatus(await request('/me/email-prefs', { cookie: applicantCookie }), 200, 'a member reads their email choices');
+if (typeof prefsBefore.matchDigest !== 'boolean' || typeof prefsBefore.newsletter !== 'boolean' || typeof prefsBefore.savedSearches !== 'number') fail('the email choices are incomplete.');
+expectStatus(await request('/me/email-prefs', { method: 'PUT', cookie: applicantCookie, body: {} }), 400, 'an empty email-choices change is rejected');
+expectStatus(await request('/me/email-prefs', { method: 'PUT', cookie: applicantCookie, body: { newsletter: 'yes' } }), 400, 'email choices must be on or off');
+if (expectStatus(await request('/me/email-prefs', { method: 'PUT', cookie: applicantCookie, body: { newsletter: true } }), 200, 'a member joins the newsletter').newsletter !== true) fail('joining the newsletter did not stick.');
+expectStatus(await request('/me/searches', { method: 'POST', cookie: applicantCookie, body: { filters: {} } }), 400, 'a saved search needs a filter');
+const searchesAfterSave = expectStatus(await request('/me/searches', { method: 'POST', cookie: applicantCookie, body: { filters: { species: 'dog', kids: true, sort: 'help' } } }), 200, 'a member saves a search');
+const savedSearch = searchesAfterSave.searches.find((item) => item.filters.species === 'dog' && item.filters.kids === true);
+if (!savedSearch || 'sort' in savedSearch.filters || !savedSearch.label) fail('the saved search was not stored with clean filters and a name.');
+if (expectStatus(await request('/me/searches', { method: 'POST', cookie: applicantCookie, body: { filters: { species: 'dog', kids: true } } }), 200, 'saving the same search again').searches.length !== searchesAfterSave.searches.length) fail('the same search was saved twice.');
+const savedPets = expectStatus(await request('/me/saved', { method: 'POST', cookie: applicantCookie, body: { petIds: [baxterId, '00000000-0000-4000-8000-00000000dead'] } }), 200, 'a member saves animals');
+if (!savedPets.petIds.includes(baxterId) || savedPets.petIds.length !== 1) fail('saving should keep real animals only.');
+expectStatus(await request('/me/saved', { method: 'POST', cookie: applicantCookie, body: { petIds: ['nope'] } }), 400, 'saved animal ids must be valid');
+if (expectStatus(await request(`/me/saved/${baxterId}`, { method: 'DELETE', cookie: applicantCookie }), 200, 'a member unsaves an animal').petIds.length !== 0) fail('the animal was not unsaved.');
+expectStatus(await request('/me/searches/' + savedSearch.id, { method: 'DELETE', cookie: applicantCookie }), 200, 'a member removes a saved search');
+
+const subscriberEmail = `qa-subscriber-${Date.now()}@example.com`;
+expectStatus(await request('/public/subscribe', { method: 'POST', body: { email: 'not an email' } }), 400, 'a bad newsletter address is rejected');
+if (expectStatus(await request('/public/subscribe', { method: 'POST', body: { email: subscriberEmail } }), 200, 'a guest subscribes').status !== 'pending') fail('a new subscriber should wait for confirmation.');
+expectStatus(await request('/public/newsletter/confirm', { method: 'POST', body: { token: 'a'.repeat(32) } }), 404, 'an unknown confirmation link is refused');
+expectStatus(await request('/public/unsubscribe', { method: 'POST', body: { token: 'forged.token' } }), 400, 'a forged unsubscribe link is refused');
+expectStatus(await request('/admin/outreach', { cookie: applicantCookie }), 403, 'a member cannot read the outreach summary');
+expectStatus(await request('/admin/newsletters', { cookie: applicantCookie }), 403, 'a member cannot read newsletters');
+expectStatus(await request('/admin/subscribers', { cookie: applicantCookie }), 403, 'a member cannot read subscribers');
+
+const outreach = expectStatus(await request('/admin/outreach', { cookie: staffCookie }), 200, 'staff read the outreach summary');
+if (typeof outreach.subscribers?.confirmed !== 'number' || typeof outreach.outbox?.failed !== 'number') fail('the outreach summary is incomplete.');
+const subscribers = expectStatus(await request('/admin/subscribers', { cookie: staffCookie }), 200, 'staff list subscribers').subscribers;
+const pendingGuest = subscribers.find((item) => item.email === subscriberEmail);
+if (pendingGuest?.status !== 'pending') fail('the guest subscriber is missing or already confirmed.');
+expectStatus(await request('/admin/newsletters', { method: 'POST', cookie: staffCookie, body: { subject: '', body: '' } }), 400, 'a newsletter needs a subject and message');
+const draft = expectStatus(await request('/admin/newsletters', { method: 'POST', cookie: staffCookie, body: { subject: 'QA issue', body: 'Hello from QA.\n\nSecond paragraph.', blocks: ['help', 'events'] } }), 201, 'staff write a newsletter draft');
+expectStatus(await request(`/admin/newsletters/${draft.id}`, { method: 'PUT', cookie: staffCookie, body: { subject: 'QA issue edited', body: 'Hello from QA.', blocks: ['help', 'newest', 'events', 'shifts'] } }), 200, 'staff edit the draft');
+const preview = expectStatus(await request(`/admin/newsletters/${draft.id}/preview`, { cookie: staffCookie }), 200, 'staff preview the newsletter');
+if (!preview.html.includes('QA issue edited') || !preview.html.includes('Unsubscribe') || !preview.text.includes('Unsubscribe:')) fail('the newsletter preview is missing its subject or unsubscribe link.');
+expectStatus(await request(`/admin/newsletters/${draft.id}/test`, { method: 'POST', cookie: staffCookie }), 200, 'staff send themselves a test');
+const confirmedBefore = expectStatus(await request('/admin/outreach', { cookie: staffCookie }), 200, 'confirmed subscribers before sending').subscribers.confirmed;
+if (confirmedBefore < 1) fail('the applicant should be a confirmed subscriber at this point.');
+const sent = expectStatus(await request(`/admin/newsletters/${draft.id}/send`, { method: 'POST', cookie: staffCookie }), 202, 'staff send the newsletter');
+if (sent.queued !== confirmedBefore) fail('the newsletter should be queued for every confirmed subscriber.');
+expectStatus(await request(`/admin/newsletters/${draft.id}/send`, { method: 'POST', cookie: staffCookie }), 400, 'a sent newsletter cannot be sent again');
+expectStatus(await request(`/admin/newsletters/${draft.id}`, { method: 'PUT', cookie: staffCookie, body: { subject: 'x', body: 'y', blocks: [] } }), 409, 'a sent newsletter cannot be edited');
+let newsletterState = 'sending';
+for (let attempt = 0; attempt < 10 && newsletterState !== 'sent'; attempt += 1) {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  newsletterState = expectStatus(await request(`/admin/newsletters/${draft.id}`, { cookie: staffCookie }), 200, 'the newsletter status').status;
+}
+if (newsletterState !== 'sent') fail('the newsletter did not finish sending.');
+expectStatus(await request(`/admin/subscribers/${pendingGuest.id}`, { method: 'DELETE', cookie: staffCookie }), 200, 'staff remove a subscriber');
+expectStatus(await request('/me/email-prefs', { method: 'PUT', cookie: applicantCookie, body: { newsletter: prefsBefore.newsletter } }), 200, 'the member newsletter choice is restored');
+
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: staffCookie }), 200, 'staff logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: applicantCookie }), 200, 'applicant logout');
 expectStatus(await request('/auth/logout', { method: 'POST', cookie: superCookie }), 200, 'superuser logout');
 
-console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, signed Stripe webhook donation recording, saved profile and pet attributes with the opt-in review shortcut, visit booking/reschedule/cancellation history, staff visit scheduling, open hours generation, capacity visits with pets, open house events, pet quick actions, the foster pool, the member schedule and calendar export, the attention report, shelter status (capacity levels and the needs-help flag), session expiry, and logout.');
+console.log('Demo QA passed: discovery, authorization, password policy, staff role and role assignment, pet field validation, adoption contact validation and review, foster applications, volunteer shifts, AI quiz and lost-pet validation and limits, signed Stripe webhook donation recording, saved profile and pet attributes with the opt-in review shortcut, visit booking/reschedule/cancellation history, staff visit scheduling, open hours generation, capacity visits with pets, open house events, pet quick actions, the foster pool, the member schedule and calendar export, the attention report, shelter status (capacity levels and the needs-help flag), saved animals and searches, email choices, the guest newsletter and signed unsubscribe links, newsletter drafts, previews, tests and sending, session expiry, and logout.');

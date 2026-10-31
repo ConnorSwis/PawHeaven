@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HELP_REASONS, HELP_REASON_LABELS, type HelpReason, type AdminDonationsResponse, type AdminVisitScheduleResponse, type AdminVolunteerShiftListResponse, type AdminAdoptionApplicationListResponse, type AdminFosterApplicationListResponse, type AdminLostPetInquiryListResponse, type AttentionItem } from '@pawheaven/contracts';
+import { HELP_REASONS, HELP_REASON_LABELS, type HelpReason, type AdminDonationsResponse, type AdminVisitScheduleResponse, type AdminVolunteerShiftListResponse, type AdminAdoptionApplicationListResponse, type AdminFosterApplicationListResponse, type AdminLostPetInquiryListResponse, type AttentionItem, type OutreachSummary } from '@pawheaven/contracts';
 import { api, errorMessage, useApi, useRefresh } from '../lib/api';
 import { formatMoney, formatTime, shelterDay } from '../lib/format';
 import { useRoute } from '../lib/router';
@@ -10,7 +10,7 @@ import { PlusIcon } from '../ui/icons';
 import { useToast } from '../ui/toast';
 
 const itemKey = (item: AttentionItem) => `${item.kind}-${item.refId ?? item.title}`;
-const actionLabel: Record<AttentionItem['action'], string> = { generate: 'Fill in open hours', schedule: 'Open schedule', open_foster: 'Open to foster', fosters: 'Go to fostering', animals: 'Open animals', mark_help: 'Mark needs help' };
+const actionLabel: Record<AttentionItem['action'], string> = { generate: 'Fill in open hours', schedule: 'Open schedule', open_foster: 'Open to foster', fosters: 'Go to fostering', animals: 'Open animals', mark_help: 'Mark needs help', outreach: 'Open Outreach' };
 
 function greeting() {
   const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
@@ -32,6 +32,7 @@ export default function Home({ user }: PageProps) {
   const adoption = useApi<AdminAdoptionApplicationListResponse>('/admin/applications');
   const foster = useApi<AdminFosterApplicationListResponse>('/admin/foster-applications');
   const lost = useApi<AdminLostPetInquiryListResponse>('/admin/lost-pet-inquiries');
+  const outreach = useApi<OutreachSummary>('/admin/outreach', { refetchSeconds: 120 });
 
   const today = shelterDay(Date.now());
   const now = Date.now();
@@ -48,6 +49,7 @@ export default function Home({ user }: PageProps) {
   const run = async (item: AttentionItem) => {
     if (item.action === 'schedule') return navigate('/schedule');
     if (item.action === 'fosters') return navigate('/fostering');
+    if (item.action === 'outreach') return navigate('/outreach?tab=alerts');
     if (item.action === 'animals') return navigate(item.petIds?.length ? '/animals?help=1' : '/animals');
     if (item.action === 'mark_help') { setReason('long_stay'); setChoosing(itemKey(item)); return; }
     setWorking(item.title);
@@ -135,6 +137,18 @@ export default function Home({ user }: PageProps) {
             </ul>
           )}
         </Card>
+        {outreach.data && (
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-stone-950">Outreach</h2>
+              <Button size="sm" variant="ghost" className="min-h-11" onClick={() => navigate('/outreach')}>Open Outreach</Button>
+            </div>
+            <dl className="mt-2 grid grid-cols-2 gap-3">
+              <div><dt className="text-xs font-semibold uppercase tracking-wide text-stone-600">Newsletter subscribers</dt><dd className="mt-0.5 text-2xl font-semibold text-stone-950">{outreach.data.subscribers.confirmed}</dd></div>
+              <div><dt className="text-xs font-semibold uppercase tracking-wide text-stone-600">Failed messages</dt><dd className="mt-0.5 flex items-center gap-2 text-2xl font-semibold text-stone-950">{outreach.data.outbox.failed}{outreach.data.outbox.failed > 0 && <Badge tone="warn">Needs a look</Badge>}</dd></div>
+            </dl>
+          </Card>
+        )}
         </div>
       </div>
       <CapacitySheet open={capacityOpen} onOpenChange={setCapacityOpen} />

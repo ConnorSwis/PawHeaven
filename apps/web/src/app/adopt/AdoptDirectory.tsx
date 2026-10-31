@@ -9,6 +9,7 @@ import { ClientOnly } from './client';
 import { AGE_BANDS } from './age';
 import { DEFAULT_FILTERS, ENERGY_OPTIONS, SEX_OPTIONS, SIZE_OPTIONS, SORT_OPTIONS, SPECIES_OPTIONS, activeFilterCount, applyFilters, filtersToSearch, hasAnyFilter, parseFilters, type Filters } from './filters';
 import { useSaved } from './saved';
+import { EmailAlert } from './EmailAlert';
 import { NeedsHelpRow } from '../status/NeedsHelp';
 import { StatusBanner } from '../status/StatusBanner';
 
@@ -121,6 +122,7 @@ function Directory() {
           </div>
         </div>
         <p role="status" className="sr-only">{announced}</p>
+        <div className={filterCount > 0 ? 'mt-3' : undefined}><EmailAlert filters={filters} /></div>
       </form>
 
       {pets && !hasAnyFilter(filters) && filters.sort !== 'help' && (

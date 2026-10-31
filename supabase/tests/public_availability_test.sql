@@ -1,6 +1,9 @@
 begin;
 select plan(6);
 
+-- Generated open hours in a seeded database can overlap the times below, so set them aside for this test.
+update public.visit_slots set status = 'withdrawn' where status = 'published' and starts_at > now();
+
 select has_function('public', 'get_public_availability', array[]::text[], 'the guest availability function exists');
 select ok(has_function_privilege('anon', 'public.get_public_availability()', 'execute'), 'guests can read open availability');
 

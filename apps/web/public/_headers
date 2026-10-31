@@ -4,3 +4,9 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=31536000
+
+# Links in emails carry a code in the address, so do not pass it on to other sites.
+/unsubscribe
+  Referrer-Policy: no-referrer
+/newsletter/*
+  Referrer-Policy: no-referrer

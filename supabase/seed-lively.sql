@@ -362,6 +362,51 @@ update public.pets set foster_available = true, foster_urgent_at = now() - inter
 insert into public.foster_invitations (member_id, invited_by, invited_at)
 select m.id, 'a1000000-0000-0000-0000-000000000002', now() - interval '2 days' from m where m.n = 12;
 
+-- Email alerts and newsletter: subscribers (some pending or gone), saved searches and animals,
+-- one member who turned the digest off, a sent issue, and a draft.
+insert into public.email_subscribers (email, member_id, status, confirmed_at, unsubscribed_at, created_at)
+select lower(m.email), m.id,
+  case when m.n <= 8 then 'confirmed' when m.n = 9 then 'pending' else 'unsubscribed' end,
+  case when m.n <= 8 then now() - make_interval(days => 40 - m.n * 3) end,
+  case when m.n = 10 then now() - interval '5 days' end,
+  now() - make_interval(days => 45 - m.n * 3)
+from m where m.n <= 10
+on conflict do nothing;
+insert into public.email_subscribers (email, status, confirmed_at, created_at)
+values
+  ('delivered+neighbor.one@resend.dev', 'confirmed', now() - interval '20 days', now() - interval '21 days'),
+  ('delivered+neighbor.two@resend.dev', 'confirmed', now() - interval '9 days', now() - interval '10 days'),
+  ('delivered+neighbor.three@resend.dev', 'pending', null, now() - interval '1 day')
+on conflict do nothing;
+
+insert into public.saved_searches (member_id, label, filters, created_at)
+select m.id, v.label, v.filters::jsonb, now() - make_interval(days => 20 - m.n)
+from m join (values
+  (1, 'Dogs, good with kids', '{"species":"dog","kids":true}'),
+  (2, 'Cats', '{"species":"cat"}'),
+  (3, 'Senior, open to foster', '{"age":"senior","foster":true}'),
+  (4, 'Small dogs', '{"species":"dog","size":"small"}'),
+  (5, 'Young animals', '{"age":"young"}'),
+  (5, 'Good with dogs and cats', '{"dogs":true,"cats":true}')
+) v(n, label, filters) on v.n = m.n
+on conflict do nothing;
+
+insert into public.saved_pets (member_id, pet_id, created_at)
+select m.id, p.id, now() - make_interval(days => p.rn::integer + m.n::integer)
+from m
+cross join lateral (select id, row_number() over (order by md5(id::text || m.n::text)) rn from public.pets where status = 'Available') p
+where m.n <= 6 and p.rn <= 2
+on conflict do nothing;
+
+insert into public.member_email_prefs (member_id, match_digest, saved_changes)
+select id, false, true from m where n = 7
+on conflict do nothing;
+
+insert into public.newsletters (subject, body, blocks, status, recipient_count, created_at, updated_at, sent_at)
+values ('Fall adoption news', E'Thank you for a wonderful October. Eleven animals went home, and a few are still waiting for their person.\n\nOur Fall Open House is coming up. Bring the family and meet the animals.', '{help,events}', 'sent', 8, now() - interval '13 days', now() - interval '12 days', now() - interval '12 days');
+insert into public.newsletters (subject, body, blocks)
+values ('Holiday open house and photos', E'Holiday Pet Photos is on the calendar, and we need volunteers to help the animals look their best.\n\nHere is who needs a home before the holidays.', '{help,newest,shifts}');
+
 drop table m;
 
 -- Shelter status: kennel counts sized from today's animals (dogs about 90 percent full, cats and

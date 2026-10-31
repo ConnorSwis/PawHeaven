@@ -5,6 +5,7 @@ import { adminDonationRoutes } from './admin-donations';
 import { adminFosterApplicationRoutes } from './admin-foster-applications';
 import { adminInvitationRoutes } from './admin-invitations';
 import { adminLostPetRoutes } from './admin-lost-pets';
+import { adminOutreachRoutes } from './admin-outreach';
 import { adminPetRoutes } from './admin-pets';
 import { adminUserRoutes } from './admin-users';
 import { adminScheduleRoutes } from './admin-schedule';
@@ -33,6 +34,7 @@ export async function adminRoutes(context: RouteContext): Promise<ApiResponse> {
     ?? (await adminVisitRoutes(admin))
     ?? (await adminVolunteerRoutes(admin))
     ?? (await adminScheduleRoutes(admin))
+    ?? (await adminOutreachRoutes(admin))
     ?? (await adminLostPetRoutes(admin))
     ?? (await adminDonationRoutes(admin))
     ?? errorResponse('Not found.', 404);

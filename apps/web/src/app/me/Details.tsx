@@ -5,6 +5,8 @@ import { ApiRequestError, api, errorMessage, useApi } from '../../lib/fetch';
 import { Button, ErrorSummary, Field, Input, Notice, Textarea } from '../../ui';
 import { PasswordRules } from '../auth/AuthPage';
 import { LoadState, Muted, Section } from './common';
+import { EmailChoices, SavedSearches } from './EmailChoices';
+import { forgetAccountSaved } from '../adopt/saved';
 
 /** Shared save-state line: a confirmation or an error, always announced. */
 function Result({ ok, text }: { ok: boolean; text: string }) {
@@ -175,6 +177,7 @@ function SignOut() {
     setBusy(true); setError('');
     try {
       await api('/auth/logout', { method: 'POST' });
+      forgetAccountSaved();
       queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== '/auth/me' });
       queryClient.setQueryData(['/auth/me'], null);
       window.dispatchEvent(new CustomEvent('pawheaven:authchange', { detail: { signedIn: false } }));
@@ -192,6 +195,8 @@ function SignOut() {
 export function Details({ user }: { user: ApiUser }) {
   return (
     <div className="grid gap-6">
+      <EmailChoices />
+      <SavedSearches />
       <ContactDetails />
       <Section id="account" title="Name, email, and password">
         <div className="grid gap-8 divide-y divide-stone-200 [&>form:not(:first-child)]:pt-8">
