@@ -1,0 +1,12 @@
+---
+import PageShell from '../layouts/PageShell.astro';
+import EventList from '../app/events/EventList';
+import { PageHeading } from '../ui';
+---
+
+<PageShell title="Shelter events" description="See upcoming PawHeaven open houses and shelter events, including featured animals and ways to get involved.">
+  <div class="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
+    <PageHeading title="Shelter events" intro="Join us for open houses and other ways to meet animals, connect with the shelter, and help out." />
+    <div class="mt-8"><EventList client:load /></div>
+  </div>
+</PageShell>

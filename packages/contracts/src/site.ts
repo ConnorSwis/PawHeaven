@@ -58,4 +58,14 @@ export const SHELTER = {
   },
   requirements: ['Be at least 18 years old', 'Bring a government-issued photo ID', 'Complete a short questionnaire', 'Meet with an adoption counselor'],
   volunteer: { minAgeAlone: 18, minAgeAccompanied: 10, recommendedHoursPerMonth: 6 },
+  /**
+   * Public supply needs. Keep this short and current; it is shown on the donation page.
+   * A future inventory workflow can move these records to the staff portal.
+   */
+  wishlist: [
+    { name: 'Canned dog and cat food', detail: 'Unopened cans and pouches help us feed animals with different needs.' },
+    { name: 'Paper towels and unscented laundry detergent', detail: 'Everyday cleaning supplies keep kennels, blankets, and bowls fresh.' },
+    { name: 'New or gently used towels and blankets', detail: 'Soft bedding gives animals a more comfortable place to rest.' },
+    { name: 'Dog treats and durable toys', detail: 'Simple enrichment makes training, walks, and kennel time better.' },
+  ],
 } as const;

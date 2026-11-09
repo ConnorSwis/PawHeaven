@@ -40,6 +40,24 @@ function SupporterWall() {
   );
 }
 
+function Wishlist() {
+  return (
+    <section aria-labelledby="wishlist-heading" className="border-t border-stone-300 pt-6">
+      <h2 id="wishlist-heading" className="text-xl font-semibold text-stone-950">Shelter wishlist</h2>
+      <p className="mt-2 text-base leading-7 text-stone-800">Prefer to give supplies? These are the items we use most right now. Please bring clean, unopened items to the shelter during open hours.</p>
+      <ul className="mt-4 grid gap-3">
+        {SHELTER.wishlist.map((item) => (
+          <li key={item.name} className="border border-stone-300 bg-white p-4">
+            <p className="font-semibold text-stone-950">{item.name}</p>
+            <p className="mt-1 text-sm leading-6 text-stone-700">{item.detail}</p>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-sm leading-6 text-stone-700">Not sure whether an item is a good fit? <a className="font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href={`mailto:${SHELTER.email}?subject=Shelter%20wishlist`}>Ask us first</a>.</p>
+    </section>
+  );
+}
+
 function DonateContent() {
   const [amount, setAmount] = useState<number | null>(50);
   return (
@@ -114,6 +132,7 @@ function DonateContent() {
             </ul>
             <p className="mt-3 text-sm leading-6 text-stone-700">Questions about giving? Email <a className="font-medium underline underline-offset-4" href={`mailto:${SHELTER.email}`}>{SHELTER.email}</a> or call <a className="font-medium underline underline-offset-4" href={SHELTER.phoneHref}>{SHELTER.phone}</a>.</p>
           </section>
+          <Wishlist />
           <SupporterWall />
         </div>
       </div>
