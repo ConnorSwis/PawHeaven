@@ -33,6 +33,7 @@ const nav = [
   { href: '/foster', label: 'Foster' },
   { href: '/volunteer', label: 'Volunteer' },
   { href: '/visit', label: 'Visit' },
+  { href: '/events', label: 'Events' },
   { href: '/lost-pet', label: 'Lost a pet?' },
 ];
 const isHere = (href: string) => here === href || here.startsWith(`${href}/`);
@@ -102,7 +103,7 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
           <nav aria-labelledby="footer-help"><h2 id="footer-help" class="text-sm font-semibold text-stone-950">Ways to help</h2>
             <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/adopt">Adopt</a></li><li><a class={footerLink} href="/foster">Foster</a></li><li><a class={footerLink} href="/volunteer">Volunteer</a></li><li><a class={footerLink} href="/donate">Donate</a></li></ul></nav>
           <nav aria-labelledby="footer-visit"><h2 id="footer-visit" class="text-sm font-semibold text-stone-950">Visit and learn</h2>
-            <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/visit">Plan a visit</a></li><li><a class={footerLink} href="/adopt/process">How adoption works</a></li><li><a class={footerLink} href="/lost-pet">Lost a pet?</a></li><li><a class={footerLink} href="/faq">Questions and answers</a></li></ul></nav>
+            <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/visit">Plan a visit</a></li><li><a class={footerLink} href="/events">Shelter events</a></li><li><a class={footerLink} href="/adopt/process">How adoption works</a></li><li><a class={footerLink} href="/lost-pet">Lost a pet?</a></li><li><a class={footerLink} href="/faq">Questions and answers</a></li></ul></nav>
           <nav aria-labelledby="footer-about"><h2 id="footer-about" class="text-sm font-semibold text-stone-950">About</h2>
             <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/about">About us</a></li><li><a class={footerLink} href="/contact">Contact and hours</a></li><li><a class={footerLink} href="/privacy">Privacy</a></li><li><a class={footerLink} href="/terms">Terms</a></li></ul></nav>
         </div>

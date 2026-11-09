@@ -247,7 +247,7 @@ Proposed foreign keys point to `auth.users(id)`, `public.pets(id)`, `public.adop
 4. AI pet-matching quiz.
 5. AI lost-pet image matching.
 6. Events and appointment scheduling.
-7. Donations and shelter wishlist.
+7. Donations and shelter wishlist. **Implemented 2026-11-09:** the public donation page now includes a concise, code-maintained supply wishlist (`SHELTER.wishlist`). It deliberately does not create inventory, reservations, or fulfillment records.
 8. Newsletter and notifications.
 9. Lost-and-found community page.
 10. At-risk animal prioritization.
@@ -290,7 +290,7 @@ The report's diagram shows `public.pets` linked to public `pet-images` Storage b
 
 ## Get Involved suite (2026-10-29)
 
-Visits, volunteer shifts, and fostering are tied together by recurring open hours (weekly patterns generated six weeks ahead by an hourly Worker cron, in America/New_York), a single staff Schedule calendar with drag-to-create and copy-week, visit capacity (several groups per slot) with party size and the animals a visitor wants to meet, open-house events that create visits, volunteer roles, and featured pets together, pet quick actions with bulk edit (`set_pet_flags`: foster, visits, walkers), a foster pool that staff can email for a pet that needs a home (one-click accept files a pre-filled application), volunteer-to-foster invitations, a public `/get-involved` feed, a member schedule with `.ics` export, 24-hour reminder emails, and a staff "needs attention" report. Everything staff-side is gated by `is_staff()`; the cron uses the service role. Details, the staff how-to, and file map: [docs/get-involved.md](docs/get-involved.md).
+Visits, volunteer shifts, and fostering are tied together by recurring open hours (weekly patterns generated six weeks ahead by an hourly Worker cron, in America/New_York), a single staff Schedule calendar with drag-to-create and copy-week, visit capacity (several groups per slot) with party size and the animals a visitor wants to meet, open-house events that create visits, volunteer roles, and featured pets together, pet quick actions with bulk edit (`set_pet_flags`: foster, visits, walkers), a foster pool that staff can email for a pet that needs a home (one-click accept files a pre-filled application), volunteer-to-foster invitations, a public `/get-involved` feed and `/events` listing, a member schedule with `.ics` export, 24-hour reminder emails, and a staff "needs attention" report. Everything staff-side is gated by `is_staff()`; the cron uses the service role. Details, the staff how-to, and file map: [docs/get-involved.md](docs/get-involved.md).
 
 Shelter status (requirements 10 and 11): staff set kennels per species group (Dog, Cat, Other, with held-back kennels) and flag animals as needing help with one of four public reasons (`pets.help_reason`, `set_pet_help`). Guests read only counts and levels through `get_shelter_status()` (`GET /public/shelter-status`), which drive a banner at 85 percent and above, a "Needs help most" row, a "Needs help first" sort, and card badges. Nothing is flagged automatically; `staff_attention()` suggests candidates. Details: [docs/shelter-status.md](docs/shelter-status.md).
 
@@ -322,7 +322,7 @@ Lost-pet privacy: uploaded photos are personal data and live only in the private
 
 **Supporter wall (implemented 2026-10-31):** After the API and database deployment, the Payment Link must include these three custom fields: required dropdown `supporter_opt_in` with values `yes` and `no`; optional text `supporter_display_name` (80 characters); optional text `supporter_message` (240 characters). The labels must explain that a name, amount, and optional message may be shown publicly only if the donor chooses `yes`, and should not contain personal information. The verified webhook recognizes only those stable keys. An opt-in starts as `pending`; staff review the exact submitted text in Donations and choose Published or Hidden. Only successful **live** gifts with an opt-in and display name can be published. `/donate` shows at most the six newest published gifts through the narrow `latest_public_donations()` projection, which excludes billing names, email, Stripe identifiers, and test-mode gifts. Never configure the Payment Link fields before this code is deployed, or early submissions will not be captured.
 
-Still open: a wishlist, a PawHeaven-sent thank-you email (Stripe's own receipt is the confirmation today), and offering more than one payment service (Sprint 3 requirement 9 mentions "different third-party payment services").
+Still open: a PawHeaven-sent thank-you email (Stripe's own receipt is the confirmation today), and offering more than one payment service (Sprint 3 requirement 9 mentions "different third-party payment services").
 
 ## Transactional email
 
