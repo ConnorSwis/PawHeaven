@@ -16,6 +16,8 @@
  * Every variable that starts with --ph- is meant to be edited. The @theme block
  * further down wires Tailwind's utility classes to these variables; it should
  * not need changes.
+ *
+ * How to design with these (shape, depth, motion, wording): docs/design-guide.md.
  */
 
 /* Optional web font: add an @import here (it must stay the first rule), then use
@@ -30,22 +32,23 @@
   --ph-brand-soft: #f1f5ee;     /* very light tint behind selected or positive items */
   --ph-on-brand: #ffffff;       /* text and icons drawn on a brand-colored background */
   --ph-accent: #c96e3d;         /* keyboard focus ring and warm highlights */
+  --ph-pop: #f4a67c;            /* decoration only (blobs, underlines); never text or the only signal */
 
   /* ---- Surfaces and text ------------------------------------------------- */
-  --ph-page: #f7f3eb;           /* the page background */
+  --ph-page: #fbf6ee;           /* the page background */
   --ph-surface: #ffffff;        /* cards, forms, header, menus */
-  --ph-ink-strong: #0c0a09;     /* headings */
-  --ph-ink: #1c1917;            /* body text */
+  --ph-ink-strong: #1f1b17;     /* headings */
+  --ph-ink: #2b2622;            /* body text */
   --ph-ink-soft: #44403b;       /* secondary text, nav links */
   --ph-ink-muted: #57534d;      /* captions, help text */
   --ph-ink-faint: #79716b;      /* least important text */
 
   /* ---- Lines and subtle backgrounds -------------------------------------- */
   --ph-border-strong: #948f8b;  /* form field borders (kept at 3:1 against cards for accessibility) */
-  --ph-border: #d6d3d1;         /* card and divider borders */
-  --ph-divider: #e7e5e4;        /* hairlines inside cards */
-  --ph-hover: #f5f5f4;          /* hover background */
-  --ph-surface-alt: #fafaf9;    /* a slightly tinted surface */
+  --ph-border: #e3d9ca;         /* card and divider borders */
+  --ph-divider: #eee6d9;        /* hairlines inside cards */
+  --ph-hover: #f6f0e6;          /* hover background */
+  --ph-surface-alt: #fcf9f3;    /* a slightly tinted surface */
   --ph-neutral-800: #292524;    /* occasional dark UI text */
 
   /* ---- Status colors ------------------------------------------------------ */
@@ -60,17 +63,32 @@
   --ph-success-soft: #f0fdf4;
 
   /* ---- Typography --------------------------------------------------------- */
-  --ph-font-sans: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+  --ph-font-sans: "Nunito Variable", "Avenir Next", Avenir, "Helvetica Neue", system-ui, sans-serif;
   --ph-font-heading: var(--ph-font-sans);     /* set a different family for h1 to h3 */
   --ph-font-size: 100%;                       /* root size: 100% is 16px; everything scales with it */
+  --ph-weight-semibold: 700;                  /* what "semibold" text renders at (labels, buttons, card titles) */
+  --ph-weight-bold: 800;                      /* what "bold" text renders at (page headings) */
+  --ph-heading-tracking: -0.015em;            /* letter spacing for h1 to h3 */
 
   /* ---- Shape, spacing, and layout ------------------------------------------ */
-  --ph-radius: 0px;             /* corner rounding for buttons, fields, cards, images */
+  --ph-radius: 22px;            /* corner rounding for cards, panels, and photos; the other two follow it */
+  --ph-radius-sm: min(var(--ph-radius), 12px);    /* fields, small boxes, menus */
+  --ph-radius-pill: calc(var(--ph-radius) * 99);  /* buttons and chips: fully round unless --ph-radius is 0 */
   --ph-spacing: 0.25rem;        /* the spacing unit: raise it for a roomier site */
   --ph-content-width: 72rem;    /* widest page content */
   --ph-content-width-medium: 64rem;
   --ph-reading-width: 42rem;    /* widest paragraph and intro text */
-  --ph-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  /* Depth: three steps. Resting cards, raised or hovered things, and floating panels. */
+  --ph-shadow-tint: 74 52 30;   /* the shadow color as "r g b": warm brown on light themes */
+  --ph-shadow-sm: 0 1px 2px rgb(var(--ph-shadow-tint) / 0.06), 0 8px 24px -10px rgb(var(--ph-shadow-tint) / 0.14);
+  --ph-shadow: 0 2px 4px rgb(var(--ph-shadow-tint) / 0.06), 0 16px 32px -14px rgb(var(--ph-shadow-tint) / 0.24);
+  --ph-shadow-lg: 0 4px 8px rgb(var(--ph-shadow-tint) / 0.08), 0 28px 56px -20px rgb(var(--ph-shadow-tint) / 0.34);
+  --ph-shadow-brand: 0 6px 14px -6px color-mix(in oklab, var(--ph-brand) 60%, transparent);  /* glow under primary buttons */
+  /* Motion: one curve and two speeds. Everything is switched off for visitors who ask for reduced motion. */
+  --ph-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ph-duration-fast: 150ms;
+  --ph-duration: 250ms;
+  --ph-lift: -4px;              /* how far a card rises on hover */
   --ph-focus-width: 3px;
   --ph-color-scheme: light;     /* light or dark: styles scrollbars and native controls */
 }
@@ -108,7 +126,12 @@
   --ph-success-strong: #b4e8c1;
   --ph-success-soft: #172a1d;
 
+  --ph-pop: #6b4a35;
+  --ph-shadow-tint: 0 0 0;
+  --ph-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
   --ph-shadow: 0 4px 10px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --ph-shadow-lg: 0 18px 40px -12px rgb(0 0 0 / 0.7);
+  --ph-shadow-brand: none;
   --ph-color-scheme: dark;
 }
 
@@ -132,6 +155,8 @@
   --ph-neutral-800: #1a3a4a;
   --ph-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --ph-radius: 10px;
+  --ph-pop: #a5e3f0;
+  --ph-shadow-tint: 14 60 80;
 }
 
 /* ---- Sunset: warm, editorial, serif headings -------------------------------- */
@@ -154,7 +179,9 @@
   --ph-surface-alt: #fff5e8;
   --ph-neutral-800: #4a2c18;
   --ph-font-heading: Georgia, "Times New Roman", serif;
+  --ph-weight-bold: 700;
   --ph-radius: 4px;
+  --ph-pop: #fbbf8a;
 }
 
 /* ---- Lavender: soft, friendly, very round ----------------------------------- */
@@ -178,6 +205,8 @@
   --ph-font-sans: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
   --ph-radius: 16px;
   --ph-spacing: 0.26rem;
+  --ph-pop: #f5b8d8;
+  --ph-shadow-tint: 60 30 110;
 }
 
 /* ---- Midnight: a dark navy theme --------------------------------------------- */
@@ -210,7 +239,12 @@
   --ph-success-strong: #b4e8c1;
   --ph-success-soft: #172a1d;
   --ph-radius: 8px;
+  --ph-pop: #2a3f66;
+  --ph-shadow-tint: 0 0 0;
+  --ph-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.45);
   --ph-shadow: 0 4px 10px -1px rgb(0 0 0 / 0.55), 0 2px 4px -2px rgb(0 0 0 / 0.45);
+  --ph-shadow-lg: 0 18px 40px -12px rgb(0 0 0 / 0.75);
+  --ph-shadow-brand: none;
   --ph-color-scheme: dark;
 }
 
@@ -243,13 +277,31 @@
   --ph-success-soft: #e0f5e0;
   --ph-font-size: 112%;
   --ph-focus-width: 4px;
+  /* High contrast leans on borders, not depth: small corners, no shadows, no motion lift. */
+  --ph-radius: 6px;
+  --ph-pop: #e6e6ff;
+  --ph-shadow-sm: none;
+  --ph-shadow: 0 0 0 2px var(--ph-ink-strong);
+  --ph-shadow-lg: 0 0 0 2px var(--ph-ink-strong);
+  --ph-shadow-brand: none;
+  --ph-lift: 0px;
 }
 
 /* ---- Wiring: Tailwind's utilities read these, so every class follows the theme -- */
 @theme {
   --font-sans: var(--ph-font-sans);
   --spacing: var(--ph-spacing);
+  --shadow-sm: var(--ph-shadow-sm);
   --shadow-md: var(--ph-shadow);
+  --shadow-lg: var(--ph-shadow-lg);
+  --font-weight-semibold: var(--ph-weight-semibold);
+  --font-weight-bold: var(--ph-weight-bold);
+  --radius-sm: var(--ph-radius-sm);
+  --radius-md: var(--ph-radius-sm);
+  --radius-lg: var(--ph-radius);
+  --radius-xl: var(--ph-radius);
+  --ease-out: var(--ph-ease);
+  --color-pop: var(--ph-pop);
   --container-6xl: var(--ph-content-width);
   --container-5xl: var(--ph-content-width-medium);
   --container-2xl: var(--ph-reading-width);
@@ -303,7 +355,7 @@
 
   body { min-width: 320px; }
 
-  h1, h2, h3 { font-family: var(--ph-font-heading); }
+  h1, h2, h3 { font-family: var(--ph-font-heading); letter-spacing: var(--ph-heading-tracking); text-wrap: balance; }
 
   button, input, select, textarea { font: inherit; }
 
@@ -312,13 +364,27 @@
     outline-offset: 2px;
   }
 
-  /* One radius for everything boxy. Underline-only tabs and one-sided borders keep square edges. */
+  /*
+   * Shape. Three sizes, all derived from --ph-radius:
+   *   pill  buttons                      sm  fields and small boxes        full  cards, panels, photos
+   * Underline-only tabs and one-sided borders keep square edges. A button that is really a large
+   * tile (taller than one line) should set rounded-[var(--ph-radius)] itself.
+   */
+  :where(button) { border-radius: var(--ph-radius-pill); }
+  :where(select, textarea, input:not([type="checkbox"], [type="radio"], [type="file"])) { border-radius: var(--ph-radius-sm); }
   :where(
-    button, select, textarea, img, details, article, fieldset,
-    input:not([type="checkbox"], [type="radio"], [type="file"]),
+    img, details, article, fieldset,
     [class*="border-stone-3"]:not([class*="border-b"], [class*="border-t"], [class*="border-l"], [class*="border-r"])
   ) {
     border-radius: var(--ph-radius);
+  }
+
+  /* Buttons sink a pixel when pressed. */
+  :where(button, a[class*="min-h-11"]):active:not(:disabled) { transform: translateY(1px); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+    :where(button, a):active { transform: none !important; }
   }
 }
 
@@ -332,7 +398,7 @@
     font-size: 0.75rem;
     line-height: 1.25rem;
     color: var(--ph-ink-soft);
-    border-radius: var(--ph-radius);
+    border-radius: var(--ph-radius-pill);
   }
   .ph-pill-good { border-color: var(--ph-brand); background: var(--ph-brand-soft); color: var(--ph-brand-strong); }
   .ph-pill-warn { border-color: var(--ph-warning); background: var(--ph-warning-soft); color: var(--ph-warning-strong); }
@@ -341,18 +407,33 @@
   .ph-input {
     margin-top: 0.5rem; display: block; width: 100%;
     border: 1px solid var(--ph-border-strong); background: var(--ph-surface);
-    padding: 0.625rem 0.75rem; color: var(--ph-ink); font-weight: 400;
+    padding: 0.625rem 0.75rem; color: var(--ph-ink); font-weight: 400; border-radius: var(--ph-radius-sm);
   }
   .ph-help { margin-top: 0.5rem; font-size: 0.875rem; font-weight: 400; color: var(--ph-ink-muted); }
   .ph-error { margin-top: 0.5rem; font-size: 0.875rem; font-weight: 500; color: var(--ph-danger); }
   .ph-btn {
     border: 1px solid var(--ph-brand); background: var(--ph-surface);
     padding: 0.5rem 1rem; font-size: 0.875rem; font-weight: 600; color: var(--ph-brand-strong);
-    cursor: pointer; border-radius: var(--ph-radius);
+    cursor: pointer; border-radius: var(--ph-radius-pill);
   }
   .ph-btn:hover { background: var(--ph-brand-soft); }
-  .ph-btn-primary { background: var(--ph-brand); color: var(--ph-on-brand); }
+  .ph-btn-primary { background: var(--ph-brand); color: var(--ph-on-brand); box-shadow: var(--ph-shadow-brand); }
   .ph-btn-primary:hover { background: var(--ph-brand-strong); }
   .ph-btn:disabled { cursor: wait; opacity: 0.7; }
-  .ph-card { border: 1px solid var(--ph-border); background: var(--ph-surface); padding: 1.25rem 1.5rem; border-radius: var(--ph-radius); }
+  .ph-card { border: 1px solid var(--ph-border); background: var(--ph-surface); padding: 1.25rem 1.5rem; border-radius: var(--ph-radius); box-shadow: var(--ph-shadow-sm); }
+}
+
+/* Soft Clay helpers. See docs/design-guide.md for when to use each. */
+@layer utilities {
+  /* A surface that rises on hover or keyboard focus: animal cards and other clickable cards. */
+  .ph-lift { transition: transform var(--ph-duration) var(--ph-ease), box-shadow var(--ph-duration) var(--ph-ease); }
+  .ph-lift:hover, .ph-lift:focus-within { transform: translateY(var(--ph-lift)); box-shadow: var(--ph-shadow); }
+  /* One highlighted word in a headline. Decoration only: the text keeps its own color. */
+  .ph-highlight { background: linear-gradient(transparent 62%, color-mix(in oklab, var(--ph-pop) 55%, transparent) 62%); }
+  /* The soft blob behind a hero photo. Put it on a positioned wrapper. */
+  .ph-blob { position: relative; isolation: isolate; }
+  .ph-blob::before { content: ""; position: absolute; z-index: -1; inset: -6% -8% auto auto; width: 62%; aspect-ratio: 1; border-radius: 50%; background: var(--ph-pop); opacity: 0.55; }
+  /* Organic photo shape for hero images. */
+  .ph-photo-blob { border-radius: 46% 54% 50% 50% / 52% 48% 52% 48%; }
+  @media (prefers-reduced-motion: reduce) { .ph-lift:hover, .ph-lift:focus-within { transform: none; } }
 }

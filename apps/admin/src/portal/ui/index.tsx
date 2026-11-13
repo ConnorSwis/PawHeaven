@@ -12,13 +12,13 @@ export const useDensity = () => useContext(DensityContext);
 // --- Buttons and badges ----------------------------------------------------------------------
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: 'sm' | 'md' };
 const variants = {
-  primary: 'bg-[var(--ph-brand)] text-[var(--ph-on-brand)] hover:bg-[var(--ph-brand-strong)] border border-transparent',
+  primary: 'bg-[var(--ph-brand)] text-[var(--ph-on-brand)] hover:bg-[var(--ph-brand-strong)] border border-transparent shadow-[var(--ph-shadow-brand)]',
   secondary: 'border border-stone-400 bg-white text-stone-900 hover:bg-stone-100',
   ghost: 'border border-transparent text-stone-800 hover:bg-stone-100',
   danger: 'border border-red-800 bg-white text-red-800 hover:bg-red-800 hover:text-[var(--ph-on-brand)]',
 };
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ variant = 'secondary', size = 'md', className, type = 'button', ...props }, ref) {
-  return <button ref={ref} type={type} className={cx('inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60', 'rounded-[var(--ph-radius)]', size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3.5 py-2 text-sm', variants[variant], className)} {...props} />;
+  return <button ref={ref} type={type} className={cx('inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-[color,background-color,transform,box-shadow] duration-150 disabled:cursor-not-allowed disabled:opacity-60', 'rounded-[var(--ph-radius-pill)]', size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3.5 py-2 text-sm', variants[variant], className)} {...props} />;
 });
 
 type Tone = 'neutral' | 'good' | 'warn' | 'danger';
@@ -41,7 +41,7 @@ export function statusTone(status: string): Tone {
 export const StatusBadge = ({ status, label }: { status: string; label?: string }) => <Badge tone={statusTone(status)}>{label ?? status}</Badge>;
 
 // --- Form controls ----------------------------------------------------------------------------
-const control = 'block w-full rounded-[var(--ph-radius)] border border-stone-400 bg-white px-3 py-2 text-sm text-stone-950 placeholder:text-stone-500 disabled:bg-stone-100 disabled:text-stone-600';
+const control = 'block w-full rounded-[var(--ph-radius-sm)] border border-stone-400 bg-white px-3 py-2 text-sm text-stone-950 placeholder:text-stone-500 disabled:bg-stone-100 disabled:text-stone-600';
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...props }, ref) { return <input ref={ref} className={cx(control, className)} {...props} />; });
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, rows = 4, ...props }, ref) { return <textarea ref={ref} rows={rows} className={cx(control, 'resize-y', className)} {...props} />; });
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, ...props }, ref) { return <select ref={ref} className={cx(control, 'pr-8', className)} {...props} />; });
@@ -110,11 +110,11 @@ export function PageHeader({ title, description, actions }: { title: string; des
 }
 
 export const Toolbar = ({ children }: { children: ReactNode }) => <div className="mt-5 flex flex-wrap items-center gap-2">{children}</div>;
-export const Card = ({ children, className }: { children: ReactNode; className?: string }) => <section className={cx('rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5', className)}>{children}</section>;
+export const Card = ({ children, className }: { children: ReactNode; className?: string }) => <section className={cx('rounded-[var(--ph-radius)] border border-stone-200 bg-white p-5 shadow-sm', className)}>{children}</section>;
 
 export function StatCard({ label, value, hint, onClick }: { label: string; value: ReactNode; hint?: string; onClick?: () => void }) {
   const body = (<><p className="text-xs font-medium uppercase tracking-wide text-stone-600">{label}</p><p className="mt-1 text-2xl font-semibold text-stone-950">{value}</p>{hint && <p className="mt-0.5 text-xs text-stone-600">{hint}</p>}</>);
-  const classes = 'rounded-[var(--ph-radius)] border border-stone-300 bg-white p-4 text-left';
+  const classes = 'rounded-[var(--ph-radius)] border border-stone-200 bg-white p-4 text-left shadow-sm';
   return onClick ? <button type="button" onClick={onClick} className={cx(classes, 'hover:bg-stone-50')}>{body}</button> : <div className={classes}>{body}</div>;
 }
 
@@ -171,7 +171,7 @@ export function ConfirmDialog({ open, onCancel, onConfirm, title, description, c
     <Dialog.Root open={open} onOpenChange={(next) => { if (!next && !busy) onCancel(); }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[55] bg-[color-mix(in_oklab,var(--ph-ink-strong)_55%,transparent)]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[56] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 border border-stone-300 bg-white p-5 shadow-md">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[56] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 border border-stone-300 bg-white p-5 shadow-lg">
           <Dialog.Title className="text-lg font-semibold text-stone-950">{title}</Dialog.Title>
           <Dialog.Description asChild><div className="mt-2 text-sm leading-6 text-stone-700">{description}</div></Dialog.Description>
           <div className="mt-5 flex justify-end gap-2">
