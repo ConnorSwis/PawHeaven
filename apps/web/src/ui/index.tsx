@@ -13,12 +13,12 @@ export const cx = (...parts: (string | false | null | undefined)[]) => parts.fil
 // --- Buttons and links -------------------------------------------------------------------------
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 const variants: Record<Variant, string> = {
-  primary: 'bg-[var(--ph-brand)] text-[var(--ph-on-brand)] hover:bg-[var(--ph-brand-strong)] border border-transparent',
+  primary: 'bg-[var(--ph-brand)] text-[var(--ph-on-brand)] hover:bg-[var(--ph-brand-strong)] border border-transparent shadow-[var(--ph-shadow-brand)]',
   secondary: 'border border-stone-400 bg-white text-stone-900 hover:bg-stone-100',
   ghost: 'border border-transparent text-stone-800 hover:bg-stone-100',
   danger: 'border border-red-800 bg-white text-red-800 hover:bg-red-800 hover:text-[var(--ph-on-brand)]',
 };
-const buttonBase = 'inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--ph-radius)] px-5 py-2.5 text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60';
+const buttonBase = 'inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--ph-radius-pill)] px-5 py-2.5 text-base font-semibold transition-[color,background-color,transform,box-shadow] duration-150 disabled:cursor-not-allowed disabled:opacity-60';
 export const buttonClass = (variant: Variant = 'secondary', className?: string) => cx(buttonBase, variants[variant], className);
 
 export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }>(function Button({ variant = 'secondary', className, type = 'button', ...props }, ref) {
@@ -50,7 +50,7 @@ const noticeTones: Record<'info' | 'success' | 'error' | 'warning', string> = {
 /** Errors announce themselves immediately; everything else politely. */
 export function Notice({ tone = 'info', title, children, className }: { tone?: keyof typeof noticeTones; title?: string; children?: ReactNode; className?: string }) {
   return (
-    <div role={tone === 'error' ? 'alert' : 'status'} className={cx('rounded-[var(--ph-radius)] border p-4 text-sm leading-6', noticeTones[tone], className)}>
+    <div role={tone === 'error' ? 'alert' : 'status'} className={cx('rounded-[var(--ph-radius-sm)] border p-4 text-sm leading-6', noticeTones[tone], className)}>
       {title && <p className="font-semibold">{title}</p>}
       {children && <div className={title ? 'mt-1' : undefined}>{children}</div>}
     </div>
@@ -58,13 +58,13 @@ export function Notice({ tone = 'info', title, children, className }: { tone?: k
 }
 
 export const Card = ({ children, className, as: Tag = 'section' }: { children: ReactNode; className?: string; as?: 'section' | 'div' | 'article' }) => (
-  <Tag className={cx('rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 sm:p-6', className)}>{children}</Tag>
+  <Tag className={cx('rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 shadow-sm sm:p-6', className)}>{children}</Tag>
 );
 
 export const Skeleton = ({ className }: { className?: string }) => <div aria-hidden="true" className={cx('animate-pulse rounded-[var(--ph-radius)] bg-stone-200', className)} />;
 
 // --- Form controls ------------------------------------------------------------------------------
-const control = 'block w-full min-h-11 rounded-[var(--ph-radius)] border border-stone-500 bg-white px-3.5 py-2.5 text-base text-stone-950 placeholder:text-stone-600 disabled:bg-stone-100 disabled:text-stone-600 aria-[invalid=true]:border-red-800';
+const control = 'block w-full min-h-11 rounded-[var(--ph-radius-sm)] border border-stone-500 bg-white px-3.5 py-2.5 text-base text-stone-950 placeholder:text-stone-600 disabled:bg-stone-100 disabled:text-stone-600 aria-[invalid=true]:border-red-800';
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...props }, ref) { return <input ref={ref} className={cx(control, className)} {...props} />; });
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, rows = 4, ...props }, ref) { return <textarea ref={ref} rows={rows} className={cx(control, 'resize-y', className)} {...props} />; });
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, ...props }, ref) { return <select ref={ref} className={cx(control, className)} {...props} />; });
@@ -99,7 +99,7 @@ export function Fieldset({ legend, help, children, className }: { legend: string
 
 export function Choice({ type = 'checkbox', label, hint, ...props }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & { type?: 'checkbox' | 'radio'; label: ReactNode; hint?: string }) {
   return (
-    <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-[var(--ph-radius)] border border-stone-300 bg-white px-3.5 py-2.5 text-base text-stone-950 has-[:checked]:border-[var(--ph-brand)] has-[:checked]:bg-[var(--ph-brand-soft)]">
+    <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-[var(--ph-radius-sm)] border border-stone-300 bg-white px-3.5 py-2.5 text-base text-stone-950 has-[:checked]:border-[var(--ph-brand)] has-[:checked]:bg-[var(--ph-brand-soft)]">
       <input type={type} className="mt-1 size-4 shrink-0" {...props} />
       <span>{label}{hint && <span className="mt-0.5 block text-sm text-stone-700">{hint}</span>}</span>
     </label>
@@ -110,7 +110,7 @@ export function Choice({ type = 'checkbox', label, hint, ...props }: Omit<InputH
 export function ErrorSummary({ errors, title = 'Please fix the following' }: { errors: string[]; title?: string }) {
   if (!errors.length) return null;
   return (
-    <div role="alert" tabIndex={-1} ref={(node) => node?.focus()} className="rounded-[var(--ph-radius)] border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+    <div role="alert" tabIndex={-1} ref={(node) => node?.focus()} className="rounded-[var(--ph-radius-sm)] border border-red-300 bg-red-50 p-4 text-sm text-red-900">
       <p className="font-semibold">{title}</p>
       <ul className="mt-1 list-disc pl-5">{errors.map((message) => <li key={message}>{message}</li>)}</ul>
     </div>

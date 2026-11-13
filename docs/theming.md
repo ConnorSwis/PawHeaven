@@ -107,3 +107,7 @@ settings. It is hidden for normal visitors. Turn it on by either:
   `PUBLIC_ADMIN_URL` changes where the "Staff portal" link goes.
 
 It changes nothing on the server and gives no extra access.
+
+## Shape, depth, and motion
+
+`--ph-radius` drives three sizes: cards use it directly, fields use `--ph-radius-sm` (at most 12px), and buttons use `--ph-radius-pill` (fully round unless the radius is 0). Depth has three steps, `--ph-shadow-sm`, `--ph-shadow`, and `--ph-shadow-lg`, tinted by `--ph-shadow-tint`; dark themes set them to black and the high-contrast theme replaces them with outlines. `--ph-pop` is a decoration-only accent. Motion uses `--ph-ease`, `--ph-duration-fast`, `--ph-duration`, and `--ph-lift`, and is switched off for visitors who ask for reduced motion. How to design with these is in [design-guide.md](design-guide.md).

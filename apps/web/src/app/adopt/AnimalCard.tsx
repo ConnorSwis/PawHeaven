@@ -42,7 +42,7 @@ export function SaveButton({ pet, variant = 'icon', className }: { pet: Pet; var
   const Icon = saved ? HeartFilledIcon : HeartIcon;
   if (variant === 'text') {
     return (
-      <button type="button" aria-pressed={saved} onClick={() => toggle(pet.id)} className={cx('inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--ph-radius)] border px-5 py-2.5 text-base font-semibold transition-colors', saved ? 'border-[var(--ph-brand)] bg-[var(--ph-brand-soft)] text-[var(--ph-brand-strong)]' : 'border-stone-400 bg-white text-stone-900 hover:bg-stone-100', className)}>
+      <button type="button" aria-pressed={saved} onClick={() => toggle(pet.id)} className={cx('inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--ph-radius-pill)] border px-5 py-2.5 text-base font-semibold transition-colors', saved ? 'border-[var(--ph-brand)] bg-[var(--ph-brand-soft)] text-[var(--ph-brand-strong)]' : 'border-stone-400 bg-white text-stone-900 hover:bg-stone-100', className)}>
         <Icon /> {saved ? 'Saved' : 'Save'}<span className="sr-only"> {pet.name}</span>
       </button>
     );
@@ -70,9 +70,9 @@ export function PetBadges({ pet }: { pet: Pet }) {
 
 export function AnimalCardSkeleton() {
   return (
-    <div aria-hidden="true" className="overflow-hidden rounded-[var(--ph-radius)] border border-stone-300 bg-white">
-      <div className="aspect-[4/3] animate-pulse bg-stone-200" />
-      <div className="space-y-2 p-4"><div className="h-5 w-1/2 animate-pulse bg-stone-200" /><div className="h-4 w-4/5 animate-pulse bg-stone-200" /><div className="h-6 w-2/3 animate-pulse bg-stone-200" /></div>
+    <div aria-hidden="true" className="overflow-hidden rounded-[var(--ph-radius)] border border-stone-200 bg-white p-2 shadow-sm">
+      <div className="aspect-[4/3] animate-pulse rounded-[calc(var(--ph-radius)-0.5rem)] bg-stone-200" />
+      <div className="space-y-2 px-2 pb-2 pt-3"><div className="h-5 w-1/2 animate-pulse bg-stone-200" /><div className="h-4 w-4/5 animate-pulse bg-stone-200" /><div className="h-6 w-2/3 animate-pulse bg-stone-200" /></div>
     </div>
   );
 }
@@ -80,12 +80,12 @@ export function AnimalCardSkeleton() {
 /** One animal as a photo card. The whole card opens the animal's page; the heart saves it. */
 export function AnimalCard({ pet, priority = false, children }: { pet: Pet; priority?: boolean; children?: ReactNode }) {
   return (
-    <article className="relative flex flex-col overflow-hidden rounded-[var(--ph-radius)] border border-stone-300 bg-white transition-shadow focus-within:shadow-md hover:shadow-md">
+    <article className="ph-lift relative flex flex-col rounded-[var(--ph-radius)] border border-stone-200 bg-white p-2 shadow-sm">
       <div className="relative">
-        <PetPhoto pet={pet} priority={priority} className="aspect-[4/3] w-full" />
+        <PetPhoto pet={pet} priority={priority} className="aspect-[4/3] w-full rounded-[calc(var(--ph-radius)-0.5rem)]" />
         <SaveButton pet={pet} className="absolute right-2 top-2" />
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
+      <div className="flex flex-1 flex-col gap-2 px-2 pb-2 pt-3">
         <h3 className="text-xl font-semibold leading-tight text-stone-950">
           <a href={petPath(pet)} className="after:absolute after:inset-0 hover:underline hover:underline-offset-4">{pet.name}</a>
         </h3>
