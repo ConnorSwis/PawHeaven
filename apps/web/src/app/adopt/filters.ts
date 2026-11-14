@@ -1,5 +1,5 @@
 import { matchesPetSearch, type Pet } from '@pawheaven/contracts';
-import { ageBand, type AgeBand } from './age';
+import { AGE_BANDS, ageBand, type AgeBand } from './age';
 import { byHelpSince, helpLabel } from '../status/help';
 
 /** Every filter lives in the address (`/adopt?species=dog&size=small&kids=1`), so a filtered view can be shared. */
@@ -81,4 +81,36 @@ export function applyFilters(pets: Pet[], filters: Filters): Pet[] {
   // "Needs help first": flagged animals (longest flagged first), then everyone else the way "Waiting longest" does.
   const byHelp = (a: Pet, b: Pet) => (helpLabel(b) ? 1 : 0) - (helpLabel(a) ? 1 : 0) || (helpLabel(a) ? byHelpSince(a, b) : byWaiting(a, b));
   return result.sort(filters.sort === 'name' ? byName : filters.sort === 'newest' ? (a, b) => a.daysInShelter - b.daysInShelter || byName(a, b) : filters.sort === 'help' ? byHelp : byWaiting);
+}
+
+
+/** A ready-made choice shown above the results. Each one is a plain filter, so the address stays the same as before. */
+export type QuickChip = { id: string; label: string; on: (filters: Filters) => boolean; toggle: (filters: Filters) => Filters };
+const flag = (id: 'kids' | 'foster', label: string): QuickChip => ({ id, label, on: (f) => f[id], toggle: (f) => ({ ...f, [id]: !f[id] }) });
+export const QUICK_CHIPS: readonly QuickChip[] = [
+  { id: 'dog', label: 'Dogs', on: (f) => f.species === 'dog', toggle: (f) => ({ ...f, species: f.species === 'dog' ? '' : 'dog' }) },
+  { id: 'cat', label: 'Cats', on: (f) => f.species === 'cat', toggle: (f) => ({ ...f, species: f.species === 'cat' ? '' : 'cat' }) },
+  { id: 'small', label: 'Small', on: (f) => f.size === 'small', toggle: (f) => ({ ...f, size: f.size === 'small' ? '' : 'small' }) },
+  flag('kids', 'Good with kids'),
+  { id: 'senior', label: 'Seniors', on: (f) => f.age === 'senior', toggle: (f) => ({ ...f, age: f.age === 'senior' ? '' : 'senior' }) },
+  flag('foster', 'Open to foster'),
+];
+
+/** One switched-on filter, for the removable chips under the search bar. `quick` filters are already shown as pressed chips above. */
+export type ActiveFilter = { id: string; label: string; quick: boolean; remove: (filters: Filters) => Filters };
+export function activeFilters(filters: Filters): ActiveFilter[] {
+  const labelOf = (options: readonly { value: string; label: string }[], value: string) => options.find((option) => option.value === value)?.label ?? value;
+  const quickOn = QUICK_CHIPS.filter((chip) => chip.on(filters));
+  const quickMatches = (id: string) => quickOn.some((chip) => chip.id === id);
+  const list: ActiveFilter[] = [];
+  if (filters.species) list.push({ id: 'species', label: labelOf(SPECIES_OPTIONS, filters.species), quick: quickMatches(filters.species), remove: (f) => ({ ...f, species: '' }) });
+  if (filters.size) list.push({ id: 'size', label: `${labelOf(SIZE_OPTIONS, filters.size)} size`, quick: quickMatches(filters.size), remove: (f) => ({ ...f, size: '' }) });
+  if (filters.age) list.push({ id: 'age', label: labelOf(AGE_BANDS, filters.age).replace(/ \(.*\)$/, ''), quick: filters.age === 'senior', remove: (f) => ({ ...f, age: '' }) });
+  if (filters.sex) list.push({ id: 'sex', label: labelOf(SEX_OPTIONS, filters.sex), quick: false, remove: (f) => ({ ...f, sex: '' }) });
+  if (filters.energy) list.push({ id: 'energy', label: `${labelOf(ENERGY_OPTIONS, filters.energy).split(':')[0]} energy`, quick: false, remove: (f) => ({ ...f, energy: '' }) });
+  if (filters.kids) list.push({ id: 'kids', label: 'Good with kids', quick: true, remove: (f) => ({ ...f, kids: false }) });
+  if (filters.dogs) list.push({ id: 'dogs', label: 'Good with dogs', quick: false, remove: (f) => ({ ...f, dogs: false }) });
+  if (filters.cats) list.push({ id: 'cats', label: 'Good with cats', quick: false, remove: (f) => ({ ...f, cats: false }) });
+  if (filters.foster) list.push({ id: 'foster', label: 'Open to foster', quick: true, remove: (f) => ({ ...f, foster: false }) });
+  return list;
 }

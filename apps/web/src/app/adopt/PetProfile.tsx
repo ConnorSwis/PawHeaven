@@ -3,8 +3,8 @@ import { matchStrength, type LatestQuizResponse, type Pet } from '@pawheaven/con
 import { SHELTER } from '@pawheaven/contracts/site';
 import { ApiRequestError, errorMessage, inlineData, useApi, useMe } from '../../lib/fetch';
 import { Providers } from '../../lib/providers';
-import { Badge, Button, ButtonLink, Card, EmptyState, Notice, Skeleton, TextLink, cx } from '../../ui';
-import { ChevronLeftIcon } from '../../ui/icons';
+import { Badge, Button, ButtonLink, Card, EmptyState, NoteCard, Notice, Section, Skeleton, TextLink, cx } from '../../ui';
+import { CheckIcon, ChevronLeftIcon, CloseIcon, PawIcon } from '../../ui/icons';
 import { AnimalCard, AnimalCardSkeleton, PetBadges, PetPhoto, SaveButton, petFacts, petPhotoAlt, waitingText } from './AnimalCard';
 import { isSenior } from './age';
 import { ClientOnly } from './client';
@@ -68,14 +68,14 @@ function Gallery({ pet }: { pet: Pet }) {
   const [index, setIndex] = useState(0);
   const current = photos[Math.min(index, photos.length - 1)] ?? null;
   return (
-    <div>
-      <PetPhoto key={current ?? 'none'} pet={pet} src={current} priority fit="contain" className="aspect-[4/3] w-full rounded-[var(--ph-radius)]" alt={photos.length > 1 ? `${petPhotoAlt(pet)}, photo ${index + 1} of ${photos.length}` : undefined} />
+    <div className="rounded-[var(--ph-radius)] border border-stone-200 bg-white p-2 shadow-sm sm:p-3">
+      <PetPhoto key={current ?? 'none'} pet={pet} src={current} priority className="aspect-[4/3] w-full rounded-[calc(var(--ph-radius)-0.5rem)] object-[50%_35%]" alt={photos.length > 1 ? `${petPhotoAlt(pet)}, photo ${index + 1} of ${photos.length}` : undefined} />
       {photos.length > 1 && (
-        <ul className="mt-3 flex flex-wrap gap-2" aria-label={`Photos of ${pet.name}`}>
+        <ul className="mt-2 flex flex-wrap gap-2 sm:mt-3" aria-label={`Photos of ${pet.name}`}>
           {photos.map((url, position) => (
             <li key={url}>
-              <button type="button" onClick={() => setIndex(position)} aria-label={`Show photo ${position + 1} of ${photos.length}`} aria-current={position === index ? 'true' : undefined} className={cx('block size-16 overflow-hidden rounded-[var(--ph-radius)] border-2 sm:size-20', position === index ? 'border-[var(--ph-brand)]' : 'border-stone-300 hover:border-stone-500')}>
-                <img src={url} alt="" width={80} height={80} loading="lazy" className="size-full object-cover" />
+              <button type="button" onClick={() => setIndex(position)} aria-label={`Show photo ${position + 1} of ${photos.length}`} aria-current={position === index ? 'true' : undefined} className={cx('block aspect-[4/3] w-20 overflow-hidden rounded-[var(--ph-radius-sm)] border-2 sm:w-24', position === index ? 'border-[var(--ph-brand)]' : 'border-transparent opacity-80 hover:opacity-100')}>
+                <img src={url} alt="" width={96} height={72} loading="lazy" className="size-full object-cover" />
               </button>
             </li>
           ))}
@@ -83,6 +83,30 @@ function Gallery({ pet }: { pet: Pet }) {
       )}
     </div>
   );
+}
+
+/** The share sheet where the browser has one, otherwise the address is copied and a toast confirms. */
+function useShare(pet: Pet) {
+  const toast = useToast();
+  return async (text: string) => {
+    const url = new URL(petPath(pet), window.location.origin).href;
+    const title = `${pet.name} at PawHeaven`;
+    if (typeof navigator.share === 'function') {
+      try { await navigator.share({ title, text, url }); } catch (failure) {
+        if (!(failure instanceof DOMException && failure.name === 'AbortError')) toast.error('We could not open sharing. You can copy the address from your browser instead.');
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success(`Link to ${pet.name} copied. Thank you for sharing.`);
+    } catch { toast.error('We could not copy the link. You can copy the address from your browser instead.'); }
+  };
+}
+
+function ShareButton({ pet, className }: { pet: Pet; className?: string }) {
+  const share = useShare(pet);
+  return <Button className={className} onClick={() => void share(helpLabel(pet) ? `${helpLabel(pet)}: meet ${pet.name}.` : `Meet ${pet.name} at PawHeaven.`)}>Share<span className="sr-only"> {pet.name}</span></Button>;
 }
 
 function Actions({ pet, compact = false }: { pet: Pet; compact?: boolean }) {
@@ -97,39 +121,33 @@ function Actions({ pet, compact = false }: { pet: Pet; compact?: boolean }) {
   );
 }
 
-/** Why staff listed this animal first, with three plain things a visitor can do about it. */
+/** Why staff listed this animal first, with three plain things a visitor can do about it. On wide screens the action card already has them. */
 function HelpCallout({ pet, className }: { pet: Pet; className?: string }) {
-  const toast = useToast();
   const id = encodeURIComponent(pet.id);
   const label = helpLabel(pet);
   if (!label) return null;
-
-  async function share() {
-    const url = new URL(petPath(pet), window.location.origin).href;
-    const title = `${pet.name} at PawHeaven`;
-    if (typeof navigator.share === 'function') {
-      try { await navigator.share({ title, text: `${label}: meet ${pet.name}.`, url }); } catch (failure) {
-        if (!(failure instanceof DOMException && failure.name === 'AbortError')) toast.error('We could not open sharing. You can copy the address from your browser instead.');
-      }
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success(`Link to ${pet.name} copied. Thank you for sharing.`);
-    } catch { toast.error('We could not copy the link. You can copy the address from your browser instead.'); }
-  }
-
   return (
-    <div className={cx('rounded-[var(--ph-radius)] border border-amber-700 bg-amber-50 p-4 text-amber-900', className)} data-help-callout>
-      <p className="text-lg font-semibold text-stone-950">{label}</p>
-      <p className="mt-1 text-base leading-7 text-stone-900">{helpDetail(pet)}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <ButtonLink variant="primary" href={`/apply?type=adopt&pet=${id}`}>Adopt<span className="sr-only"> {pet.name}</span></ButtonLink>
-        <ButtonLink href={pet.fosterAvailable ? `/apply?type=foster&pet=${id}` : '/foster'}>Foster<span className="sr-only"> {pet.name}</span></ButtonLink>
-        <Button onClick={() => void share()}>Share<span className="sr-only"> {pet.name}</span></Button>
+    <div className={cx('flex gap-4 rounded-[var(--ph-radius)] border border-amber-700 bg-amber-50 p-5 text-amber-900', className)} data-help-callout>
+      <span aria-hidden="true" className="hidden size-11 shrink-0 place-items-center rounded-full bg-white text-[var(--ph-warning-strong)] sm:grid"><PawIcon /></span>
+      <div className="min-w-0">
+        <p className="text-lg font-bold text-stone-950">{label}</p>
+        <p className="mt-1 text-base leading-7 text-stone-900">{helpDetail(pet)}</p>
+        <div className="mt-4 flex flex-wrap gap-2 lg:hidden">
+          <ButtonLink href={`/apply?type=adopt&pet=${id}`}>Adopt<span className="sr-only"> {pet.name}</span></ButtonLink>
+          <ButtonLink href={pet.fosterAvailable ? `/apply?type=foster&pet=${id}` : '/foster'}>Foster<span className="sr-only"> {pet.name}</span></ButtonLink>
+          <ShareButton pet={pet} />
+        </div>
       </div>
     </div>
   );
+}
+
+/** A short note in the animal's own voice, built only from what the shelter knows (how long they have been here, where they live). */
+function petNote(pet: Pet): string | null {
+  if (!Number.isFinite(pet.daysInShelter) || pet.daysInShelter < 0) return null;
+  const days = pet.daysInShelter;
+  const here = days < 7 ? 'I just arrived this week.' : days < 60 ? `I have been here ${days} days.` : `I have been here about ${Math.floor(days / 30)} months.`;
+  return pet.housing === 'Foster home' ? `${here} I live in a foster home.` : here;
 }
 
 function Facts({ pet }: { pet: Pet }) {
@@ -149,15 +167,19 @@ function Facts({ pet }: { pet: Pet }) {
   if (!shown.length) return null;
   return (
     <section aria-labelledby="good-to-know" className="mt-10">
-      <h2 id="good-to-know" className="text-2xl font-semibold tracking-tight text-stone-950">Good to know</h2>
-      <dl className="mt-4 grid gap-px overflow-hidden rounded-[var(--ph-radius)] border border-stone-300 bg-stone-300 sm:grid-cols-2 sm:[&>:last-child:nth-child(odd)]:col-span-2">
-        {shown.map(([term, value]) => (
-          <div key={term} className="flex items-baseline justify-between gap-4 bg-white px-4 py-3">
-            <dt className="text-sm text-stone-700">{term}</dt>
-            <dd className="text-right font-semibold text-stone-950">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <h2 id="good-to-know" className="text-2xl font-bold tracking-tight text-stone-950">Good to know</h2>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+        {shown.map(([term, value]) => {
+          const yes = term.startsWith('Good with') && value === 'Yes';
+          const no = term.startsWith('Good with') && value === 'No';
+          return (
+            <li key={term} className="flex items-center gap-3 rounded-[var(--ph-radius)] border border-stone-200 bg-white px-4 py-3 shadow-sm">
+              <span aria-hidden="true" className={cx('grid size-10 shrink-0 place-items-center rounded-full', yes ? 'bg-[var(--ph-brand-soft)] text-[var(--ph-brand-strong)]' : no ? 'bg-stone-100 text-stone-700' : 'bg-[var(--ph-warning-soft)] text-[var(--ph-warning-strong)]')}>{yes ? <CheckIcon /> : no ? <CloseIcon /> : <PawIcon />}</span>
+              <span className="min-w-0"><span className="block text-sm text-stone-700">{term}<span className="sr-only">:</span></span><span className="font-semibold text-stone-950">{value}</span></span>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
@@ -169,7 +191,7 @@ function Cost({ pet }: { pet: Pet }) {
   const senior = isSenior(pet.age);
   return (
     <section aria-labelledby="costs" className="mt-10">
-      <h2 id="costs" className="text-2xl font-semibold tracking-tight text-stone-950">What adoption costs and includes</h2>
+      <h2 id="costs" className="text-2xl font-bold tracking-tight text-stone-950">What adoption costs and includes</h2>
       <p className="mt-3 text-base leading-7 text-stone-800">
         {senior ? <>The adoption fee for {pet.name} is <strong>{money(fees.seniorFee)}</strong> this year, for animals {fees.seniorAge} and older.</> : baseFee !== null ? <>The adoption fee for {pet.name} is <strong>{money(baseFee)}</strong>. Adopters 55 and older pay {money(fees.over55Fee)} for animals under {fees.seniorAge}.</> : <>Ask an adoption counselor about the fee for {pet.name}.</>}
       </p>
@@ -210,83 +232,94 @@ function Similar({ pet }: { pet: Pet }) {
     .slice(0, 4);
   if (data && !similar?.length) return null;
   return (
-    <section aria-labelledby="similar" className="mt-14 border-t border-stone-300 pt-10">
-      <h2 id="similar" className="text-2xl font-semibold tracking-tight text-stone-950">Similar animals</h2>
-      <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <Section labelledBy="similar" innerClassName="pt-4 sm:pt-6">
+      <h2 id="similar" className="text-2xl font-bold tracking-tight text-stone-950 sm:text-3xl">Similar animals</h2>
+      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {similar ? similar.map((other) => <AnimalCard key={other.id} pet={other} />) : Array.from({ length: 4 }, (_, i) => <AnimalCardSkeleton key={i} />)}
       </div>
-    </section>
+    </Section>
   );
 }
 
 function Profile({ pet }: { pet: Pet }) {
   const fosterHome = pet.housing === 'Foster home';
+  const note = petNote(pet);
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8">
-      <a href="/adopt" className="inline-flex min-h-11 items-center gap-1 font-medium text-[var(--ph-brand-strong)] underline underline-offset-4"><ChevronLeftIcon />All animals</a>
-
-      <header className="mt-2">
-        <h1 className="text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">{pet.name}</h1>
-        <p className="mt-2 text-lg text-stone-800">{petFacts(pet)}</p>
-        <div className="mt-3 flex flex-wrap items-center gap-2"><PetBadges pet={pet} /><span className="text-sm text-stone-700">{[fosterHome ? 'Lives in a foster home' : pet.housing === 'Shelter' ? 'At the shelter' : '', waitingText(pet)].filter(Boolean).join('. ')}</span></div>
-      </header>
-
-      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-12">
-        <div>
-          <Gallery pet={pet} />
-
-          <HelpCallout pet={pet} className="mt-6 lg:hidden" />
-
-          {(pet.fosterUrgent || pet.needsWalkers) && (
-            <div className="mt-6 grid gap-3">
-              {pet.fosterUrgent && <Notice tone="warning" title={`${pet.name} needs a foster home now`}>A foster home gives {pet.name} room to relax while the right family is found. <TextLink href={`/apply?type=foster&pet=${encodeURIComponent(pet.id)}`}>Foster {pet.name}</TextLink> or <TextLink href="/foster">learn how fostering works</TextLink>.</Notice>}
-              {pet.needsWalkers && <Notice tone="info" title={`${pet.name} could use a walker`}>Can you not adopt right now? Volunteers help with walks and exercise. <TextLink href="/volunteer">See volunteer shifts</TextLink>.</Notice>}
-            </div>
-          )}
-
-          <QuizNote pet={pet} />
-
-          <section aria-labelledby="about" className="mt-10">
-            <h2 id="about" className="text-2xl font-semibold tracking-tight text-stone-950">About {pet.name}</h2>
-            <p className="mt-3 whitespace-pre-line text-lg leading-8 text-stone-800">{pet.summary || `${pet.name} is waiting to meet you. Plan a visit to say hello.`}</p>
-            {fosterHome && <p className="mt-3 text-base leading-7 text-stone-800">{pet.name} lives with a foster family. Apply and the family will contact you within three days to arrange a meeting.</p>}
-            {pet.fosterAvailable && !pet.fosterUrgent && <p className="mt-3 text-base leading-7 text-stone-800">Not ready to adopt? {pet.name} is open to foster. <TextLink href={`/apply?type=foster&pet=${encodeURIComponent(pet.id)}`}>Foster {pet.name}</TextLink></p>}
-            {pet.sourceName && (
-              <p className="mt-3 text-sm text-stone-700">
-                Photos and details courtesy of {pet.sourceUrl ? <a href={pet.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--ph-brand-strong)] underline underline-offset-4">{pet.sourceName}<span className="sr-only"> (opens in a new tab)</span></a> : pet.sourceName}.
-              </p>
-            )}
-          </section>
-
-          <Facts pet={pet} />
-
-          {pet.medicalHistory && (
-            <section aria-labelledby="health" className="mt-10">
-              <h2 id="health" className="text-2xl font-semibold tracking-tight text-stone-950">Health notes</h2>
-              <p className="mt-3 whitespace-pre-line text-base leading-7 text-stone-800">{pet.medicalHistory}</p>
-            </section>
-          )}
-
-          <Cost pet={pet} />
+    <div>
+      <div className="mx-auto max-w-6xl px-4 pb-12 pt-6 sm:px-6 sm:pt-8">
+        <div className="flex items-center justify-between gap-3">
+          <a href="/adopt" className="inline-flex min-h-11 items-center gap-1 font-medium text-[var(--ph-brand-strong)] underline underline-offset-4"><ChevronLeftIcon />All animals</a>
+          <ShareButton pet={pet} className="lg:hidden" />
         </div>
 
-        <aside className="hidden lg:block" aria-label={`Next steps for ${pet.name}`}>
-          <Card className="sticky top-6 grid gap-3">
-            <HelpCallout pet={pet} />
-            <p className="text-lg font-semibold text-stone-950">Ready to meet {pet.name}?</p>
-            <p className="text-sm leading-6 text-stone-700">Visit first to see if you click. You can apply any time; applying does not hold an animal.</p>
-            <Actions pet={pet} />
-            <SaveButton pet={pet} variant="text" className="w-full" />
-            <p className="text-sm text-stone-700">Open {SHELTER.hours[1].days}: {SHELTER.hours[1].open}. <TextLink href="/visit">Plan a visit</TextLink></p>
-          </Card>
-        </aside>
+        <header className="mt-2">
+          <h1 className="text-4xl font-bold tracking-tight text-stone-950 sm:text-5xl">{pet.name}</h1>
+          <p className="mt-2 text-lg text-stone-800">{petFacts(pet)}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2"><PetBadges pet={pet} /><span className="text-sm text-stone-700">{[fosterHome ? 'Lives in a foster home' : pet.housing === 'Shelter' ? 'At the shelter' : '', note ? '' : waitingText(pet)].filter(Boolean).join('. ')}</span></div>
+          {note && <NoteCard className="mt-4 w-fit max-w-full" icon={<PawIcon width={18} height={18} />} title={`${pet.name} says hi`}>{note}</NoteCard>}
+        </header>
+
+        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-12">
+          <div>
+            <Gallery pet={pet} />
+
+            <HelpCallout pet={pet} className="mt-6" />
+
+            {(pet.fosterUrgent || pet.needsWalkers) && (
+              <div className="mt-6 grid gap-3">
+                {pet.fosterUrgent && <Notice tone="warning" title={`${pet.name} needs a foster home now`}>A foster home gives {pet.name} room to relax while the right family is found. <TextLink href={`/apply?type=foster&pet=${encodeURIComponent(pet.id)}`}>Foster {pet.name}</TextLink> or <TextLink href="/foster">learn how fostering works</TextLink>.</Notice>}
+                {pet.needsWalkers && <Notice tone="info" title={`${pet.name} could use a walker`}>Can you not adopt right now? Volunteers help with walks and exercise. <TextLink href="/volunteer">See volunteer shifts</TextLink>.</Notice>}
+              </div>
+            )}
+
+            <QuizNote pet={pet} />
+
+            <section aria-labelledby="about" className="mt-10">
+              <h2 id="about" className="text-2xl font-bold tracking-tight text-stone-950">About {pet.name}</h2>
+              <p className="mt-3 whitespace-pre-line text-lg leading-8 text-stone-800">{pet.summary || `${pet.name} is waiting to meet you. Plan a visit to say hello.`}</p>
+              {fosterHome && <p className="mt-3 text-base leading-7 text-stone-800">{pet.name} lives with a foster family. Apply and the family will contact you within three days to arrange a meeting.</p>}
+              {pet.fosterAvailable && !pet.fosterUrgent && <p className="mt-3 text-base leading-7 text-stone-800">Not ready to adopt? {pet.name} is open to foster. <TextLink href={`/apply?type=foster&pet=${encodeURIComponent(pet.id)}`}>Foster {pet.name}</TextLink></p>}
+              {pet.sourceName && (
+                <p className="mt-3 text-sm text-stone-700">
+                  Photos and details courtesy of {pet.sourceUrl ? <a href={pet.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--ph-brand-strong)] underline underline-offset-4">{pet.sourceName}<span className="sr-only"> (opens in a new tab)</span></a> : pet.sourceName}.
+                </p>
+              )}
+            </section>
+
+            <Facts pet={pet} />
+
+            {pet.medicalHistory && (
+              <section aria-labelledby="health" className="mt-10">
+                <h2 id="health" className="text-2xl font-bold tracking-tight text-stone-950">Health notes</h2>
+                <p className="mt-3 whitespace-pre-line text-base leading-7 text-stone-800">{pet.medicalHistory}</p>
+              </section>
+            )}
+
+            <Cost pet={pet} />
+          </div>
+
+          <aside className="hidden lg:block" aria-label={`Next steps for ${pet.name}`}>
+            <Card className="sticky top-6 grid gap-3 shadow-md">
+              <p className="text-xl font-bold text-stone-950">Ready to meet {pet.name}?</p>
+              <p className="text-sm leading-6 text-stone-700">Visit first to see if you click. You can apply any time; applying does not hold an animal.</p>
+              <Actions pet={pet} />
+              <div className="grid grid-cols-2 gap-2">
+                <SaveButton pet={pet} variant="text" className="w-full" />
+                <ShareButton pet={pet} className="w-full" />
+              </div>
+              <p className="text-sm text-stone-700">Open {SHELTER.hours[1].days}: {SHELTER.hours[1].open}. <TextLink href="/visit">Plan a visit</TextLink></p>
+            </Card>
+          </aside>
+        </div>
       </div>
 
       <Similar pet={pet} />
 
-      <div className="sticky bottom-0 -mx-4 mt-10 flex items-stretch gap-2 border-t border-stone-300 bg-white px-4 py-3 sm:-mx-6 sm:px-6 lg:hidden" role="group" aria-label={`Next steps for ${pet.name}`}>
-        <Actions pet={pet} compact />
-        <SaveButton pet={pet} className="shrink-0" />
+      <div className="sticky bottom-0 z-20 rounded-t-[var(--ph-radius)] border-t border-stone-300 bg-white shadow-lg lg:hidden" role="group" aria-label={`Next steps for ${pet.name}`}>
+        <div className="mx-auto flex max-w-6xl items-stretch gap-2 px-4 py-3 sm:px-6">
+          <Actions pet={pet} compact />
+          <SaveButton pet={pet} className="shrink-0" />
+        </div>
       </div>
     </div>
   );

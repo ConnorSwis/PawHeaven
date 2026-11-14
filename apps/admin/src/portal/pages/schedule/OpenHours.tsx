@@ -53,7 +53,7 @@ export function OpenHours({ data, onAdd }: { data: ScheduleData; onAdd: () => vo
         {data.exceptions.length === 0 ? <p className="mt-3 text-sm text-stone-700">No closed days coming up.</p> : (
           <ul className="mt-3 grid gap-2">
             {data.exceptions.map((exception) => (
-              <li key={exception.date} className="flex items-center justify-between gap-2 border border-stone-300 px-3 py-2 text-sm">
+              <li key={exception.date} className="flex items-center justify-between gap-2 rounded-[var(--ph-radius-sm)] border border-stone-300 px-3 py-2 text-sm">
                 <span>{niceDay(exception.date)}{exception.reason ? ` · ${exception.reason}` : ''}</span>
                 <Button size="sm" disabled={busy} onClick={() => void act('Day reopened. Use “Fill in from open hours” to bring its times back.', () => api(`/admin/availability/exceptions/${exception.date}`, { method: 'DELETE' }))}>Reopen</Button>
               </li>

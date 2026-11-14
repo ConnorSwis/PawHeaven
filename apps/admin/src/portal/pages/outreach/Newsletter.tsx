@@ -30,7 +30,7 @@ function EmailPreview({ preview, loading }: { preview: NewsletterPreviewResponse
       </div>
       {loading && !preview && <p className="text-sm text-stone-700" role="status">Loading the preview…</p>}
       {preview && (
-        <div className="overflow-x-auto border border-stone-300 bg-stone-100 p-2">
+        <div className="overflow-x-auto rounded-[var(--ph-radius-sm)] border border-stone-300 bg-stone-100 p-2">
           {/* No scripts and no same-origin access: the email can show but never act. Links are inert here. */}
           <iframe title="Email preview" sandbox="" referrerPolicy="no-referrer" srcDoc={previewDocument(preview.html)} className={cx('mx-auto block h-[28rem] max-h-[60vh] w-full border-0 bg-white', phone && 'max-w-[375px]')} />
         </div>

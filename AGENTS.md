@@ -7,3 +7,5 @@ Use the root npm workspaces and one root lockfile. Keep each app focused: `apps/
 Supabase Auth owns passwords. The API normally uses the publishable key. Never add a service-role or secret key to client code, static Worker vars, or source control. The documented `ADMIN_SUPABASE_SERVICE_ROLE_KEY` exception is an API-Worker secret used for server-side Supabase Auth administration, including invitations, immutable role assignment, and authorized account management, and for one more narrow purpose: the signature-verified Stripe webhook (`/webhooks/stripe`) calls the service-role-only `record_donation()` function to record confirmed donations. Nothing else may use it.
 
 Run `npm run check` for repository changes. Follow `apps/web/AGENTS.md` when working in the public site.
+
+Before changing anything a person sees, read `docs/design-guide.md`. It defines the Soft Clay look, the theme tokens to use, and the checks to run. Never hardcode colors, corners, shadows, or fonts in a component.

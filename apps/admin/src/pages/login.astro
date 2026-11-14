@@ -3,21 +3,24 @@ import AdminShell from '../layouts/AdminShell.astro';
 ---
 
 <AdminShell title="Log in">
-  <div class="grid place-items-center py-4">
-    <section class="w-full max-w-md border border-stone-300 bg-white p-7 sm:p-9" aria-labelledby="login-title">
-      <h1 id="login-title" class="text-2xl font-semibold tracking-tight text-stone-950">Log in</h1>
-      <p class="mt-2 leading-6 text-stone-700">Use the credentials created from your staff invitation.</p>
-      <form class="mt-8 space-y-5" data-login-form novalidate>
+  <div class="grid place-items-center py-6 sm:py-10">
+    <section class="w-full max-w-md rounded-[var(--ph-radius)] border border-stone-200 bg-white p-7 text-center shadow-lg sm:p-9" aria-labelledby="login-title">
+      <span class="mx-auto grid size-14 place-items-center rounded-full bg-[var(--ph-brand-soft)] text-[var(--ph-brand-strong)]" aria-hidden="true">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13c-3 0-5 2-5 4 0 1.6 1.4 2.5 3 2.5 1 0 1.4-.4 2-.4s1 .4 2 .4c1.6 0 3-.9 3-2.5 0-2-2-4-5-4z"></path><path d="M6.5 10a1.6 1.9 0 100-.01"></path><path d="M17.5 10a1.6 1.9 0 100-.01"></path><path d="M9.5 6.5a1.5 2 0 100-.01"></path><path d="M14.5 6.5a1.5 2 0 100-.01"></path></svg>
+      </span>
+      <h1 id="login-title" class="mt-4 text-2xl font-bold tracking-tight text-stone-950">Welcome back</h1>
+      <p class="mx-auto mt-2 max-w-sm leading-6 text-stone-700">Log in with the account from your staff invitation.</p>
+      <form class="mt-7 space-y-5 text-left" data-login-form novalidate>
         <div>
-          <label class="mb-2 block text-sm font-medium text-stone-900" for="email">Email address</label>
-          <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950 placeholder:text-stone-500" id="email" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" required maxlength="254" placeholder="name@example.com" />
+          <label class="mb-1.5 block text-sm font-semibold text-stone-900" for="email">Email address</label>
+          <input class="block w-full rounded-[var(--ph-radius-sm)] border border-stone-400 bg-white px-3.5 py-2.5 text-stone-950 placeholder:text-stone-500" id="email" name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" required maxlength="254" placeholder="name@example.com" />
         </div>
         <div>
-          <label class="mb-2 block text-sm font-medium text-stone-900" for="password">Password</label>
-          <input class="block w-full border border-stone-400 bg-white px-3 py-2.5 text-stone-950" id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024" />
+          <label class="mb-1.5 block text-sm font-semibold text-stone-900" for="password">Password</label>
+          <input class="block w-full rounded-[var(--ph-radius-sm)] border border-stone-400 bg-white px-3.5 py-2.5 text-stone-950" id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024" />
         </div>
-        <p class="hidden border-l-4 border-red-700 bg-red-50 px-3 py-2 text-sm text-red-900" data-form-error role="alert" tabindex="-1"></p>
-        <button class="w-full bg-[var(--color-moss)] px-4 py-3 font-semibold text-on-brand transition-colors hover:bg-[var(--color-moss-dark)] disabled:cursor-wait disabled:opacity-70" type="submit" data-submit>Log in</button>
+        <p class="hidden rounded-[var(--ph-radius-sm)] border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900" data-form-error role="alert" tabindex="-1"></p>
+        <button class="w-full rounded-[var(--ph-radius-pill)] bg-[var(--ph-brand)] px-4 py-3 font-bold text-[var(--ph-on-brand)] shadow-[var(--ph-shadow-brand)] transition-colors hover:bg-[var(--ph-brand-strong)] disabled:cursor-wait disabled:opacity-70" type="submit" data-submit>Log in</button>
       </form>
     </section>
   </div>

@@ -7,7 +7,7 @@ import { saveTheme } from '@pawheaven/contracts/ui';
 import { api, useApi } from './lib/api';
 import { useRoute } from './lib/router';
 import { CalendarIcon, CoinIcon, ExternalIcon, HeartIcon, HomeIcon, InboxIcon, MailIcon, MenuIcon, PawIcon, SearchIcon, UsersIcon } from './ui/icons';
-import { Badge, Button, DensityContext, cx } from './ui';
+import { AnimalThumb, Badge, Button, DensityContext, Select, cx } from './ui';
 
 export const NAV = [
   { path: '/', label: 'Home', icon: HomeIcon },
@@ -40,7 +40,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
         return (
           <button key={item.path} type="button" aria-current={active ? 'page' : undefined}
             onClick={() => { navigate(item.path); onNavigate?.(); }}
-            className={cx('flex items-center gap-3 rounded-[var(--ph-radius)] px-3 py-2 text-left text-sm font-medium', active ? 'bg-[var(--ph-brand-soft)] text-stone-950' : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950')}>
+            className={cx('flex items-center gap-3 rounded-[var(--ph-radius-pill)] px-3.5 py-2 text-left text-sm font-semibold transition-colors', active ? 'bg-[var(--ph-brand-soft)] text-[var(--ph-brand-strong)] ring-1 ring-inset ring-[color-mix(in_oklab,var(--ph-brand)_30%,transparent)]' : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950')}>
             <item.icon />
             <span className="flex-1">{item.label}</span>
             {item.path === '/requests' && waiting > 0 && <Badge tone="warn">{waiting}</Badge>}
@@ -56,10 +56,10 @@ function Palette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: b
   const pets = useApi<AdminPetListResponse>('/admin/pets', { enabled: open });
   const people = useApi<AdminUserListResponse>('/admin/users', { enabled: open });
   const go = (to: string) => { onOpenChange(false); navigate(to); };
-  const item = 'flex cursor-pointer items-center gap-2 rounded-[var(--ph-radius)] px-3 py-2 text-sm text-stone-900 data-[selected=true]:bg-[var(--ph-brand-soft)]';
+  const item = 'flex cursor-pointer items-center gap-2 rounded-[var(--ph-radius-sm)] px-3 py-2 text-sm text-stone-900 data-[selected=true]:bg-[var(--ph-brand-soft)]';
   const heading = '[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-stone-600';
   return (
-    <Command.Dialog open={open} onOpenChange={onOpenChange} label="Search the portal" overlayClassName="fixed inset-0 z-[70] bg-[color-mix(in_oklab,var(--ph-ink-strong)_45%,transparent)]" contentClassName="fixed left-1/2 top-[12vh] z-[71] w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden border border-stone-300 bg-white shadow-md">
+    <Command.Dialog open={open} onOpenChange={onOpenChange} label="Search the portal" overlayClassName="fixed inset-0 z-[70] bg-[color-mix(in_oklab,var(--ph-ink-strong)_45%,transparent)]" contentClassName="fixed left-1/2 top-[12vh] z-[71] w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-[var(--ph-radius)] border border-stone-300 bg-white shadow-lg">
       <Dialog.Title className="sr-only">Search the portal</Dialog.Title>
       <div className="flex items-center gap-2 border-b border-stone-200 px-3"><SearchIcon className="text-stone-500" /><Command.Input placeholder="Jump to a page, an animal, or a person…" className="w-full bg-transparent py-3 text-sm text-stone-950 outline-none placeholder:text-stone-500" /></div>
       <Command.List className="max-h-[50vh] overflow-y-auto p-2">
@@ -75,7 +75,7 @@ function Palette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: b
         </Command.Group>
         {pets.data && (
           <Command.Group heading="Animals" className={heading}>
-            {pets.data.pets.map((pet) => <Command.Item key={pet.id} value={`animal ${pet.name} ${pet.type} ${pet.breed}`} onSelect={() => go(`/animals?id=${pet.id}`)} className={item}><PawIcon />{pet.name}<span className="text-xs text-stone-600">{pet.type} · {pet.status}</span></Command.Item>)}
+            {pets.data.pets.map((pet) => <Command.Item key={pet.id} value={`animal ${pet.name} ${pet.type} ${pet.breed}`} onSelect={() => go(`/animals?id=${pet.id}`)} className={item}><AnimalThumb name={pet.name} src={pet.imageUrl} size="sm" />{pet.name}<span className="text-xs text-stone-600">{pet.type} · {pet.status}</span></Command.Item>)}
           </Command.Group>
         )}
         {people.data && (
@@ -109,43 +109,43 @@ export function Shell({ user, children }: { user: AdminUser; children: ReactNode
   return (
     <DensityContext.Provider value={density}>
       <div className="flex min-h-dvh">
-        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-4 border-r border-stone-300 bg-white p-3 lg:flex">
-          <div className="px-3 pb-1 pt-2"><p className="text-base font-semibold tracking-tight text-stone-950">{SITE.adminName}</p><p className="text-xs text-stone-600">{roleLabel}</p></div>
+        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-4 border-r border-stone-200 bg-white p-3 lg:flex">
+          <div className="px-3 pb-1 pt-2"><p className="text-base font-bold tracking-tight text-stone-950">{SITE.adminName}</p><p className="text-xs text-stone-600">{roleLabel}</p></div>
           <NavList />
           <a href="https://pawheaven.online" className="mt-auto flex items-center gap-2 px-3 py-2 text-xs text-stone-700 hover:text-stone-950"><ExternalIcon width={14} height={14} />View the shelter site</a>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-stone-300 bg-white px-4 py-2.5">
+          <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-stone-200 bg-white px-4 py-2.5">
             <Dialog.Root open={menuOpen} onOpenChange={setMenuOpen}>
               <Dialog.Trigger asChild><Button variant="ghost" size="sm" className="lg:hidden" aria-label="Open the menu"><MenuIcon /></Button></Dialog.Trigger>
               <Dialog.Portal>
                 <Dialog.Overlay className="fixed inset-0 z-40 bg-[color-mix(in_oklab,var(--ph-ink-strong)_45%,transparent)]" />
-                <Dialog.Content className="fixed inset-y-0 left-0 z-50 w-64 border-r border-stone-300 bg-white p-3 shadow-md">
-                  <Dialog.Title className="px-3 py-2 text-base font-semibold text-stone-950">{SITE.adminName}</Dialog.Title>
+                <Dialog.Content className="fixed inset-y-0 left-0 z-50 w-64 overflow-y-auto rounded-r-[var(--ph-radius)] border-r border-stone-300 bg-white p-3 shadow-lg">
+                  <Dialog.Title className="px-3 py-2 text-base font-bold text-stone-950">{SITE.adminName}</Dialog.Title>
                   <Dialog.Description className="sr-only">Staff navigation</Dialog.Description>
                   <NavList onNavigate={() => setMenuOpen(false)} />
                 </Dialog.Content>
               </Dialog.Portal>
             </Dialog.Root>
-            <button type="button" onClick={() => setPaletteOpen(true)} className="flex min-w-0 flex-1 items-center gap-2 rounded-[var(--ph-radius)] border border-stone-300 bg-stone-50 px-3 py-1.5 text-left text-sm text-stone-600 hover:bg-stone-100 sm:max-w-sm">
-              <SearchIcon width={16} height={16} /><span className="flex-1 truncate">Search animals, people, pages…</span><kbd className="hidden rounded border border-stone-300 px-1.5 text-xs sm:inline">⌘K</kbd>
+            <button type="button" onClick={() => setPaletteOpen(true)} className="flex min-w-0 flex-1 items-center gap-2 rounded-[var(--ph-radius-pill)] border border-stone-300 bg-stone-50 px-3.5 py-1.5 text-left text-sm text-stone-700 transition-colors hover:bg-stone-100 sm:max-w-sm">
+              <SearchIcon width={16} height={16} /><span className="flex-1 truncate">Search animals, people, pages…</span><kbd className="hidden rounded-[var(--ph-radius-sm)] border border-stone-300 px-1.5 text-xs sm:inline">⌘K</kbd>
             </button>
             <span className="flex-1" />
             <details className="relative">
-              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-[var(--ph-radius)] px-2 py-1.5 text-sm font-medium text-stone-900 hover:bg-stone-100 [&::-webkit-details-marker]:hidden">
-                <span className="grid size-7 place-items-center rounded-full bg-[var(--ph-brand-soft)] text-xs font-semibold text-stone-950">{(user.name || user.email).slice(0, 1).toUpperCase()}</span>
+              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-[var(--ph-radius-pill)] py-1 pl-1.5 pr-3 text-sm font-semibold text-stone-900 transition-colors hover:bg-stone-100 [&::-webkit-details-marker]:hidden">
+                <span className="grid size-7 place-items-center rounded-full bg-[var(--ph-brand-soft)] text-xs font-bold text-[var(--ph-brand-strong)]">{(user.name || user.email).slice(0, 1).toUpperCase()}</span>
                 <span className="hidden max-w-40 truncate sm:inline">{user.name || user.email}</span>
               </summary>
-              <div className="absolute right-0 top-full z-40 mt-2 w-64 border border-stone-300 bg-white p-3 shadow-md">
+              <div className="absolute right-0 top-full z-40 mt-2 w-64 rounded-[var(--ph-radius)] border border-stone-300 bg-white p-4 shadow-lg">
                 <p className="truncate text-sm font-semibold text-stone-950">{user.name}</p>
                 <p className="truncate text-xs text-stone-600">{user.email} · {roleLabel}</p>
-                <label className="mt-3 block text-xs font-medium text-stone-700">Theme
-                  <select className="mt-1 block w-full border border-stone-400 bg-white px-2 py-1.5 text-sm text-stone-950" value={theme} onChange={(event) => { const next = event.target.value; setTheme(next); if (next) document.documentElement.dataset.theme = next; else delete document.documentElement.dataset.theme; saveTheme(next); }}>
+                <label className="mt-3 block text-xs font-semibold text-stone-700">Theme
+                  <Select className="mt-1 py-1.5" value={theme} onChange={(event) => { const next = event.target.value; setTheme(next); if (next) document.documentElement.dataset.theme = next; else delete document.documentElement.dataset.theme; saveTheme(next); }}>
                     {THEMES.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                  </select>
+                  </Select>
                 </label>
-                <label className="mt-3 flex items-center gap-2 text-xs font-medium text-stone-700"><input type="checkbox" checked={density === 'compact'} onChange={(event) => setDensity(event.target.checked ? 'compact' : 'comfortable')} />Compact tables</label>
+                <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-stone-700"><input type="checkbox" checked={density === 'compact'} onChange={(event) => setDensity(event.target.checked ? 'compact' : 'comfortable')} />Compact tables</label>
                 <Button className="mt-3 w-full" onClick={signOut}>Sign out</Button>
               </div>
             </details>

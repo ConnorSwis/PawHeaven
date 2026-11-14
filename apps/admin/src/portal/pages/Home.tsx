@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { HELP_REASONS, HELP_REASON_LABELS, type HelpReason, type AdminDonationsResponse, type AdminVisitScheduleResponse, type AdminVolunteerShiftListResponse, type AdminAdoptionApplicationListResponse, type AdminFosterApplicationListResponse, type AdminLostPetInquiryListResponse, type AttentionItem, type OutreachSummary } from '@pawheaven/contracts';
 import { api, errorMessage, useApi, useRefresh } from '../lib/api';
 import { formatMoney, formatTime, shelterDay } from '../lib/format';
+import { usePetPhotos } from '../lib/pets';
 import { useRoute } from '../lib/router';
 import type { PageProps } from '../routes';
-import { Badge, Button, Card, EmptyState, PageHeader, Select, Skeleton, StatCard } from '../ui';
+import { AnimalThumb, Badge, Button, Card, EmptyState, PageHeader, Select, Skeleton, StatCard } from '../ui';
 import { CapacityCard, CapacitySheet } from './animals/Capacity';
-import { PlusIcon } from '../ui/icons';
+import { CalendarIcon, CoinIcon, InboxIcon, MailIcon, PlusIcon, UsersIcon } from '../ui/icons';
 import { useToast } from '../ui/toast';
 
 const itemKey = (item: AttentionItem) => `${item.kind}-${item.refId ?? item.title}`;
@@ -33,6 +34,7 @@ export default function Home({ user }: PageProps) {
   const foster = useApi<AdminFosterApplicationListResponse>('/admin/foster-applications');
   const lost = useApi<AdminLostPetInquiryListResponse>('/admin/lost-pet-inquiries');
   const outreach = useApi<OutreachSummary>('/admin/outreach', { refetchSeconds: 120 });
+  const photos = usePetPhotos();
 
   const today = shelterDay(Date.now());
   const now = Date.now();
@@ -78,16 +80,16 @@ export default function Home({ user }: PageProps) {
 
       {loadingStats ? <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[0, 1, 2, 3].map((index) => <Skeleton key={index} className="h-24" />)}</div> : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Requests waiting" value={waiting} hint="Applications and inquiries" onClick={() => navigate('/requests')} />
-          <StatCard label="Visits today" value={visitCount} hint={visitCount ? `${todaysVisits.length} time${todaysVisits.length === 1 ? '' : 's'} booked` : 'Nobody booked'} onClick={() => navigate('/schedule')} />
-          <StatCard label="Shifts need people" value={needPeople} hint="Next 7 days, not full" onClick={() => navigate('/schedule')} />
-          <StatCard label="Donations this month" value={formatMoney(monthTotal)} hint={`${monthGifts.length} gift${monthGifts.length === 1 ? '' : 's'}, test mode included`} onClick={() => navigate('/donations')} />
+          <StatCard icon={InboxIcon} tone={waiting > 0 ? 'warn' : 'good'} label="Requests waiting" value={waiting} hint="Applications and inquiries" onClick={() => navigate('/requests')} />
+          <StatCard icon={CalendarIcon} label="Visits today" value={visitCount} hint={visitCount ? `${todaysVisits.length} time${todaysVisits.length === 1 ? '' : 's'} booked` : 'Nobody booked'} onClick={() => navigate('/schedule')} />
+          <StatCard icon={UsersIcon} tone={needPeople > 0 ? 'warn' : 'good'} label="Shifts need people" value={needPeople} hint="Next 7 days, not full" onClick={() => navigate('/schedule')} />
+          <StatCard icon={CoinIcon} label="Donations this month" value={formatMoney(monthTotal)} hint={`${monthGifts.length} gift${monthGifts.length === 1 ? '' : 's'}, test mode included`} onClick={() => navigate('/donations')} />
         </div>
       )}
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Card>
-          <h2 className="text-base font-semibold text-stone-950">Needs you</h2>
+          <h2 className="text-base font-bold text-stone-950">Needs you</h2>
           {attention.isLoading && <div className="mt-3 grid gap-2"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>}
           {attention.isError && <p className="mt-3 text-sm text-red-800" role="alert">{errorMessage(attention.error, 'The list could not be loaded.')}</p>}
           {attention.data && attention.data.items.length === 0 && <EmptyState title="You are all caught up">Nothing needs attention right now.</EmptyState>}
@@ -113,14 +115,17 @@ export default function Home({ user }: PageProps) {
         <div className="grid gap-6">
         <CapacityCard showEdit onEdit={() => setCapacityOpen(true)} onHelp={() => navigate('/animals?help=1')} />
         <Card>
-          <h2 className="text-base font-semibold text-stone-950">Today</h2>
+          <h2 className="text-base font-bold text-stone-950">Today</h2>
           <h3 className="mt-3 text-xs font-semibold uppercase tracking-wide text-stone-600">Visits</h3>
           {visits.isLoading ? <Skeleton className="mt-2 h-12" /> : todaysVisits.length === 0 ? <p className="mt-1 text-sm text-stone-700">No visits are booked today.</p> : (
             <ul className="mt-1 divide-y divide-stone-200">
               {todaysVisits.flatMap((slot) => slot.appointments.map((appointment) => (
-                <li key={appointment.id} className="py-2 text-sm">
-                  <span className="font-medium text-stone-950">{formatTime(slot.startsAt)}</span> · {appointment.memberName}<span className="text-stone-600"> · party of {appointment.partySize}</span>
-                  {appointment.pets.length > 0 && <span className="block text-xs text-stone-600">Meeting {appointment.pets.map((pet) => pet.name).join(', ')}</span>}
+                <li key={appointment.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span className="min-w-0">
+                    <span className="font-semibold text-stone-950">{formatTime(slot.startsAt)}</span> · {appointment.memberName}<span className="text-stone-700"> · party of {appointment.partySize}</span>
+                    {appointment.pets.length > 0 && <span className="block text-xs text-stone-700">Meeting {appointment.pets.map((pet) => pet.name).join(', ')}</span>}
+                  </span>
+                  {appointment.pets.length > 0 && <span className="flex shrink-0 -space-x-2">{appointment.pets.slice(0, 3).map((pet) => <AnimalThumb key={pet.id} name={pet.name} src={photos.get(pet.id)} size="sm" className="ring-2 ring-[var(--ph-surface)]" />)}</span>}
                 </li>
               )))}
             </ul>
@@ -140,13 +145,13 @@ export default function Home({ user }: PageProps) {
         {outreach.data && (
           <Card>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-base font-semibold text-stone-950">Outreach</h2>
+              <h2 className="text-base font-bold text-stone-950">Outreach</h2>
               <Button size="sm" variant="ghost" className="min-h-11" onClick={() => navigate('/outreach')}>Open Outreach</Button>
             </div>
-            <dl className="mt-2 grid grid-cols-2 gap-3">
-              <div><dt className="text-xs font-semibold uppercase tracking-wide text-stone-600">Newsletter subscribers</dt><dd className="mt-0.5 text-2xl font-semibold text-stone-950">{outreach.data.subscribers.confirmed}</dd></div>
-              <div><dt className="text-xs font-semibold uppercase tracking-wide text-stone-600">Failed messages</dt><dd className="mt-0.5 flex items-center gap-2 text-2xl font-semibold text-stone-950">{outreach.data.outbox.failed}{outreach.data.outbox.failed > 0 && <Badge tone="warn">Needs a look</Badge>}</dd></div>
-            </dl>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <StatCard icon={MailIcon} label="Newsletter subscribers" value={outreach.data.subscribers.confirmed} flat />
+              <StatCard icon={MailIcon} tone={outreach.data.outbox.failed > 0 ? 'warn' : 'good'} label="Failed messages" value={<span className="flex items-center gap-2">{outreach.data.outbox.failed}{outreach.data.outbox.failed > 0 && <Badge tone="warn">Needs a look</Badge>}</span>} flat />
+            </div>
           </Card>
         )}
         </div>

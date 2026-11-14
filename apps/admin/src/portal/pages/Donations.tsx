@@ -5,12 +5,13 @@ import { api, errorMessage, useApi, useRefresh } from '../lib/api';
 import { formatDate, formatMoney, shelterDay } from '../lib/format';
 import type { PageProps } from '../routes';
 import { Button, Card, type Column, DataTable, Detail, EmptyState, FilterSelect, PageHeader, SearchBox, Sheet, StatCard, StatusBadge, Toolbar } from '../ui';
+import { CoinIcon, HeartIcon, MailIcon } from '../ui/icons';
 import { useRoute } from '../lib/router';
+import { resolveVar, useThemeVersion } from '../lib/theme';
 import { useToast } from '../ui/toast';
 
 Chart.register(BarController, BarElement, LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend);
 
-const cssColor = (name: string, fallback: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 const addDays = (day: string, days: number) => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 const weekStart = (day: string) => addDays(day, -new Date(`${day}T00:00:00Z`).getUTCDay());
 const publicationLabel: Record<DonationPublicationStatus, string> = { private: 'Private', pending: 'Awaiting review', published: 'Published', hidden: 'Hidden' };
@@ -34,23 +35,31 @@ function DonationChart({ gifts, period }: { gifts: AdminDonation[]; period: 'day
     return { labels: shown.map(label), values, cumulative };
   }, [gifts, period]);
 
+  const theme = useThemeVersion();
   useEffect(() => {
     if (!canvas.current || !model) return;
-    const brand = cssColor('--ph-brand', 'AccentColor');
-    const accent = cssColor('--ph-accent', 'Mark');
-    const ink = cssColor('--ph-ink-muted', 'GrayText');
-    const grid = cssColor('--ph-divider', 'GrayText');
+    // A canvas cannot read var(...), so every theme variable is resolved to a real value here, and the chart is rebuilt when the theme changes.
+    const brand = resolveVar('--ph-brand');
+    const accent = resolveVar('--ph-accent');
+    const ink = resolveVar('--ph-ink-muted');
+    const grid = resolveVar('--ph-divider');
+    const surface = resolveVar('--ph-surface');
+    const strong = resolveVar('--ph-ink-strong');
+    const border = resolveVar('--ph-border');
+    const family = resolveVar('--ph-font-sans', 'fontFamily');
+    const radius = Math.min(8, Number.parseFloat(resolveVar('--ph-radius-sm', 'borderTopLeftRadius')) || 0);
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const chart = new Chart(canvas.current, {
       data: { labels: model.labels, datasets: [
-        { type: 'bar', label: period === 'day' ? 'Per day' : 'Per week', data: model.values, backgroundColor: brand, borderRadius: 3, order: 2 },
-        { type: 'line', label: 'Running total', data: model.cumulative, borderColor: accent, backgroundColor: accent, tension: 0.25, pointRadius: 2, yAxisID: 'total', order: 1 },
+        { type: 'bar', label: period === 'day' ? 'Per day' : 'Per week', data: model.values, backgroundColor: brand, borderRadius: { topLeft: radius, topRight: radius }, borderSkipped: 'bottom', maxBarThickness: 36, order: 2 },
+        { type: 'line', label: 'Running total', data: model.cumulative, borderColor: accent, backgroundColor: accent, borderWidth: 2.5, tension: 0.3, pointRadius: 3, pointHoverRadius: 5, yAxisID: 'total', order: 1 },
       ] },
-      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-        plugins: { legend: { labels: { color: ink } }, tooltip: { callbacks: { label: (item) => `${item.dataset.label}: $${Number(item.parsed.y).toLocaleString()}` } } },
-        scales: { x: { ticks: { color: ink, maxRotation: 0, autoSkip: true }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: ink, callback: (value) => `$${value}` }, grid: { color: grid } }, total: { position: 'right', beginAtZero: true, ticks: { color: ink, callback: (value) => `$${value}` }, grid: { drawOnChartArea: false } } } },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, animation: calm ? false : undefined, font: { family },
+        plugins: { legend: { labels: { color: ink, usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 10, boxHeight: 10 } }, tooltip: { backgroundColor: surface, titleColor: strong, bodyColor: ink, borderColor: border, borderWidth: 1, cornerRadius: radius, padding: 10, callbacks: { label: (item) => `${item.dataset.label}: $${Number(item.parsed.y).toLocaleString()}` } } },
+        scales: { x: { ticks: { color: ink, maxRotation: 0, autoSkip: true }, grid: { display: false }, border: { display: false } }, y: { beginAtZero: true, ticks: { color: ink, callback: (value) => `$${value}` }, grid: { color: grid }, border: { display: false } }, total: { position: 'right', beginAtZero: true, ticks: { color: ink, callback: (value) => `$${value}` }, grid: { drawOnChartArea: false }, border: { display: false } } } },
     });
     return () => chart.destroy();
-  }, [model, period]);
+  }, [model, period, theme]);
 
   if (!model) return <EmptyState title="No donations to chart yet" />;
   const summary = `Donation totals per ${period}: ${model.labels.map((label, index) => `${label} $${model.values[index]}`).join(', ')}.`;
@@ -116,10 +125,10 @@ export default function Donations(_props: PageProps) {
     <div>
       <PageHeader title="Donations" description="Gifts appear only after Stripe confirms them to PawHeaven's signed webhook. Test-mode payments move no real money." actions={<Button onClick={exportCsv} disabled={!rows.length}>Export CSV</Button>} />
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label={liveOnly ? 'Live total' : 'Total (all modes)'} value={formatMoney(sum(succeeded))} hint={`${succeeded.length} gift${succeeded.length === 1 ? '' : 's'}`} />
-        <StatCard label="This month" value={formatMoney(sum(thisMonth))} hint={`${thisMonth.length} gift${thisMonth.length === 1 ? '' : 's'}`} />
-        <StatCard label="Average gift" value={succeeded.length ? formatMoney(Math.round(sum(succeeded) / succeeded.length)) : '—'} />
-        <StatCard label="Test-mode gifts" value={totals.filter((total) => !total.livemode).reduce((count, total) => count + total.count, 0)} hint="Not real money" />
+        <StatCard icon={CoinIcon} label={liveOnly ? 'Live total' : 'Total (all modes)'} value={formatMoney(sum(succeeded))} hint={`${succeeded.length} gift${succeeded.length === 1 ? '' : 's'}`} />
+        <StatCard icon={CoinIcon} label="This month" value={formatMoney(sum(thisMonth))} hint={`${thisMonth.length} gift${thisMonth.length === 1 ? '' : 's'}`} />
+        <StatCard icon={HeartIcon} label="Average gift" value={succeeded.length ? formatMoney(Math.round(sum(succeeded) / succeeded.length)) : '—'} />
+        <StatCard icon={MailIcon} tone="neutral" label="Test-mode gifts" value={totals.filter((total) => !total.livemode).reduce((count, total) => count + total.count, 0)} hint="Not real money" />
       </div>
       <Card className="mt-5">
         <div className="flex flex-wrap items-center justify-between gap-3">

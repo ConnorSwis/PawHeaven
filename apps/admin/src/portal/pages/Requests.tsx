@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react';
 import type { AdminAdoptionApplicationListResponse, AdminFosterApplicationListResponse, AdminLostPetInquiryListResponse } from '@pawheaven/contracts';
 import { api, errorMessage, useApi, useRefresh } from '../lib/api';
 import { ago, formatDate } from '../lib/format';
+import { usePetPhotos } from '../lib/pets';
 import { useRoute } from '../lib/router';
-import { Button, type Column, ConfirmDialog, DataTable, EmptyState, PageHeader, SearchBox, Select, StatusBadge, Tabs, Toolbar } from '../ui';
+import { AnimalThumb, Button, type Column, ConfirmDialog, DataTable, EmptyState, PageHeader, SearchBox, Select, StatusBadge, Tabs, Toolbar } from '../ui';
 import { useToast } from '../ui/toast';
 import { AdoptionSheet, FosterSheet } from './requests/ApplicationSheet';
 import { LostPetSheet } from './requests/LostPetSheet';
 
-type Row = { id: string; who: string; email: string; animal: string; at: string; status: string; extra?: string };
+type Row = { id: string; who: string; email: string; petId?: string | null; image?: string | null; animal: string; at: string; status: string; extra?: string };
 const WAITING = ['Pending', 'New'];
 const TABS = ['adoption', 'foster', 'lost'] as const;
 type Tab = (typeof TABS)[number];
@@ -22,15 +23,16 @@ export default function Requests() {
   const adoption = useApi<AdminAdoptionApplicationListResponse>('/admin/applications');
   const foster = useApi<AdminFosterApplicationListResponse>('/admin/foster-applications');
   const lost = useApi<AdminLostPetInquiryListResponse>('/admin/lost-pet-inquiries');
+  const photos = usePetPhotos();
 
   const tab: Tab = (TABS as readonly string[]).includes(params.get('tab') ?? '') ? (params.get('tab') as Tab) : 'adoption';
   const status = params.get('status') ?? '';
   const selectedId = params.get('id');
 
   const sources = {
-    adoption: { query: adoption, rows: (adoption.data?.applications ?? []).map<Row>((item) => ({ id: item.id, who: item.applicantName, email: item.applicantEmail, animal: item.petName, at: item.submittedAt, status: item.status })) },
-    foster: { query: foster, rows: (foster.data?.applications ?? []).map<Row>((item) => ({ id: item.id, who: item.applicantName, email: item.applicantEmail, animal: item.petName, at: item.submittedAt, status: item.status, extra: `${formatDate(`${item.availableFrom}T12:00:00Z`)} to ${formatDate(`${item.availableUntil}T12:00:00Z`)}` })) },
-    lost: { query: lost, rows: (lost.data?.inquiries ?? []).map<Row>((item) => ({ id: item.id, who: item.memberName, email: item.memberEmail, animal: item.petName, at: item.createdAt, status: item.status })) },
+    adoption: { query: adoption, rows: (adoption.data?.applications ?? []).map<Row>((item) => ({ id: item.id, who: item.applicantName, email: item.applicantEmail, petId: item.petId, animal: item.petName, at: item.submittedAt, status: item.status })) },
+    foster: { query: foster, rows: (foster.data?.applications ?? []).map<Row>((item) => ({ id: item.id, who: item.applicantName, email: item.applicantEmail, petId: item.petId, animal: item.petName, at: item.submittedAt, status: item.status, extra: `${formatDate(`${item.availableFrom}T12:00:00Z`)} to ${formatDate(`${item.availableUntil}T12:00:00Z`)}` })) },
+    lost: { query: lost, rows: (lost.data?.inquiries ?? []).map<Row>((item) => ({ id: item.id, who: item.memberName, email: item.memberEmail, petId: item.petId, image: item.petImageUrl, animal: item.petName, at: item.createdAt, status: item.status })) },
   } as const;
   const waiting = (key: Tab) => sources[key].rows.filter((row) => WAITING.includes(row.status)).length;
   const current = sources[tab];
@@ -49,8 +51,8 @@ export default function Requests() {
     : [{ value: 'Pending', label: 'Pending' }, { value: 'In review', label: 'In review' }, { value: 'Approved', label: 'Approved' }, { value: 'Declined', label: 'Declined' }];
 
   const columns: Column<Row>[] = [
-    { key: 'who', header: tab === 'lost' ? 'Member' : 'Applicant', sort: (row) => row.who.toLowerCase(), cell: (row) => <div className="min-w-0"><p className="font-medium text-stone-950">{row.who}</p><p className="truncate text-xs text-stone-600">{row.email}</p></div> },
-    { key: 'animal', header: 'Animal', sort: (row) => row.animal.toLowerCase(), cell: (row) => <span><span className="text-stone-950">{row.animal}</span>{row.extra && <span className="block text-xs text-stone-600">{row.extra}</span>}</span> },
+    { key: 'who', header: tab === 'lost' ? 'Member' : 'Applicant', sort: (row) => row.who.toLowerCase(), cell: (row) => <div className="min-w-0"><p className="font-semibold text-stone-950">{row.who}</p><p className="truncate text-xs text-stone-700">{row.email}</p></div> },
+    { key: 'animal', header: 'Animal', sort: (row) => row.animal.toLowerCase(), cell: (row) => <span className="flex items-center gap-3"><AnimalThumb name={row.animal} src={row.image ?? (row.petId ? photos.get(row.petId) : null)} size="sm" /><span className="min-w-0"><span className="font-semibold text-stone-950">{row.animal}</span>{row.extra && <span className="block text-xs text-stone-700">{row.extra}</span>}</span></span> },
     { key: 'at', header: tab === 'lost' ? 'Sent' : 'Submitted', hideBelow: 'sm', sort: (row) => row.at, cell: (row) => <span>{ago(row.at)}<span className="block text-xs text-stone-600">{formatDate(row.at)}</span></span> },
     { key: 'status', header: 'Status', sort: (row) => row.status, cell: (row) => <StatusBadge status={row.status} /> },
   ];

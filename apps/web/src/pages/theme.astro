@@ -129,7 +129,9 @@ import PageShell from '../layouts/PageShell.astro';
     { title: 'Size and shape', controls: [
       { kind: 'range', name: '--ph-font-size', label: 'Text size', min: 80, max: 125, step: 1, unit: '%' },
       { kind: 'range', name: '--ph-spacing', label: 'Spacing unit', min: 0.2, max: 0.32, step: 0.005, unit: 'rem' },
-      { kind: 'range', name: '--ph-radius', label: 'Corner radius', min: 0, max: 24, step: 1, unit: 'px' },
+      { kind: 'range', name: '--ph-radius', label: 'Corner radius', min: 0, max: 32, step: 1, unit: 'px' },
+      { kind: 'range', name: '--ph-lift', label: 'Card hover lift', min: -10, max: 0, step: 1, unit: 'px' },
+      { kind: 'color', name: '--ph-pop', label: 'Decoration accent' },
       { kind: 'range', name: '--ph-content-width', label: 'Page width', min: 56, max: 96, step: 1, unit: 'rem' },
       { kind: 'range', name: '--ph-reading-width', label: 'Text width', min: 30, max: 60, step: 1, unit: 'rem' },
       { kind: 'range', name: '--ph-focus-width', label: 'Focus ring', min: 1, max: 6, step: 1, unit: 'px' },
