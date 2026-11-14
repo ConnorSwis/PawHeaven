@@ -45,7 +45,7 @@ The staff portal (`apps/admin`) is one React app, mounted by Astro at `/`. Eight
 ## How it is built
 
 - `src/portal/App.tsx` loads the signed-in staff user and renders the shell; `Shell.tsx` is the sidebar, top bar, and command palette; `routes.tsx` lists the pages.
-- `src/portal/ui/` is the shared kit: button, badge, form fields, data table (search results, sort, paging, bulk select), side panel (`Sheet`), confirm dialog, tabs, stat cards, toasts. Radix Dialog provides focus handling; `cmdk` the palette; TanStack Query the cached data.
+- `src/portal/ui/` is the shared kit: button, badge, form fields, data table (search results, sort, paging, bulk select), side panel (`Sheet`), confirm dialog, tabs, stat cards (icon chip, tabular number), rounded `Meter`, `AnimalThumb`, floating `BulkBar`, toasts. `docs/design-guide.md` says how to use them. Radix Dialog provides focus handling; `cmdk` the palette; TanStack Query the cached data.
 - `src/portal/lib/api.ts` wraps the API (a 401 sends you to the login page). Pages call `useApi('/admin/...')` and `useRefresh('/admin/...')` after a change.
 - Colors come only from the `--ph-*` theme variables, so every theme works, and `npm run qa:theme` rejects hardcoded colors.
 - Login and accept-invite remain separate Astro pages.

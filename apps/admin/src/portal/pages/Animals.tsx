@@ -3,8 +3,8 @@ import { HELP_REASONS, HELP_REASON_LABELS, PET_STATUSES, type AdminPetListRespon
 import { api, errorMessage, useApi, useRefresh } from '../lib/api';
 import { useRoute } from '../lib/router';
 import type { PageProps } from '../routes';
-import { Badge, Button, type Column, DataTable, EmptyState, FilterSelect, PageHeader, SearchBox, Select, StatusBadge, Toolbar } from '../ui';
-import { PawIcon, PlusIcon } from '../ui/icons';
+import { AnimalThumb, Badge, BulkBar, Button, type Column, DataTable, EmptyState, FilterSelect, PageHeader, SearchBox, Select, StatusBadge, Toolbar } from '../ui';
+import { PlusIcon } from '../ui/icons';
 import { useToast } from '../ui/toast';
 import { CapacityCard, CapacitySheet } from './animals/Capacity';
 import { PetEditor } from './animals/PetEditor';
@@ -23,12 +23,6 @@ function matchesFlag(pet: Pet, flag: string) {
   if (flag === 'walkers') return pet.needsWalkers;
   if (flag === 'hidden') return pet.visitsOpen === false;
   return true;
-}
-
-function Thumb({ pet }: { pet: Pet }) {
-  return pet.imageUrl
-    ? <img src={pet.imageUrl} alt="" loading="lazy" className="size-10 shrink-0 border border-stone-300 object-cover" />
-    : <span className="grid size-10 shrink-0 place-items-center border border-stone-300 bg-stone-100 text-stone-500"><PawIcon width={18} height={18} /></span>;
 }
 
 export default function Animals(_props: PageProps) {
@@ -98,7 +92,7 @@ export default function Animals(_props: PageProps) {
   };
 
   const columns: Column<Pet>[] = [
-    { key: 'name', header: 'Animal', sort: (pet) => pet.name.toLowerCase(), cell: (pet) => <div className="flex items-center gap-3"><Thumb pet={pet} /><div className="min-w-0"><p className="font-medium text-stone-950">{pet.name}</p><p className="truncate text-xs text-stone-600">{pet.type} · {pet.breed || 'Breed not recorded'}</p>{pet.helpReason && <Badge tone="warn" className="mt-1">{HELP_REASON_LABELS[pet.helpReason]}</Badge>}</div></div> },
+    { key: 'name', header: 'Animal', sort: (pet) => pet.name.toLowerCase(), cell: (pet) => <div className="flex items-center gap-3"><AnimalThumb name={pet.name} src={pet.imageUrl} /><div className="min-w-0"><p className="font-semibold text-stone-950">{pet.name}</p><p className="truncate text-xs text-stone-700">{pet.type} · {pet.breed || 'Breed not recorded'}</p>{pet.helpReason && <Badge tone="warn" className="mt-1">{HELP_REASON_LABELS[pet.helpReason]}</Badge>}</div></div> },
     { key: 'status', header: 'Status', sort: (pet) => pet.status, cell: (pet) => <StatusBadge status={pet.status} /> },
     {
       key: 'flags', header: 'Flags', hideBelow: 'md', cell: (pet) => (
@@ -122,7 +116,7 @@ export default function Animals(_props: PageProps) {
         <FilterSelect label="Species" value={species} onChange={(value) => setParams({ species: value })} options={speciesOptions} />
         <FilterSelect label="Flags" value={flag} onChange={(value) => setParams({ flag: value })} options={FLAG_FILTERS} />
         <Button size="sm" variant={help ? 'primary' : 'secondary'} aria-pressed={help} className="min-h-9 px-3 text-sm" onClick={() => setParams({ help: help ? null : '1' })}>
-          Needs help<span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs font-medium text-stone-700">{helpCount}</span>
+          Needs help<span className="rounded-[var(--ph-radius-pill)] bg-stone-100 px-1.5 py-0.5 text-xs font-semibold text-stone-700">{helpCount}</span>
         </Button>
         <span className="text-sm text-stone-600">{rows.length} of {pets.length}</span>
         {filtered && <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setParams({ status: null, species: null, flag: null, help: null }); }}>Clear filters</Button>}
@@ -132,9 +126,7 @@ export default function Animals(_props: PageProps) {
       <div className="mt-4"><CapacityCard onEdit={() => setCapacityOpen(true)} /></div>
       <CapacitySheet open={capacityOpen} onOpenChange={setCapacityOpen} />
 
-      {selected.size > 0 && (
-        <div className="sticky top-14 z-20 mt-3 flex flex-wrap items-center gap-2 border border-stone-300 bg-[var(--ph-brand-soft)] px-3 py-2 shadow-md" role="region" aria-label="Actions for selected animals">
-          <strong className="mr-1 text-sm text-stone-950">{selected.size} selected</strong>
+      <BulkBar count={selected.size} label="Actions for selected animals" onClear={() => setSelected(new Set())}>
           <Button size="sm" disabled={working} onClick={() => void applyFlags({ fosterAvailable: true }, 'Open to foster')}>Open to foster</Button>
           <Button size="sm" disabled={working} onClick={() => void applyFlags({ fosterAvailable: false }, 'Foster closed')}>Close foster</Button>
           <Button size="sm" disabled={working} onClick={() => void applyFlags({ visitsOpen: true }, 'Open for visits')}>Open for visits</Button>
@@ -149,10 +141,7 @@ export default function Animals(_props: PageProps) {
             <Select aria-label="Mark as needing help" value={bulkHelp} onChange={(event) => setBulkHelp(event.target.value)} className="w-auto! py-1 text-xs"><option value="">Needs help…</option>{HELP_REASONS.map((value) => <option key={value} value={value}>{HELP_REASON_LABELS[value]}</option>)}<option value="__clear">Clear flag</option></Select>
             <Button size="sm" disabled={working || !bulkHelp} onClick={() => void applyHelp()}>Apply</Button>
           </span>
-          <span className="flex-1" />
-          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
-        </div>
-      )}
+      </BulkBar>
 
       <div className="mt-3">
         <DataTable rows={rows} columns={columns} rowId={(pet) => pet.id} loading={list.isLoading} error={list.isError ? errorMessage(list.error, 'Animals could not be loaded.') : null}

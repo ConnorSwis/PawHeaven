@@ -4,6 +4,7 @@ import { api, errorMessage, useApi, useRefresh } from '../../lib/api';
 import { formatDate } from '../../lib/format';
 import { useRoute } from '../../lib/router';
 import { Badge, Button, ConfirmDialog, type Column, DataTable, EmptyState, FilterSelect, SearchBox, StatCard, Toolbar } from '../../ui';
+import { MailIcon } from '../../ui/icons';
 import { useToast } from '../../ui/toast';
 
 type Status = Subscriber['status'];
@@ -51,7 +52,7 @@ export function SubscribersTab({ summary }: { summary: OutreachSummary | undefin
     { key: 'date', header: 'Signed up', hideBelow: 'sm', sort: (row) => row.createdAt, cell: (row) => formatDate(row.createdAt) },
     { key: 'actions', header: 'Actions', cell: (row) => (row.status === 'unsubscribed' ? null : <Button size="sm" className="min-h-11" onClick={() => setRemoving(row)} aria-label={`Remove ${row.email}`}>Remove</Button>) },
   ];
-  const tile = (value: Status) => ({ label: STATUS_LABEL[value], value: summary ? summary.subscribers[value] : '…', onClick: () => setParams({ status: status === value ? null : value }) });
+  const tile = (value: Status) => ({ icon: MailIcon, tone: STATUS_TONE[value], label: STATUS_LABEL[value], value: summary ? summary.subscribers[value] : '…', onClick: () => setParams({ status: status === value ? null : value }) });
 
   return (
     <div className="mt-5">

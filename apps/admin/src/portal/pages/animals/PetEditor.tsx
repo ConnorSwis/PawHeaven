@@ -20,7 +20,7 @@ const options = (values: readonly string[], blank?: string) => [
 
 function Toggle({ label, help, checked, onChange }: { label: string; help: string; checked: boolean; onChange: (value: boolean) => void }) {
   return (
-    <label className="flex items-start gap-3 border border-stone-300 p-3 text-sm">
+    <label className="flex items-start gap-3 rounded-[var(--ph-radius-sm)] border border-stone-300 p-3 text-sm">
       <input type="checkbox" className="mt-1" checked={checked} onChange={(event) => onChange(event.target.checked)} />
       <span><span className="block font-medium text-stone-950">{label}</span><span className="mt-0.5 block text-stone-700">{help}</span></span>
     </label>
@@ -188,14 +188,14 @@ export function PetEditor({ id, pet, onClose }: { id: string; pet: Pet | undefin
   } else if (tab === 'photo') {
     body = (
       <div className="grid gap-4">
-        <div className="grid aspect-[4/3] w-full max-w-sm place-items-center overflow-hidden border border-stone-300 bg-stone-100">
+        <div className="grid aspect-[4/3] w-full max-w-sm place-items-center overflow-hidden rounded-[var(--ph-radius)] border border-stone-300 bg-stone-100">
           {currentImage ? <img src={currentImage} alt={draft.name ? `${draft.name}` : 'Selected photo'} className="size-full object-cover" /> : <PawIcon width={48} height={48} className="text-stone-500" />}
         </div>
         {file && <p className="text-sm text-stone-700">New photo selected: {file.name}. It uploads when you save.</p>}
         <Field label={currentImage ? 'Replace the photo' : 'Upload a photo'} error={fileError} help="Public-facing photo only. JPEG, PNG, or WebP, 5 MB maximum."><Input type="file" accept={IMAGE_TYPES.join(',')} onChange={(event) => pickFile(event.target.files?.[0] ?? null)} /></Field>
         {file && <Button className="justify-self-start" onClick={() => { setFile(null); setFileError(''); }}>Keep the current photo</Button>}
         {!isNew && pet && pet.galleryUrls.length > 0 && (
-          <div><p className="text-sm font-medium text-stone-900">More photos</p><div className="mt-2 flex flex-wrap gap-2">{pet.galleryUrls.map((url) => <img key={url} src={url} alt="" className="size-16 border border-stone-300 object-cover" />)}</div></div>
+          <div><p className="text-sm font-medium text-stone-900">More photos</p><div className="mt-2 flex flex-wrap gap-2">{pet.galleryUrls.map((url) => <img key={url} src={url} alt="" className="size-16 rounded-[var(--ph-radius-sm)] border border-stone-300 object-cover" />)}</div></div>
         )}
       </div>
     );

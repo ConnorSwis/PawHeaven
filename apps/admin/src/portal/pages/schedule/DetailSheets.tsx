@@ -9,7 +9,7 @@ import { etParts, niceDay, niceTime, plural } from './time';
 
 function AppointmentCard({ appointment }: { appointment: AdminVisitAppointment }) {
   return (
-    <div className="border border-stone-300 p-3 text-sm">
+    <div className="rounded-[var(--ph-radius-sm)] border border-stone-300 p-3 text-sm">
       <p className="font-semibold text-stone-950">{appointment.memberName} · party of {appointment.partySize}</p>
       <p className="text-stone-700">{appointment.memberEmail}</p>
       {appointment.pets.length > 0 && <p className="mt-1 text-stone-900">Meeting: {appointment.pets.map((pet) => pet.name).join(', ')}</p>}
@@ -54,7 +54,7 @@ export function VisitSheet({ slots, onClose }: { slots: AdminVisitSlot[]; onClos
       description={first && day && last ? `${niceDay(day.date)} · ${niceTime(day.minutes)} – ${niceTime(etParts(last.endsAt).minutes)}` : undefined}>
       <div className="grid gap-2">
         {slots.map((slot) => (
-          <details key={slot.id} className="border border-stone-300" open={slots.length === 1}>
+          <details key={slot.id} className="rounded-[var(--ph-radius-sm)] border border-stone-300" open={slots.length === 1}>
             <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
               <span className="font-medium text-stone-950">{niceTime(etParts(slot.startsAt).minutes)} – {niceTime(etParts(slot.endsAt).minutes)}</span>
               <Badge tone={slot.appointments.length >= slot.capacity ? 'warn' : 'good'}>{slot.appointments.length}/{slot.capacity} booked</Badge>
@@ -148,7 +148,7 @@ export function ShiftSheet({ shift, onClose }: { shift: AdminVolunteerShift | nu
             <h3 className="text-sm font-semibold text-stone-950">Volunteers</h3>
             {shift.participants.length === 0 ? <p className="mt-1 text-sm text-stone-700">No one has signed up yet.</p> : (
               <ul className="mt-2 grid gap-2">
-                {shift.participants.map((person) => <li key={person.id} className="border border-stone-300 p-2 text-sm"><span className="font-medium text-stone-950">{person.memberName}</span><span className="block text-stone-700">{person.memberEmail} · {person.memberPhone}</span></li>)}
+                {shift.participants.map((person) => <li key={person.id} className="rounded-[var(--ph-radius-sm)] border border-stone-300 p-2 text-sm"><span className="font-medium text-stone-950">{person.memberName}</span><span className="block text-stone-700">{person.memberEmail} · {person.memberPhone}</span></li>)}
               </ul>
             )}
           </div>

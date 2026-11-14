@@ -33,6 +33,7 @@
   --ph-on-brand: #ffffff;       /* text and icons drawn on a brand-colored background */
   --ph-accent: #c96e3d;         /* keyboard focus ring and warm highlights */
   --ph-pop: #f4a67c;            /* decoration only (blobs, underlines); never text or the only signal */
+  --ph-band: color-mix(in oklab, var(--ph-hover) 80%, var(--ph-border));  /* tint behind alternating page sections */
 
   /* ---- Surfaces and text ------------------------------------------------- */
   --ph-page: #fbf6ee;           /* the page background */
@@ -425,6 +426,11 @@
 
 /* Soft Clay helpers. See docs/design-guide.md for when to use each. */
 @layer utilities {
+  /* A tinted section band with a rounded top, alternating with page-colored sections. */
+  .ph-band { background: var(--ph-band); border-top-left-radius: calc(var(--ph-radius) + 6px); border-top-right-radius: calc(var(--ph-radius) + 6px); }
+  /* Entrance for things that appear when a list changes: fade and rise 8px. Only opacity and transform, so nothing jumps. */
+  .ph-enter { animation: ph-enter var(--ph-duration) var(--ph-ease) both; }
+  @media (prefers-reduced-motion: reduce) { .ph-enter { animation: none; } }
   /* A surface that rises on hover or keyboard focus: animal cards and other clickable cards. */
   .ph-lift { transition: transform var(--ph-duration) var(--ph-ease), box-shadow var(--ph-duration) var(--ph-ease); }
   .ph-lift:hover, .ph-lift:focus-within { transform: translateY(var(--ph-lift)); box-shadow: var(--ph-shadow); }
@@ -436,4 +442,9 @@
   /* Organic photo shape for hero images. */
   .ph-photo-blob { border-radius: 46% 54% 50% 50% / 52% 48% 52% 48%; }
   @media (prefers-reduced-motion: reduce) { .ph-lift:hover, .ph-lift:focus-within { transform: none; } }
+}
+
+@keyframes ph-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }

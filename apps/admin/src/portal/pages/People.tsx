@@ -79,7 +79,7 @@ function UserPanel({ id, me, onClose }: { id: string; me: PageProps['user']; onC
             {detail.data?.applications.length ? (
               <ul className="mt-2 grid gap-2">
                 {detail.data.applications.map((application) => (
-                  <li key={application.id} className="flex items-center justify-between gap-3 border border-stone-200 px-3 py-2 text-sm"><span>{application.petName}<span className="text-stone-600"> · {formatDate(application.submittedAt)}</span></span><StatusBadge status={application.status} /></li>
+                  <li key={application.id} className="flex items-center justify-between gap-3 rounded-[var(--ph-radius-sm)] border border-stone-200 px-3 py-2 text-sm"><span>{application.petName}<span className="text-stone-600"> · {formatDate(application.submittedAt)}</span></span><StatusBadge status={application.status} /></li>
                 ))}
               </ul>
             ) : <p className="mt-1 text-sm text-stone-700">No applications.</p>}
@@ -124,18 +124,18 @@ function StaffTab({ me, users }: { me: PageProps['user']; users: ManagedUser[] }
       <DataTable rows={staff} columns={columns} rowId={(row) => row.id} onRowClick={(row) => setParams({ id: row.id })} empty={<EmptyState title="No staff yet" />} />
       {me.role === 'superuser' ? (
         <div className="grid items-start gap-6 lg:grid-cols-2">
-          <form className="grid gap-3 border border-stone-300 bg-white p-5" onSubmit={(event) => { event.preventDefault(); void invite(); }}>
+          <form className="grid gap-3 rounded-[var(--ph-radius)] border border-stone-200 bg-white p-5 shadow-sm" onSubmit={(event) => { event.preventDefault(); void invite(); }}>
             <h3 className="text-base font-semibold text-stone-950">Invite a staff member</h3>
             <p className="text-sm text-stone-700">They get an email to choose a password before their first sign-in.</p>
             <Field label="Email address"><Input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" /></Field>
             <Button type="submit" variant="primary" className="justify-self-start" disabled={busy || !email.trim()}>Send invitation</Button>
           </form>
-          <div className="border border-stone-300 bg-white p-5">
+          <div className="rounded-[var(--ph-radius)] border border-stone-200 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-stone-950">Invitations</h3>
             {!invitations.data?.invitations.length ? <p className="mt-2 text-sm text-stone-700">No invitations have been sent.</p> : (
               <ul className="mt-3 grid gap-2">
                 {invitations.data.invitations.map((item) => (
-                  <li key={item.userId} className="flex flex-wrap items-center justify-between gap-2 border border-stone-200 px-3 py-2 text-sm">
+                  <li key={item.userId} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--ph-radius-sm)] border border-stone-200 px-3 py-2 text-sm">
                     <span className="min-w-0"><span className="block truncate">{item.email}</span><span className="text-xs text-stone-600">Invited {formatDate(item.invitedAt)}</span></span>
                     <span className="flex items-center gap-2"><StatusBadge status={item.status} label={item.status === 'active' ? 'Active' : 'Waiting for setup'} />{item.status === 'awaiting_setup' && <Button size="sm" onClick={() => void resend(item)}>Resend</Button>}</span>
                   </li>

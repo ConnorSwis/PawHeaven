@@ -125,7 +125,7 @@ export function CreateSheet({ open, onClose, initial, pets }: { open: boolean; o
             <Field label="Volunteer roles" help={'One per line as "Title x count", for example Greeters x 3.'}><Textarea value={roles} rows={3} placeholder={'Greeters x 3\nDog handlers x 4'} onChange={(event) => setRoles(event.target.value)} /></Field>
             <fieldset>
               <legend className="mb-1.5 text-sm font-medium text-stone-900">Featured animals</legend>
-              <div className="grid max-h-40 gap-1 overflow-y-auto border border-stone-300 p-2 sm:grid-cols-2">
+              <div className="grid max-h-40 gap-1 overflow-y-auto rounded-[var(--ph-radius-sm)] border border-stone-300 p-2 sm:grid-cols-2">
                 {availablePets.length === 0 && <p className="text-sm text-stone-600">No available animals to feature.</p>}
                 {availablePets.map((pet) => (
                   <label key={pet.id} className="flex items-center gap-2 text-sm text-stone-900">

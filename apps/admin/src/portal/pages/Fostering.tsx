@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import type { AdminFosterApplicationListResponse, AdminFosterRequest, AdminPetListResponse, FosterApplication, VolunteerFosterCandidate } from '@pawheaven/contracts';
 import { api, errorMessage, useApi, useRefresh } from '../lib/api';
 import { formatDate } from '../lib/format';
+import { usePetPhotos } from '../lib/pets';
 import { useRoute } from '../lib/router';
 import type { PageProps } from '../routes';
-import { Badge, Button, Card, type Column, DataTable, Detail, EmptyState, Field, PageHeader, SearchBox, Select, Sheet, StatusBadge, Tabs, Textarea, Toolbar } from '../ui';
+import { AnimalThumb, Badge, Button, Card, type Column, DataTable, Detail, EmptyState, Field, PageHeader, SearchBox, Select, Sheet, StatusBadge, Tabs, Textarea, Toolbar } from '../ui';
 import { useToast } from '../ui/toast';
 
 const daysLeft = (until: string) => Math.ceil((Date.parse(`${until}T23:59:59`) - Date.now()) / 86_400_000);
@@ -12,6 +13,7 @@ const daysLeft = (until: string) => Math.ceil((Date.parse(`${until}T23:59:59`) -
 function Placements() {
   const { params, setParams } = useRoute();
   const apps = useApi<AdminFosterApplicationListResponse>('/admin/foster-applications');
+  const photos = usePetPhotos();
   const [search, setSearch] = useState('');
   const selectedId = params.get('id');
   const rows = useMemo(() => {
@@ -21,7 +23,7 @@ function Placements() {
   const selected = rows.find((row) => row.id === selectedId) ?? apps.data?.applications.find((row) => row.id === selectedId);
 
   const columns: Column<FosterApplication>[] = [
-    { key: 'pet', header: 'Animal', sort: (row) => row.petName.toLowerCase(), cell: (row) => <span className="font-medium text-stone-950">{row.petName}</span> },
+    { key: 'pet', header: 'Animal', sort: (row) => row.petName.toLowerCase(), cell: (row) => <span className="flex items-center gap-3"><AnimalThumb name={row.petName} src={photos.get(row.petId)} size="sm" /><span className="font-semibold text-stone-950">{row.petName}</span></span> },
     { key: 'who', header: 'Foster', sort: (row) => row.applicantName.toLowerCase(), cell: (row) => <div><p>{row.applicantName}</p><p className="text-xs text-stone-600">{row.applicantEmail}</p></div> },
     { key: 'window', header: 'Dates', hideBelow: 'sm', cell: (row) => `${formatDate(`${row.availableFrom}T12:00:00Z`)} – ${formatDate(`${row.availableUntil}T12:00:00Z`)}` },
     { key: 'left', header: 'Time left', sort: (row) => daysLeft(row.availableUntil), cell: (row) => { const left = daysLeft(row.availableUntil); return <Badge tone={left <= 7 ? 'warn' : 'neutral'}>{left <= 0 ? 'Ends today' : `${left} day${left === 1 ? '' : 's'}`}</Badge>; } },
@@ -54,6 +56,7 @@ function Pool() {
   const { params } = useRoute();
   const requests = useApi<{ requests: AdminFosterRequest[] }>('/admin/foster-requests');
   const pets = useApi<AdminPetListResponse>('/admin/pets');
+  const photos = usePetPhotos();
   const refresh = useRefresh();
   const toast = useToast();
   const [petId, setPetId] = useState(params.get('pet') ?? '');
@@ -76,7 +79,7 @@ function Pool() {
   };
 
   const columns: Column<AdminFosterRequest>[] = [
-    { key: 'pet', header: 'Animal', sort: (row) => row.petName.toLowerCase(), cell: (row) => <div><p className="font-medium text-stone-950">{row.petName}</p>{row.note && <p className="max-w-xs truncate text-xs text-stone-600">{row.note}</p>}</div> },
+    { key: 'pet', header: 'Animal', sort: (row) => row.petName.toLowerCase(), cell: (row) => <div className="flex items-center gap-3"><AnimalThumb name={row.petName} src={photos.get(row.petId)} size="sm" /><div className="min-w-0"><p className="font-semibold text-stone-950">{row.petName}</p>{row.note && <p className="max-w-xs truncate text-xs text-stone-700">{row.note}</p>}</div></div> },
     { key: 'status', header: 'Status', cell: (row) => (row.closedAt ? <Badge>Closed</Badge> : <Badge tone="warn">Open</Badge>) },
     { key: 'sent', header: 'Asked', hideBelow: 'sm', sort: (row) => row.createdAt, cell: (row) => formatDate(row.createdAt) },
     { key: 'answers', header: 'Answers', cell: (row) => <span className="text-xs text-stone-700">{row.notified} emailed · {row.accepted} accepted · {row.declined} declined</span> },
@@ -85,11 +88,11 @@ function Pool() {
   return (
     <div className="mt-5 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div>
-        <h3 className="mb-2 text-base font-semibold text-stone-950">Requests</h3>
+        <h3 className="mb-2 text-base font-bold text-stone-950">Requests</h3>
         <DataTable rows={requests.data?.requests ?? []} columns={columns} rowId={(row) => row.id} loading={requests.isLoading} initialSort={{ key: 'sent', dir: 'desc' }} pageSize={15} empty={<EmptyState title="No requests yet">Ask the foster pool when an animal needs a home right away.</EmptyState>} />
       </div>
       <Card>
-        <h3 className="text-base font-semibold text-stone-950">Ask the foster pool</h3>
+        <h3 className="text-base font-bold text-stone-950">Ask the foster pool</h3>
         <p className="mt-1 text-sm leading-6 text-stone-700">Opens the animal to foster, marks it urgent, and emails every approved foster who opted in to alerts. They accept in one step and you approve the application they file.</p>
         <form className="mt-4 grid gap-3" onSubmit={(event) => { event.preventDefault(); void send(); }}>
           <Field label="Animal"><Select required value={petId} onChange={(event) => setPetId(event.target.value)}><option value="">Choose an animal</option>{choices.map((pet) => <option key={pet.id} value={pet.id} disabled={openFor.has(pet.id)}>{pet.name} ({pet.type}){openFor.has(pet.id) ? ' · request open' : ''}</option>)}</Select></Field>

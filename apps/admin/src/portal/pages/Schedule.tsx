@@ -55,7 +55,7 @@ export default function Schedule() {
         actions={<><Button onClick={() => void copyWeek()} disabled={busy}>Copy this week to the next</Button><Button onClick={() => void generate()} disabled={busy}>Fill in from open hours</Button><Button variant="primary" onClick={() => openCreate()}>Add</Button></>} />
       <div className="mt-5"><Tabs value={tab} onChange={(next) => setParams({ tab: next === 'calendar' ? null : next })} items={[{ id: 'calendar', label: 'Calendar' }, { id: 'hours', label: 'Open hours', count: data.rules.length || undefined }, { id: 'events', label: 'Events' }]} /></div>
 
-      {data.error && <p className="mt-4 border border-red-300 bg-red-50 p-3 text-sm text-red-900" role="alert">{errorMessage(data.error, 'The schedule could not be loaded.')}</p>}
+      {data.error && <p className="mt-4 rounded-[var(--ph-radius-sm)] border border-red-300 bg-red-50 p-3 text-sm text-red-900" role="alert">{errorMessage(data.error, 'The schedule could not be loaded.')}</p>}
 
       <div hidden={tab !== 'calendar'} className="mt-4 rounded-[var(--ph-radius)] border border-stone-300 bg-white p-2 sm:p-4">
         <CalendarView slots={data.slots} shifts={data.shifts} exceptions={data.exceptions} visible={tab === 'calendar'} handle={handle}

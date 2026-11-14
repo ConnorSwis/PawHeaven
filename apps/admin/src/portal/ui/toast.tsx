@@ -18,7 +18,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4" role="status" aria-live="polite">
         {toasts.map((toast) => (
-          <div key={toast.id} className={`pointer-events-auto max-w-md border px-4 py-3 text-sm shadow-md ${toast.tone === 'error' ? 'border-red-300 bg-red-50 text-red-900' : 'border-green-300 bg-green-50 text-green-900'}`}>
+          <div key={toast.id} className={`pointer-events-auto max-w-md rounded-[var(--ph-radius-sm)] border px-4 py-3 text-sm shadow-lg ${toast.tone === 'error' ? 'border-red-300 bg-red-50 text-red-900' : 'border-green-300 bg-green-50 text-green-900'}`}>
             {toast.text}
           </div>
         ))}

@@ -6,8 +6,8 @@ Plan: https://claude.ai/artifact/4UtckZsihLsmTnPL4RFukz. This file is the build 
 
 | Page | Address | Notes |
 | --- | --- | --- |
-| Home | `/` | Search-first hero with featured animals, ways to help with live counts, how adoption works, hours |
-| Adopt | `/adopt` | Photo grid, real filters in the address, sort by longest waiting or who needs help first, quiz banner, saved animals |
+| Home | `/` | Photo-first hero (live animal count, search pill with chips, a featured animal), needs help most, waiting longest, ways to help with live counts, how adoption works, hours |
+| Adopt | `/adopt` | Photo grid with search, sort, quick filter chips and a "More filters" sheet; filters live in the address; removable active filters; quiz banner; saved animals |
 | Animal | `/adopt/<name>-<8 hex id>` | One built page `/adopt/pet/` (the Worker serves it for every animal and inlines the data) |
 | Match quiz | `/adopt/match` | Public; results, then optional save |
 | How adoption works | `/adopt/process` | Done (content page) |
@@ -43,6 +43,12 @@ Old addresses redirect through `apps/web/public/_redirects`. `astro dev` serves 
 - Words: Adopt, Foster, Volunteer, Visit. "Animal" or the animal's name, not "listing". Shelter times are America/New_York.
 - Use `SHELTER` for hours, address, fees; never retype them.
 - Pet shape: `Pet` in `@pawheaven/contracts` (name, type, breed, age, sex, size, color, weightLbs, energyLevel, goodWithKids/Dogs/Cats, tags, summary, medicalHistory, fosterAvailable, fosterUrgent, needsWalkers, visitsOpen, housing, imageUrl, galleryUrls, sourceName/sourceUrl, daysInShelter).
+
+## Home, Adopt, and the animal page (Soft Clay)
+
+- **Home hero** (`src/app/home/Home.tsx`). The text, search form (`GET /adopt?q=`), and chips render at build time; the eyebrow count ("34 animals are waiting today") and the featured animal need the data, so they sit in `ClientOnly` and read the Worker-inlined list. The featured animal is `pickFeatured()`: the longest-flagged "needs help" animal that has a photo, else the one waiting longest with a photo. It is deterministic, so it does not change between reloads until the data does. The note card links to that animal. On phones the photo moves above the text and shrinks.
+- **Adopt filters** (`AdoptDirectory.tsx`, `FilterControls.tsx`, `filters.ts`). Parameter names are unchanged (`q`, `species`, `size`, `age`, `sex`, `energy`, `kids`, `dogs`, `cats`, `foster`, `sort`), so old links and saved searches work. `QUICK_CHIPS` are plain toggles over those filters. "More filters" opens the kit `Sheet` with kind, size, age, sex, energy, and good with dogs and cats; changes apply live. Active filters that are not already a pressed chip show as removable chips; "Clear all" shows whenever anything is on (search words included) and keeps the sort. The count is announced in a polite `role="status"` after typing pauses. Result cards fade in on enter only (`.ph-enter`).
+- **Animal page** (`PetProfile.tsx`). The note in the animal's voice is built only from `daysInShelter` and `housing`. "Good to know" rows use the icons we have: a check or a cross for good with kids, dogs, and cats, a paw for the rest. The action card (Meet, Apply, Foster when open, Save, Share) is sticky on wide screens; phones get a bottom bar with Meet, Apply, and the heart, and Share sits at the top. The help callout keeps its buttons on phones only, because the action card carries them on wide screens. Similar animals (same kind, nearest size) hide when there are none.
 
 ## Shelter status and animals who need help
 

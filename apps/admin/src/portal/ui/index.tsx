@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { createContext, forwardRef, useContext, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { createContext, forwardRef, useContext, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ComponentType, type InputHTMLAttributes, type ReactNode, type SVGProps, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, SearchIcon, SortIcon } from './icons';
 
 export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
@@ -21,7 +21,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   return <button ref={ref} type={type} className={cx('inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-[color,background-color,transform,box-shadow] duration-150 disabled:cursor-not-allowed disabled:opacity-60', 'rounded-[var(--ph-radius-pill)]', size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3.5 py-2 text-sm', variants[variant], className)} {...props} />;
 });
 
-type Tone = 'neutral' | 'good' | 'warn' | 'danger';
+export type Tone = 'neutral' | 'good' | 'warn' | 'danger';
 const tones: Record<Tone, string> = {
   neutral: 'bg-stone-100 text-stone-700',
   good: 'bg-[var(--ph-brand-soft)] text-[var(--ph-brand-strong)]',
@@ -29,8 +29,33 @@ const tones: Record<Tone, string> = {
   danger: 'bg-[var(--ph-danger-soft)] text-[var(--ph-danger-strong)]',
 };
 export function Badge({ tone = 'neutral', children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
-  return <span className={cx('inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium', tones[tone], className)}>{children}</span>;
+  return <span className={cx('inline-flex items-center whitespace-nowrap rounded-[var(--ph-radius-pill)] px-2 py-0.5 text-xs font-semibold', tones[tone], className)}>{children}</span>;
 }
+/** A soft tint of the brand color, strong enough to see on a white card in every theme. Used behind initials and icons. */
+const tint = 'bg-[color-mix(in_oklab,var(--ph-brand)_14%,var(--ph-surface))] text-[var(--ph-brand-strong)]';
+const chipTones: Record<Tone, string> = {
+  neutral: 'bg-stone-100 text-stone-700',
+  good: tint,
+  warn: 'bg-[var(--ph-warning-soft)] text-[var(--ph-warning-strong)]',
+  danger: 'bg-[var(--ph-danger-soft)] text-[var(--ph-danger-strong)]',
+};
+
+/** A small rounded square holding an icon, tinted by tone. Decorative: the label next to it carries the meaning. */
+export function IconChip({ icon: Icon, tone = 'good', className }: { icon: ComponentType<SVGProps<SVGSVGElement>>; tone?: Tone; className?: string }) {
+  return <span className={cx('grid size-8 shrink-0 place-items-center rounded-[var(--ph-radius-sm)]', chipTones[tone], className)} aria-hidden="true"><Icon width={16} height={16} /></span>;
+}
+
+/** An animal's photo as a small rounded thumbnail, or a soft tinted tile with its first initial when it has none. The name is read by the text beside it, so the image is decorative. */
+export function AnimalThumb({ name, src, size = 'md', className }: { name: string; src?: string | null; size?: 'sm' | 'md' | 'lg'; className?: string }) {
+  const dimension = { sm: 'size-8 text-sm', md: 'size-10 text-base', lg: 'size-14 text-xl' }[size];
+  const px = { sm: 32, md: 40, lg: 56 }[size];
+  const shape = cx('shrink-0 rounded-[var(--ph-radius-sm)]', dimension, className);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  if (src && !failed) return <img src={src} alt="" width={px} height={px} loading="lazy" decoding="async" onError={() => setFailed(true)} className={cx(shape, 'bg-stone-200 object-cover')} />;
+  return <span className={cx(shape, 'grid select-none place-items-center font-bold', tint)} aria-hidden="true">{(name.trim().slice(0, 1) || '?').toUpperCase()}</span>;
+}
+
 /** One status vocabulary for every record in the portal. */
 export function statusTone(status: string): Tone {
   if (['Approved', 'Resolved', 'Available', 'registered', 'booked', 'succeeded', 'accepted', 'active', 'Open', 'Fostered', 'published'].includes(status)) return 'good';
@@ -63,7 +88,7 @@ export function ErrorSummary({ errors, focusSignal = 0 }: { errors: { id: string
   useEffect(() => { if (focusSignal > 0 && errors.length > 0) box.current?.focus(); }, [focusSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   if (errors.length === 0) return null;
   return (
-    <div ref={box} tabIndex={-1} role="alert" className="border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+    <div ref={box} tabIndex={-1} role="alert" className="rounded-[var(--ph-radius-sm)] border border-red-300 bg-red-50 p-4 text-sm text-red-900">
       <p className="font-semibold">{errors.length === 1 ? 'There is 1 problem' : `There are ${errors.length} problems`}</p>
       <ul className="mt-1.5 list-disc space-y-1 pl-5">
         {errors.map((error) => <li key={error.id}><a href={`#${error.id}`} className="underline" onClick={(event) => { event.preventDefault(); const target = document.getElementById(error.id); target?.scrollIntoView({ block: 'center' }); target?.focus(); }}>{error.message}</a></li>)}
@@ -75,21 +100,21 @@ export function ErrorSummary({ errors, focusSignal = 0 }: { errors: { id: string
 /** A short in-page message. Use `warn` for things staff should act on. */
 export function Notice({ tone = 'neutral', title, children }: { tone?: 'neutral' | 'warn' | 'danger'; title?: string; children: ReactNode }) {
   const classes = { neutral: 'border-stone-300 bg-stone-50 text-stone-800', warn: 'border-[var(--ph-warning)] bg-amber-50 text-amber-900', danger: 'border-red-300 bg-red-50 text-red-900' };
-  return <div className={cx('border p-4 text-sm leading-6', classes[tone])}>{title && <p className="font-semibold">{title}</p>}<div>{children}</div></div>;
+  return <div className={cx('rounded-[var(--ph-radius-sm)] border p-4 text-sm leading-6', classes[tone])}>{title && <p className="font-semibold">{title}</p>}<div>{children}</div></div>;
 }
 
 export function SearchBox({ value, onChange, placeholder = 'Search…', className }: { value: string; onChange: (value: string) => void; placeholder?: string; className?: string }) {
   return (
     <div className={cx('relative min-w-[12rem] flex-1 sm:max-w-xs', className)}>
       <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
-      <Input type="search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={placeholder} className="pl-9" />
+      <Input type="search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={placeholder} className="rounded-[var(--ph-radius-pill)] pl-9" />
     </div>
   );
 }
 
 export function FilterSelect({ label, value, onChange, options, className }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; className?: string }) {
   return (
-    <Select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} className={cx('w-auto! py-1.5', className)}>
+    <Select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} className={cx('w-auto! rounded-[var(--ph-radius-pill)] py-1.5 pl-3.5', className)}>
       <option value="">{label}: all</option>
       {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
     </Select>
@@ -101,7 +126,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-stone-950">{title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-stone-950">{title}</h1>
         {description && <p className="mt-1 max-w-2xl text-sm leading-6 text-stone-700">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -112,10 +137,29 @@ export function PageHeader({ title, description, actions }: { title: string; des
 export const Toolbar = ({ children }: { children: ReactNode }) => <div className="mt-5 flex flex-wrap items-center gap-2">{children}</div>;
 export const Card = ({ children, className }: { children: ReactNode; className?: string }) => <section className={cx('rounded-[var(--ph-radius)] border border-stone-200 bg-white p-5 shadow-sm', className)}>{children}</section>;
 
-export function StatCard({ label, value, hint, onClick }: { label: string; value: ReactNode; hint?: string; onClick?: () => void }) {
-  const body = (<><p className="text-xs font-medium uppercase tracking-wide text-stone-600">{label}</p><p className="mt-1 text-2xl font-semibold text-stone-950">{value}</p>{hint && <p className="mt-0.5 text-xs text-stone-600">{hint}</p>}</>);
-  const classes = 'rounded-[var(--ph-radius)] border border-stone-200 bg-white p-4 text-left shadow-sm';
-  return onClick ? <button type="button" onClick={onClick} className={cx(classes, 'hover:bg-stone-50')}>{body}</button> : <div className={classes}>{body}</div>;
+/** A stat tile: small tinted icon chip, label, big tabular number, one line of context. A tile that goes somewhere is a button and lifts on hover. */
+export function StatCard({ label, value, hint, onClick, icon, tone = 'good', flat }: { label: string; value: ReactNode; hint?: string; onClick?: () => void; icon?: ComponentType<SVGProps<SVGSVGElement>>; tone?: Tone; /** An inset tile for use inside a card: no border or shadow. */ flat?: boolean }) {
+  const body = (
+    <>
+      <span className="flex items-center gap-2 text-sm font-semibold text-stone-700">{icon && <IconChip icon={icon} tone={tone} />}<span className="min-w-0">{label}</span></span>
+      <span className="mt-2 block text-2xl font-bold leading-tight tabular-nums text-stone-950">{value}</span>
+      {hint && <span className="mt-0.5 block text-xs text-stone-700">{hint}</span>}
+    </>
+  );
+  const classes = cx('block rounded-[var(--ph-radius)] p-4 text-left', flat ? 'bg-stone-50' : 'border border-stone-200 bg-white shadow-sm');
+  return onClick ? <button type="button" onClick={onClick} className={cx(classes, 'ph-lift w-full', flat && 'hover:bg-stone-100')}>{body}</button> : <div className={classes}>{body}</div>;
+}
+
+export type MeterLevel = 'neutral' | 'ok' | 'busy' | 'full';
+const meterFill: Record<MeterLevel, string> = { neutral: 'bg-stone-400', ok: 'bg-[var(--ph-brand)]', busy: 'bg-[var(--ph-warning)]', full: 'bg-[var(--ph-danger)]' };
+
+/** A rounded meter. The level word and the numbers must be shown next to it, so the fill color is never the only signal. */
+export function Meter({ percent, level, label, valueText, max = 100, className, decorative }: { percent: number; level: MeterLevel; label: string; valueText?: string; max?: number; className?: string; /** For a bar that repeats a number printed beside it. */ decorative?: boolean }) {
+  const width = Math.max(0, Math.min(100, (percent / max) * 100));
+  const track = cx('h-2.5 w-full overflow-hidden rounded-[var(--ph-radius-pill)] border border-stone-300 bg-stone-100', className);
+  const fill = <div className={cx('h-full rounded-[var(--ph-radius-pill)] transition-[width] duration-300 motion-reduce:transition-none', meterFill[level])} style={{ width: `${width}%` }} />;
+  if (decorative) return <div className={track} aria-hidden="true">{fill}</div>;
+  return <div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={Math.max(max, percent)} aria-valuenow={percent} aria-valuetext={valueText} className={track}>{fill}</div>;
 }
 
 export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
@@ -136,7 +180,7 @@ export function Tabs({ value, onChange, items }: { value: string; onChange: (id:
       {items.map((item) => (
         <button key={item.id} type="button" role="tab" aria-selected={value === item.id} onClick={() => onChange(item.id)}
           className={cx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', value === item.id ? 'border-[var(--ph-brand)] text-stone-950' : 'border-transparent text-stone-700 hover:text-stone-950')}>
-          {item.label}{item.count !== undefined && <span className="ml-1.5 rounded-full bg-stone-100 px-1.5 py-0.5 text-xs text-stone-700">{item.count}</span>}
+          {item.label}{item.count !== undefined && <span className="ml-1.5 rounded-[var(--ph-radius-pill)] bg-stone-100 px-1.5 py-0.5 text-xs font-semibold text-stone-700">{item.count}</span>}
         </button>
       ))}
     </div>
@@ -149,10 +193,10 @@ export function Sheet({ open, onOpenChange, title, description, children, footer
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-[color-mix(in_oklab,var(--ph-ink-strong)_45%,transparent)]" />
-        <Dialog.Content className={cx('fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-stone-300 bg-white shadow-md', width)}>
+        <Dialog.Content className={cx('fixed inset-y-0 right-0 z-50 flex w-full flex-col overflow-hidden rounded-l-[var(--ph-radius)] border-l border-stone-300 bg-white shadow-lg', width)}>
           <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-5 py-4">
             <div className="min-w-0">
-              <Dialog.Title className="text-lg font-semibold text-stone-950">{title}</Dialog.Title>
+              <Dialog.Title className="text-lg font-bold text-stone-950">{title}</Dialog.Title>
               <Dialog.Description className={description ? 'mt-0.5 text-sm text-stone-700' : 'sr-only'}>{description ?? title}</Dialog.Description>
             </div>
             <Dialog.Close asChild><Button variant="ghost" size="sm" aria-label="Close panel"><CloseIcon /></Button></Dialog.Close>
@@ -171,8 +215,8 @@ export function ConfirmDialog({ open, onCancel, onConfirm, title, description, c
     <Dialog.Root open={open} onOpenChange={(next) => { if (!next && !busy) onCancel(); }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[55] bg-[color-mix(in_oklab,var(--ph-ink-strong)_55%,transparent)]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[56] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 border border-stone-300 bg-white p-5 shadow-lg">
-          <Dialog.Title className="text-lg font-semibold text-stone-950">{title}</Dialog.Title>
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[56] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 shadow-lg">
+          <Dialog.Title className="text-lg font-bold text-stone-950">{title}</Dialog.Title>
           <Dialog.Description asChild><div className="mt-2 text-sm leading-6 text-stone-700">{description}</div></Dialog.Description>
           <div className="mt-5 flex justify-end gap-2">
             <Button onClick={onCancel} disabled={busy}>Cancel</Button>
@@ -206,15 +250,15 @@ export function DataTable<T>({ rows, columns, rowId, loading, error, onRowClick,
   const visible = sorted.slice(page * pageSize, page * pageSize + pageSize);
   const pad = density === 'compact' ? 'px-3 py-1.5' : 'px-3 py-3';
 
-  if (error) return <div className="border border-red-300 bg-red-50 p-4 text-sm text-red-900" role="alert">{error}</div>;
+  if (error) return <div className="rounded-[var(--ph-radius-sm)] border border-red-300 bg-red-50 p-4 text-sm text-red-900" role="alert">{error}</div>;
   const allVisibleSelected = selection && visible.length > 0 && visible.every((row) => selection.selected.has(rowId(row)));
 
   return (
-    <div className="overflow-hidden rounded-[var(--ph-radius)] border border-stone-300 bg-white">
+    <div className="overflow-hidden rounded-[var(--ph-radius)] border border-stone-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className={cx('w-full border-collapse text-sm', tableClassName ?? 'min-w-[34rem]')}>
           <thead>
-            <tr className="border-b border-stone-300 bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-600">
+            <tr className="border-b border-stone-200 bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-700">
               {selection && <th className="w-10 px-3 py-2"><input type="checkbox" aria-label="Select all on this page" checked={Boolean(allVisibleSelected)} onChange={(event) => { const next = new Set(selection.selected); for (const row of visible) { if (event.target.checked) next.add(rowId(row)); else next.delete(rowId(row)); } selection.onChange(next); }} /></th>}
               {columns.map((column) => (
                 <th key={column.key} className={cx('px-3 py-2 font-semibold', column.hideBelow && hide[column.hideBelow], column.className)} aria-sort={sort?.key === column.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
@@ -237,7 +281,7 @@ export function DataTable<T>({ rows, columns, rowId, loading, error, onRowClick,
                 <tr key={id} aria-selected={selectedId === id || undefined} tabIndex={onRowClick ? 0 : undefined}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   onKeyDown={onRowClick ? (event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row); } } : undefined}
-                  className={cx('border-b border-stone-200 last:border-b-0', onRowClick && 'cursor-pointer hover:bg-stone-50', selectedId === id && 'bg-[var(--ph-brand-soft)]')}>
+                  className={cx('border-b border-stone-200 last:border-b-0 focus-visible:-outline-offset-2', onRowClick && 'cursor-pointer transition-colors hover:bg-stone-50', selectedId === id && 'bg-[var(--ph-brand-soft)] hover:bg-[var(--ph-brand-soft)]')}>
                   {selection && <td className="w-10 px-3" onClick={(event) => event.stopPropagation()}><input type="checkbox" aria-label="Select row" checked={selection.selected.has(id)} onChange={(event) => { const next = new Set(selection.selected); if (event.target.checked) next.add(id); else next.delete(id); selection.onChange(next); }} /></td>}
                   {columns.map((column) => <td key={column.key} className={cx(pad, 'align-middle text-stone-800', column.hideBelow && hide[column.hideBelow], column.className)}>{column.cell(row)}</td>)}
                 </tr>
@@ -264,4 +308,17 @@ export function DataTable<T>({ rows, columns, rowId, loading, error, onRowClick,
 /** A labelled value in a detail panel. */
 export function Detail({ label, children }: { label: string; children: ReactNode }) {
   return <div><dt className="text-xs font-semibold uppercase tracking-wide text-stone-600">{label}</dt><dd className="mt-0.5 break-words text-sm text-stone-900">{children || <span className="text-stone-500">Not provided</span>}</dd></div>;
+}
+
+/** The floating action bar that appears when rows are ticked. Sticks under the top bar; buttons go inside, "Clear" last. */
+export function BulkBar({ count, label = 'Actions for selected rows', onClear, children }: { count: number; label?: string; onClear: () => void; children: ReactNode }) {
+  if (count === 0) return null;
+  return (
+    <div className="sticky top-[4.25rem] z-20 mt-3 flex flex-wrap items-center gap-2 rounded-[var(--ph-radius)] border border-stone-300 bg-white px-4 py-2.5 shadow-lg" role="region" aria-label={label}>
+      <strong className="mr-1 rounded-[var(--ph-radius-pill)] bg-[var(--ph-brand-soft)] px-2.5 py-0.5 text-sm text-[var(--ph-brand-strong)]">{count} selected</strong>
+      {children}
+      <span className="flex-1" />
+      <Button size="sm" variant="ghost" onClick={onClear}>Clear</Button>
+    </div>
+  );
 }

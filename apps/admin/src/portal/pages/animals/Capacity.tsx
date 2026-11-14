@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ShelterGroupStatus, ShelterLevel, ShelterStatus } from '@pawheaven/contracts';
 import { api, errorMessage, useApi, useRefresh } from '../../lib/api';
-import { Badge, Button, Card, Field, Input, Sheet, Skeleton, cx } from '../../ui';
+import { Badge, Button, Card, Field, Input, Meter, type MeterLevel, Sheet, Skeleton } from '../../ui';
 import { useToast } from '../../ui/toast';
 
 type Group = ShelterGroupStatus['group'];
@@ -11,15 +11,9 @@ const GROUP_LABEL: Record<Group, string> = { Dog: 'Dogs', Cat: 'Cats', Other: 'O
 /** The words are always shown next to the bar, so the level never depends on color alone. */
 export const LEVEL_WORDS: Record<ShelterLevel, string> = { unset: 'Not set', ok: 'Roomy', busy: 'Getting full', full: 'Full', over: 'Over capacity' };
 const LEVEL_TONE: Record<ShelterLevel, 'neutral' | 'good' | 'warn' | 'danger'> = { unset: 'neutral', ok: 'good', busy: 'warn', full: 'danger', over: 'danger' };
-const LEVEL_FILL: Record<ShelterLevel, string> = {
-  unset: 'bg-stone-400',
-  ok: 'bg-[var(--ph-brand)]',
-  busy: 'bg-[var(--ph-warning)]',
-  full: 'bg-[var(--ph-danger)]',
-  over: 'bg-[var(--ph-danger)]',
-};
+const LEVEL_METER: Record<ShelterLevel, MeterLevel> = { unset: 'neutral', ok: 'ok', busy: 'busy', full: 'full', over: 'full' };
 
-function Meter({ group, onSetUp }: { group: ShelterGroupStatus; onSetUp?: () => void }) {
+function GroupMeter({ group, onSetUp }: { group: ShelterGroupStatus; onSetUp?: () => void }) {
   const name = GROUP_LABEL[group.group];
   if (group.level === 'unset' || group.percent === null) {
     return (
@@ -31,18 +25,13 @@ function Meter({ group, onSetUp }: { group: ShelterGroupStatus; onSetUp?: () => 
     );
   }
   const usable = group.kennels - group.heldBack;
-  const width = Math.max(0, Math.min(100, group.percent));
   return (
     <li className="grid gap-1.5">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm font-medium text-stone-950">{name} {group.used} of {usable}</span>
-        <span className="text-sm font-semibold tabular-nums text-stone-950">{group.percent}%</span>
+        <span className="text-sm font-bold tabular-nums text-stone-950">{group.percent}%</span>
       </div>
-      <div role="meter" aria-label={`${name}: ${group.percent} percent full`} aria-valuemin={0} aria-valuemax={Math.max(100, group.percent)} aria-valuenow={group.percent}
-        aria-valuetext={`${group.used} of ${usable} kennels in use, ${group.percent} percent. ${LEVEL_WORDS[group.level]}.`}
-        className="h-3 w-full overflow-hidden border border-stone-400 bg-stone-100">
-        <div className={cx('h-full transition-[width] duration-300 motion-reduce:transition-none', LEVEL_FILL[group.level])} style={{ width: `${width}%` }} />
-      </div>
+      <Meter percent={group.percent} level={LEVEL_METER[group.level]} label={`${name}: ${group.percent} percent full`} valueText={`${group.used} of ${usable} kennels in use, ${group.percent} percent. ${LEVEL_WORDS[group.level]}.`} />
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <Badge tone={LEVEL_TONE[group.level]}>{LEVEL_WORDS[group.level]}</Badge>
         {group.heldBack > 0 && <span className="text-xs text-stone-600">{group.heldBack} held back</span>}
@@ -57,7 +46,7 @@ export function CapacityCard({ onEdit, showEdit, onHelp }: { onEdit: () => void;
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold text-stone-950">Shelter capacity</h2>
+        <h2 className="text-base font-bold text-stone-950">Shelter capacity</h2>
         {showEdit && <Button size="sm" variant="ghost" className="min-h-11" onClick={onEdit}>Edit capacity</Button>}
       </div>
       {status.isLoading && <div className="mt-3 grid gap-3 sm:grid-cols-3"><Skeleton className="h-16" /><Skeleton className="h-16" /><Skeleton className="h-16" /></div>}
@@ -67,7 +56,7 @@ export function CapacityCard({ onEdit, showEdit, onHelp }: { onEdit: () => void;
           <ul className="mt-3 grid gap-x-6 gap-y-4 [grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]">
             {GROUPS.map((name) => {
               const group = status.data.groups.find((item) => item.group === name);
-              return group ? <Meter key={name} group={group} onSetUp={onEdit} /> : null;
+              return group ? <GroupMeter key={name} group={group} onSetUp={onEdit} /> : null;
             })}
           </ul>
           {onHelp && (
@@ -151,7 +140,7 @@ export function CapacitySheet({ open, onOpenChange }: { open: boolean; onOpenCha
           {GROUPS.map((name) => {
             const group = status.data?.groups.find((item) => item.group === name);
             return (
-              <fieldset key={name} className="grid gap-3 border border-stone-300 p-4 sm:grid-cols-2">
+              <fieldset key={name} className="grid gap-3 rounded-[var(--ph-radius-sm)] border border-stone-300 p-4 sm:grid-cols-2">
                 <legend className="px-1 text-sm font-semibold text-stone-950">{GROUP_LABEL[name]}{group && group.level !== 'unset' ? <span className="ml-2 font-normal text-stone-600">{group.used} in use now</span> : null}</legend>
                 <Field label="Kennels" error={errors[name].kennels} help="Total kennels, including any held back. 0 kennels means not set, so no banner is shown.">
                   <Input type="number" inputMode="numeric" min={0} max={500} step={1} className="min-h-11" value={draft[name].kennels} aria-invalid={Boolean(errors[name].kennels)} onChange={(event) => set(name, 'kennels', event.target.value)} />
