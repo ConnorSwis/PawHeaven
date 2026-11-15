@@ -22,7 +22,8 @@ export const calendarDay = (value: string) => {
 
 export function StatusBadge({ status }: { status: string }) {
   const tone = ['Approved', 'Resolved', 'registered', 'booked'].includes(status) ? 'good' : ['In review', 'In progress', 'New'].includes(status) ? 'warn' : 'neutral';
-  return <Badge tone={tone}>{status}</Badge>;
+  const label = ({ booked: 'Booked', registered: 'Signed up', canceled: 'Canceled' } as Record<string, string>)[status] ?? status;
+  return <Badge tone={tone}>{label}</Badge>;
 }
 
 /** Every list says what it is and what to do when it is empty. */

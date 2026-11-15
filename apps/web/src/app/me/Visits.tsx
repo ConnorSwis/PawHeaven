@@ -35,7 +35,7 @@ export function VisitRow({ visit, slots }: { visit: VisitAppointment; slots: Vis
       <TicketCard stub={
         <div className="grid gap-3 sm:max-w-sm">
           <details className="group">
-            <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold text-[var(--ph-brand-strong)]">Change time</summary>
+            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-[var(--ph-radius-pill)] border border-stone-400 px-5 py-2 font-semibold text-stone-900 hover:bg-stone-100 group-open:bg-stone-100 [&::-webkit-details-marker]:hidden">Change time</summary>
             <div className="pt-2">
           {open.length > 0 ? (
             <div className="grid gap-2">
