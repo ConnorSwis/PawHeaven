@@ -127,7 +127,7 @@ export function PetPicture({ pet, className, decorative = false }: { pet: Pet; c
   if (!pet.imageUrl || failed) {
     return <div className={cx('flex items-center justify-center bg-stone-200 text-stone-700', className)} {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': `No photo of ${pet.name} yet` })}><PawIcon width={24} height={24} /></div>;
   }
-  return <img src={pet.imageUrl} alt={decorative ? '' : petAlt(pet)} width={320} height={240} loading="lazy" decoding="async" onError={() => setFailed(true)} className={cx('bg-stone-200 object-cover', className)} />;
+  return <img src={pet.imageUrl} alt={decorative ? '' : petAlt(pet)} width={320} height={240} loading="lazy" decoding="async" onError={() => setFailed(true)} className={cx('bg-stone-200 object-cover object-[50%_30%]', className)} />;
 }
 
 export const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
