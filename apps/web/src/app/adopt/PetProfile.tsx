@@ -58,7 +58,7 @@ function NotFound({ failed, retry }: { failed?: string; retry?: () => void }) {
           </EmptyState>
         </div>
       )}
-      <p className="mt-6 text-base text-stone-800">Not ready to adopt? You can also <TextLink href="/foster">foster</TextLink> or <TextLink href="/volunteer">volunteer</TextLink>.</p>
+      <p className="mt-6 text-base text-stone-800">Not ready to adopt? You can also <TextLink href="/foster">foster</TextLink> or <TextLink href="/help">find another way to help</TextLink>.</p>
     </div>
   );
 }
