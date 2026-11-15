@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { matchStrength, type Pet, type AdoptionApplicationListResponse, type ApiUser, type FosterApplicationListResponse, type LatestQuizResponse, type MemberFosterRequest, type MyInvolvement, type VisitAppointmentListResponse, type VolunteerRegistrationListResponse } from '@pawheaven/contracts';
+import { matchStrength, type Pet, type AdoptionApplicationListResponse, type FosterApplicationListResponse, type LatestQuizResponse, type MemberFosterRequest, type MyInvolvement, type VisitAppointmentListResponse, type VolunteerRegistrationListResponse } from '@pawheaven/contracts';
 import { daysUntil, formatShelterRange } from '@pawheaven/contracts/ui';
 import { api, errorMessage, useApi } from '../../lib/fetch';
-import { Badge, Button, ButtonLink, EmptyState, Field, Input, Notice, Skeleton, Switch, TextLink, TicketCard } from '../../ui';
-import { CheckIcon } from '../../ui/icons';
+import { Badge, Button, ButtonLink, EmptyState, Field, Input, Notice, Skeleton, TextLink, TicketCard } from '../../ui';
 import { dayLong, monthDay, PetPicture, timeRange, zoneName } from '../involve/common';
 import { LoadState, Link, Muted, Row, Section, dayOnly, petPath } from './common';
 import { useSavedIds } from './savedIds';
@@ -19,7 +18,7 @@ function NextTicket({ label, title, startsAt, endsAt, detail }: { label: string;
   const [month, day] = monthDay(startsAt).split(' ');
   return (
     <li>
-      <TicketCard stub={<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"><p className="text-sm text-stone-800">{detail}</p><Link href="?tab=visits" className="text-sm">Manage<span className="sr-only"> {label.toLowerCase()}</span></Link></div>}>
+      <TicketCard stub={<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"><p className="text-sm text-stone-800">{detail}</p><Link href="?tab=activity" className="text-sm">Manage<span className="sr-only"> {label.toLowerCase()}</span></Link></div>}>
         <div className="flex items-center gap-4">
           <div aria-hidden="true" className="grid w-16 shrink-0 place-items-center rounded-[var(--ph-radius-sm)] bg-[var(--ph-brand-soft)] py-2 text-[var(--ph-brand-strong)]">
             <span className="text-xs font-bold uppercase tracking-wide">{month}</span>
@@ -42,17 +41,16 @@ function SavedStrip() {
   const pets = useApi<{ pets: Pet[] }>(ids.length ? '/pets' : null, { staleSeconds: 60 });
   const byId = new Map((pets.data?.pets ?? []).map((pet) => [pet.id, pet]));
   const shown = ids.flatMap((id) => (byId.has(id) ? [byId.get(id) as Pet] : [])).slice(0, 12);
+  if (!ids.length) return null;
   return (
-    <Section id="saved-strip" title="Saved animals" aside={ids.length ? <Link href="?tab=saved">See all {ids.length}</Link> : undefined}>
-      {!ids.length ? (
-        <EmptyState pose="sleeping" title="You have not saved any animals yet" action={<ButtonLink variant="primary" href="/adopt">Meet the animals</ButtonLink>}>Choose the heart on an animal to keep them here.</EmptyState>
-      ) : pets.isPending ? <Skeleton className="h-40" /> : pets.isError ? (
-        <Muted>We could not load your saved animals. <Link href="?tab=saved">Open the Saved tab</Link> to try again.</Muted>
+    <Section id="saved-strip" title="Saved animals" aside={<Link href="?tab=saved">See all {ids.length}</Link>}>
+      {pets.isPending ? <Skeleton className="h-40" /> : pets.isError ? (
+        <Muted>We could not load your saved animals. <Link href="?tab=saved">Try the Saved tab</Link>.</Muted>
       ) : shown.length === 0 ? (
-        <Muted>The animals you saved are no longer listed. They may have found a home. <Link href="?tab=saved">See the Saved tab</Link>.</Muted>
+        <Muted>The animals you saved are no longer listed. They may have found a home.</Muted>
       ) : (
         <>
-          {!signedIn && <Muted className="mb-3 text-sm">Kept on this device only.</Muted>}
+          {!signedIn && <Muted className="mb-3 text-sm">Kept on this device.</Muted>}
           <ul className="-mx-1 flex snap-x gap-4 overflow-x-auto px-1 pb-3 pt-1">
             {shown.map((pet) => (
               <li key={pet.id} className="ph-lift w-40 shrink-0 snap-start rounded-[var(--ph-radius)] border border-stone-300 bg-white p-2 shadow-sm sm:w-44">
@@ -102,58 +100,27 @@ function FosterRequestRow({ request }: { request: MemberFosterRequest }) {
   );
 }
 
-function Involvement() {
+/** The shelter's invitation to foster, shown on Home until it is dismissed. Hours volunteered are one quiet line. */
+function useInvolvement() {
   const queryClient = useQueryClient();
   const involvement = useApi<MyInvolvement>('/me/involvement');
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
-  async function setAlerts(optIn: boolean) {
-    setBusy(true);
-    try { await api('/me/foster-alerts', { method: 'PUT', json: { optIn } }); setNote(optIn ? 'You will get an email when an animal needs a foster home.' : 'Foster alerts are off.'); await queryClient.invalidateQueries({ queryKey: ['/me/involvement'] }); }
-    catch (error) { setNote(errorMessage(error)); }
-    finally { setBusy(false); }
-  }
   async function dismiss() {
     await api('/me/foster-invitation/dismiss', { method: 'POST' }).catch(() => undefined);
     await queryClient.invalidateQueries({ queryKey: ['/me/involvement'] });
   }
-  return (
-    <Section id="involvement" title="Your involvement">
-      <LoadState query={involvement} label="your volunteer hours" skeleton="h-24">
-        {involvement.data && (
-          <div className="grid gap-4">
-            <p className="text-base text-stone-800">Volunteering so far: <strong className="text-stone-950">{involvement.data.volunteerShifts} shift{involvement.data.volunteerShifts === 1 ? '' : 's'}, {involvement.data.volunteerHours} hours</strong></p>
-            {involvement.data.fosterInvitation && (
-              <Notice tone="info" title="The shelter invites you to foster">
-                You have helped a lot already. Fostering gives an animal a break from the kennel.
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <ButtonLink variant="primary" href="/foster">See animals to foster</ButtonLink>
-                  <Button variant="secondary" onClick={() => void dismiss()}>Dismiss</Button>
-                </div>
-              </Notice>
-            )}
-            <div>
-              <Switch label="Email me when the shelter needs a foster" checked={involvement.data.fosterAlerts} disabled={!involvement.data.approvedFoster || busy} onChange={(e) => void setAlerts(e.target.checked)} />
-              {!involvement.data.approvedFoster && <p className="mt-1.5 text-sm text-stone-700">Available once one of your foster applications is approved.</p>}
-              <p role="status" className="mt-1 text-sm text-stone-800">{note}</p>
-            </div>
-          </div>
-        )}
-      </LoadState>
-    </Section>
-  );
+  return { data: involvement.data, dismiss };
 }
 
-function Matches() {
+export function Matches() {
   const quiz = useApi<LatestQuizResponse>('/quiz/latest');
   const result = quiz.data?.result;
   return (
     <Section id="matches" title="Your matches" aside={<Link href="/adopt/match">{result ? 'Retake the quiz' : 'Take the quiz'}</Link>}>
       <LoadState query={quiz} label="your matches" skeleton="h-28">
-        {!result && <Muted>Answer a few questions and we will suggest animals that suit you.</Muted>}
+        {!result && <Muted>Answer a few questions and we will suggest animals.</Muted>}
         {result && (
           <>
-            <Muted className="text-sm">From your quiz on {dayOnly(result.createdAt)}.</Muted>
+            <Muted className="text-sm">Quiz taken {dayOnly(result.createdAt)}</Muted>
             {!result.recommendations.length && <Muted className="mt-2">{result.notice ?? 'No available animals fit those answers right now.'}</Muted>}
             <ul className="mt-3">
               {result.recommendations.slice(0, 3).map((item) => {
@@ -176,74 +143,80 @@ function Matches() {
   );
 }
 
-export function Overview({ user }: { user: ApiUser }) {
+export function Overview() {
   const appointments = useApi<VisitAppointmentListResponse>('/appointments');
   const registrations = useApi<VolunteerRegistrationListResponse>('/volunteer/registrations');
   const adoption = useApi<AdoptionApplicationListResponse>('/applications');
   const foster = useApi<FosterApplicationListResponse>('/foster-applications');
   const requests = useApi<{ requests: MemberFosterRequest[] }>('/foster-requests');
+  const involvement = useInvolvement();
 
   const visits = (appointments.data?.appointments ?? []).filter((item) => item.status === 'booked' && upcoming(item.startsAt)).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
   const shifts = (registrations.data?.registrations ?? []).filter((item) => item.status === 'registered' && upcoming(item.startsAt)).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
   const open = (requests.data?.requests ?? []).filter((item) => item.response === 'pending');
 
   const attention: Attention[] = [];
-  for (const visit of visits) if (daysUntil(visit.startsAt) <= 1) attention.push({ key: `v${visit.id}`, title: 'Your shelter visit is coming up', detail: formatShelterRange(visit.startsAt, visit.endsAt), tab: 'visits', action: 'See visit' });
-  for (const shift of shifts) if (daysUntil(shift.startsAt) <= 1) attention.push({ key: `s${shift.id}`, title: `Volunteer shift soon: ${shift.title}`, detail: formatShelterRange(shift.startsAt, shift.endsAt), tab: 'visits', action: 'See shift' });
-  for (const item of adoption.data?.applications ?? []) if ((item.status === 'Approved' || item.status === 'Declined') && recent(item.reviewedAt)) attention.push({ key: `a${item.id}`, title: `Your adoption application for ${item.petName} was ${item.status.toLowerCase()}`, detail: item.status === 'Approved' ? 'The shelter will contact you about next steps.' : 'Thank you for applying. Other animals are waiting for homes.', tab: 'applications', action: 'See application' });
-  for (const item of foster.data?.applications ?? []) if ((item.status === 'Approved' || item.status === 'Declined') && recent(item.reviewedAt)) attention.push({ key: `f${item.id}`, title: `Your foster application for ${item.petName} was ${item.status.toLowerCase()}`, detail: item.status === 'Approved' ? 'The shelter will contact you about next steps.' : 'Thank you for offering. Other animals need a temporary home.', tab: 'applications', action: 'See application' });
+  for (const visit of visits) if (daysUntil(visit.startsAt) <= 1) attention.push({ key: `v${visit.id}`, title: 'Your visit is coming up', detail: formatShelterRange(visit.startsAt, visit.endsAt), tab: 'activity', action: 'See visit' });
+  for (const shift of shifts) if (daysUntil(shift.startsAt) <= 1) attention.push({ key: `s${shift.id}`, title: `Volunteer shift soon: ${shift.title}`, detail: formatShelterRange(shift.startsAt, shift.endsAt), tab: 'activity', action: 'See shift' });
+  for (const item of adoption.data?.applications ?? []) if ((item.status === 'Approved' || item.status === 'Declined') && recent(item.reviewedAt)) attention.push({ key: `a${item.id}`, title: `Your adoption application for ${item.petName} was ${item.status.toLowerCase()}`, detail: item.status === 'Approved' ? 'The shelter will contact you about next steps.' : 'Thank you for applying. Other animals are waiting for homes.', tab: 'activity', action: 'See application' });
+  for (const item of foster.data?.applications ?? []) if ((item.status === 'Approved' || item.status === 'Declined') && recent(item.reviewedAt)) attention.push({ key: `f${item.id}`, title: `Your foster application for ${item.petName} was ${item.status.toLowerCase()}`, detail: item.status === 'Approved' ? 'The shelter will contact you about next steps.' : 'Thank you for offering. Other animals need a temporary home.', tab: 'activity', action: 'See application' });
 
   const loading = appointments.isPending || registrations.isPending || adoption.isPending || foster.isPending || requests.isPending;
   const nextVisit = visits[0];
   const nextShift = shifts[0];
 
+  const invited = Boolean(involvement.data?.fosterInvitation);
+  const failed = appointments.isError || registrations.isError || adoption.isError || foster.isError || requests.isError;
+  const hours = involvement.data && involvement.data.volunteerShifts > 0 ? `${involvement.data.volunteerShifts} shift${involvement.data.volunteerShifts === 1 ? '' : 's'}, ${involvement.data.volunteerHours} hours volunteered` : '';
+
   return (
     <div className="grid gap-6">
-      <Section id="attention" title="Needs your attention">
-        {loading ? <div className="grid gap-3"><Skeleton className="h-16" /><Skeleton className="h-16" /></div> : (
-          <>
-            {open.length > 0 && <ul className="grid gap-3" aria-label="Foster requests from the shelter">{open.map((request) => <FosterRequestRow key={request.id} request={request} />)}</ul>}
-            {attention.length > 0 && (
-              <ul className={open.length ? 'mt-4' : undefined}>
-                {attention.map((item) => (
-                  <Row key={item.key}>
-                    <div className="min-w-0 flex-1"><p className="font-semibold text-stone-950">{item.title}</p><p className="mt-1 text-sm text-stone-700">{item.detail}</p></div>
-                    <ButtonLink variant="secondary" href={`?tab=${item.tab}`}>{item.action}</ButtonLink>
-                  </Row>
-                ))}
-              </ul>
-            )}
-            {!open.length && !attention.length && (
-              <p className="flex items-center gap-2 text-base text-stone-800"><CheckIcon aria-hidden="true" /> Nothing needs your attention, {user.name.split(' ')[0]}.</p>
-            )}
-            {(appointments.isError || registrations.isError || adoption.isError || foster.isError || requests.isError) && (
-              <Muted className="mt-3 text-sm">Some of your information did not load, so this list may be incomplete. Refresh the page to try again.</Muted>
-            )}
-          </>
-        )}
-      </Section>
+      {loading && <Skeleton className="h-32" />}
+      {!loading && (open.length > 0 || attention.length > 0 || invited) && (
+        <Section id="attention" title="Needs you">
+          {open.length > 0 && <ul className="grid gap-3" aria-label="Foster requests from the shelter">{open.map((request) => <FosterRequestRow key={request.id} request={request} />)}</ul>}
+          {attention.length > 0 && (
+            <ul className={open.length ? 'mt-4' : undefined}>
+              {attention.map((item) => (
+                <Row key={item.key} className="items-center">
+                  <div className="min-w-0 flex-1"><p className="font-semibold text-stone-950">{item.title}</p><p className="mt-0.5 text-sm text-stone-700">{item.detail}</p></div>
+                  <ButtonLink variant="secondary" href={`?tab=${item.tab}`}>{item.action}</ButtonLink>
+                </Row>
+              ))}
+            </ul>
+          )}
+          {invited && (
+            <Notice tone="info" title="Could you foster?" className={open.length || attention.length ? 'mt-4' : undefined}>
+              You have helped a lot already. A foster home gives an animal a break from the kennel.
+              <div className="mt-2 flex flex-wrap gap-2">
+                <ButtonLink variant="primary" href="/foster">See animals to foster</ButtonLink>
+                <Button variant="secondary" onClick={() => void involvement.dismiss()}>Not now</Button>
+              </div>
+            </Notice>
+          )}
+        </Section>
+      )}
 
-      <Section id="next" title="What is next" aside={<Link href="?tab=visits">All visits and shifts</Link>}>
-        {loading ? <Skeleton className="h-28" /> : !nextVisit && !nextShift ? (
-          <EmptyState pose="sleeping" title="Nothing is booked yet" action={<ButtonLink variant="primary" href="/visit">Plan a visit</ButtonLink>}>
-            Plan a visit to meet the animals, or <TextLink href="/volunteer">find a volunteer shift</TextLink>.
-          </EmptyState>
-        ) : (
-          <ul className="grid gap-4 lg:grid-cols-2">
-            {[
-              ...(nextVisit ? [{ key: 'visit', startsAt: nextVisit.startsAt, ticket: <NextTicket key="visit" label="Shelter visit" title={nextVisit.pets.length ? `Meeting ${nextVisit.pets.map((pet) => pet.name).join(', ')}` : 'Come and meet the animals'} startsAt={nextVisit.startsAt} endsAt={nextVisit.endsAt} detail={`Party of ${nextVisit.partySize}`} /> }] : []),
-              ...(nextShift ? [{ key: 'shift', startsAt: nextShift.startsAt, ticket: <NextTicket key="shift" label="Volunteer shift" title={nextShift.title} startsAt={nextShift.startsAt} endsAt={nextShift.endsAt} detail={nextShift.requirements || 'Volunteer shift'} /> }] : []),
-            ].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)).map((item) => item.ticket)}
-          </ul>
-        )}
-      </Section>
+      {!loading && (
+        <Section id="next" title="Next up" aside={nextVisit || nextShift ? <Link href="?tab=activity">See all</Link> : undefined}>
+          {!nextVisit && !nextShift ? (
+            <EmptyState pose="sleeping" title="Nothing booked" action={<ButtonLink variant="primary" href="/visit">Plan a visit</ButtonLink>}>
+              Meet the animals, or <TextLink href="/volunteer">find a shift</TextLink>.
+            </EmptyState>
+          ) : (
+            <ul className="grid gap-4 lg:grid-cols-2">
+              {[
+                ...(nextVisit ? [{ key: 'visit', startsAt: nextVisit.startsAt, ticket: <NextTicket key="visit" label="Shelter visit" title={nextVisit.pets.length ? `Meeting ${nextVisit.pets.map((pet) => pet.name).join(', ')}` : 'Come and meet the animals'} startsAt={nextVisit.startsAt} endsAt={nextVisit.endsAt} detail={`Party of ${nextVisit.partySize}`} /> }] : []),
+                ...(nextShift ? [{ key: 'shift', startsAt: nextShift.startsAt, ticket: <NextTicket key="shift" label="Volunteer shift" title={nextShift.title} startsAt={nextShift.startsAt} endsAt={nextShift.endsAt} detail={nextShift.requirements || 'Volunteer shift'} /> }] : []),
+              ].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)).map((item) => item.ticket)}
+            </ul>
+          )}
+        </Section>
+      )}
 
+      {failed && <Muted className="text-sm">Some of your information did not load. Refresh to try again.</Muted>}
       <SavedStrip />
-
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <Matches />
-        <Involvement />
-      </div>
+      {hours && <Muted className="text-sm">{hours}</Muted>}
     </div>
   );
 }
