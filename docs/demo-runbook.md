@@ -158,9 +158,13 @@ and `supabase/seed-dekalb.sql` (31 animals from DeKalb County Animal Services,
 shown with credit and a link back). Run `npm run db:images` after every reset
 to download their photos into local Storage; photos are never committed
 (`.cache/` is ignored). Imported animals are browse-only and are excluded from
-lost-pet photo matching. This data is local only; do not push it to production
-without the shelter's say-so. Regenerate the seed from a listing-saver export
-with `node scripts/build-dekalb-seed.mjs path/to/animals.json`.
+lost-pet photo matching. Regenerate the seed from a listing-saver export
+with `node scripts/build-dekalb-seed.mjs path/to/animals.json`. For the hosted demo
+database add `--hosted`, then run `.cache/dekalb-hosted.sql` with
+`npx supabase db query --linked -f`: photos stay linked to the source, nothing is
+uploaded, and animals already there are skipped. The hosted demo holds 67 of
+these animals (loaded 2026-11-14); the project owner chose to show them with
+credit and a link back.
 
 ## Get Involved demo path
 
