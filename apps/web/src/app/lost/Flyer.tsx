@@ -3,7 +3,7 @@ import './flyer.css';
 import { callLine, fitSize, formatPhone, hasPetFacts, headlineText, longDate, reachText, tabLines, type FlyerData } from './flyer-text';
 
 const MIN_FIT = 0.6;
-const MAX_FIT = 1.5;
+const MAX_FIT = 1.3;
 const STEP = 0.04;
 
 /**
@@ -25,13 +25,15 @@ export function Flyer({ data, photoUrl, onOverflow }: { data: FlyerData; photoUr
     const box = outer.current;
     const content = inner.current;
     if (!box || !content) return;
+    // Too big means taller than the column, or wider (a long unbreakable word or the reward badge).
+    const tooBig = () => content.offsetHeight > box.clientHeight - 2 || content.scrollWidth > box.clientWidth + 1;
     let scale = MAX_FIT;
     content.style.setProperty('--fit', String(scale));
-    while (scale > MIN_FIT && content.offsetHeight > box.clientHeight - 2) {
+    while (scale > MIN_FIT && tooBig()) {
       scale = Math.round((scale - STEP) * 100) / 100;
       content.style.setProperty('--fit', String(scale));
     }
-    const overflowing = content.offsetHeight > box.clientHeight - 2;
+    const overflowing = tooBig();
     if (last.current !== overflowing) { last.current = overflowing; report.current?.(overflowing); }
   };
 

@@ -115,14 +115,12 @@ function FlyerContent() {
             </Fieldset>
             <Field label="Pet’s name">{(a) => <Input {...a} placeholder="Biscuit" autoComplete="off" {...text('petName')} />}</Field>
             <Field label="Breed">{(a) => <Input {...a} placeholder="Beagle mix" autoComplete="off" {...text('breed')} />}</Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Age">{(a) => <Input {...a} placeholder="3 years" autoComplete="off" {...text('age')} />}</Field>
-              <Fieldset legend="Sex">
-                <div className="flex flex-wrap gap-2">
-                  {SEXES.map((sex) => <ChipToggle key={sex} pressed={data.sex === sex} onClick={() => set('sex', data.sex === sex ? '' : sex)} className="px-3">{sex}</ChipToggle>)}
-                </div>
-              </Fieldset>
-            </div>
+            <Field label="Age">{(a) => <Input {...a} placeholder="3 years" autoComplete="off" {...text('age')} />}</Field>
+            <Fieldset legend="Sex">
+              <div className="flex flex-wrap gap-2">
+                {SEXES.map((sex) => <ChipToggle key={sex} pressed={data.sex === sex} onClick={() => set('sex', data.sex === sex ? '' : sex)}>{sex}</ChipToggle>)}
+              </div>
+            </Fieldset>
             <Field label="Color and markings" help="What would you notice first?">{(a) => <Input {...a} placeholder="Brown and white, white patch on the chest" autoComplete="off" {...text('appearance')} />}</Field>
             <Field label="Collar, microchip, or other details">{(a) => <Input {...a} placeholder="Red collar, microchipped, limps on the left rear leg" autoComplete="off" {...text('distinguishing')} />}</Field>
           </Card>
