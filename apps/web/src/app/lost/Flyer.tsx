@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import './flyer.css';
 import { callLine, fitSize, formatPhone, hasPetFacts, headlineText, longDate, reachText, tabLines, type FlyerData } from './flyer-text';
 
@@ -7,13 +7,16 @@ const MAX_FIT = 1.5;
 const STEP = 0.04;
 
 /**
- * The sheet that gets printed. It is drawn once, in em units, so the preview and the paper match. Every field is
- * optional: whatever is empty is simply left out of the printed sheet, and on screen a dashed hint shows where it will go.
- * The facts column grows its text to fill the space and shrinks it again if there is too much, so nothing is cut off.
+ * The sheet that gets printed. It is always laid out at its printed size (816 x 1054 px) and the preview is that same
+ * drawing scaled down, so wrapping, the fit below, and the printed page agree exactly. Every field is optional:
+ * whatever is empty is left out of the printed sheet, and on screen a dashed hint shows where it will go. The facts
+ * column grows its text to fill the space and shrinks it again if there is too much, so nothing is cut off.
  */
 export function Flyer({ data, photoUrl, onOverflow }: { data: FlyerData; photoUrl: string | null; onOverflow?: (overflowing: boolean) => void }) {
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.6);
   const last = useRef<boolean | null>(null);
   const report = useRef(onOverflow);
   report.current = onOverflow;
@@ -32,14 +35,24 @@ export function Flyer({ data, photoUrl, onOverflow }: { data: FlyerData; photoUr
     if (last.current !== overflowing) { last.current = overflowing; report.current?.(overflowing); }
   };
 
-  // Refit whenever the words change, then again when the font has loaded or the preview is resized.
+  // Refit whenever the words change, when the font arrives, and just before printing.
   useLayoutEffect(fit);
   useEffect(() => {
-    const frame = outer.current?.closest('.fl-frame');
-    const observer = frame && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => fit()) : null;
-    if (frame) observer?.observe(frame);
     void document.fonts?.ready.then(() => fit());
-    return () => observer?.disconnect();
+    window.addEventListener('beforeprint', fit);
+    return () => window.removeEventListener('beforeprint', fit);
+  }, []);
+
+  // The preview is the printed sheet scaled to the width it has been given.
+  useLayoutEffect(() => {
+    const element = frame.current;
+    if (!element) return;
+    const measure = () => { if (element.clientWidth) setScale(element.clientWidth / 816); };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
   }, []);
 
   const v = (value: string) => value.trim();
@@ -55,6 +68,8 @@ export function Flyer({ data, photoUrl, onOverflow }: { data: FlyerData; photoUr
   const reachSize = fitSize(phone || v(data.contactEmail), 44, 4.2, 1.8, 0.62);
 
   return (
+    <div className="fl-frame" ref={frame} style={{ '--s': scale } as CSSProperties}>
+    <div className="fl-scaler">
     <article id="lost-pet-flyer" aria-label="Flyer preview" className="fl">
       <p className="fl-head" style={{ fontSize: `${fitSize(headline, 44, 6.6, 2.6)}em` }}>{headline}</p>
 
@@ -116,5 +131,7 @@ export function Flyer({ data, photoUrl, onOverflow }: { data: FlyerData; photoUr
         </div>
       )}
     </article>
+    </div>
+    </div>
   );
 }

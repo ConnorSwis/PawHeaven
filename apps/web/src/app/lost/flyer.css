@@ -5,19 +5,21 @@
  * (the one deliberate exception to "colors come from the theme"). It also avoids relying on background fills,
  * which most browsers do not print by default: structure comes from thick black borders instead.
  *
- * Everything inside the sheet is sized in em, and the sheet's font size is 1/51 of its width. On paper (8.5in wide)
- * 1em is 16px; the on-screen preview is the same drawing, just smaller, so what you see is what prints.
+ * The sheet is always laid out at its printed size (816 x 1054 px, 16px text) and the preview just scales that
+ * drawing down with a transform. Text wrapping, the fit-to-space sizing in Flyer.tsx, and the page you print are
+ * therefore identical; nothing is re-flowed at a different size, which is what made printing differ before.
  */
 
-.fl-frame { container-type: inline-size; width: 100%; }
+.fl-frame { width: 100%; height: calc(1054px * var(--s, 0.6)); }
+.fl-scaler { width: 816px; height: 1054px; transform: scale(var(--s, 0.6)); transform-origin: 0 0; }
 
 .fl {
   --fit: 1;
   position: relative;
   box-sizing: border-box;
-  width: 100%;
-  aspect-ratio: 8.5 / 11;
-  font-size: calc(100cqw / 51);
+  width: 816px;
+  height: 1054px;
+  font-size: 16px;
   line-height: 1.2;
   display: flex;
   flex-direction: column;
@@ -49,8 +51,9 @@
 /* Photo and facts. */
 .fl-main { display: grid; grid-template-columns: 24em minmax(0, 1fr); gap: 1.4em; flex: 1 1 0; min-height: 0; }
 .fl-main[data-photo='none'] { grid-template-columns: minmax(0, 1fr); }
-.fl-photo { position: relative; min-height: 0; border: 0.25em solid black; border-radius: 1em; overflow: hidden; background: white; }
-.fl-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.fl-photo { position: relative; min-height: 0; }
+/* Border and corners on the image itself (not a clipping parent): printers and PDF writers clip rounded children badly. */
+.fl-photo img { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border: 0.25em solid black; border-radius: 1em; object-fit: cover; background: white; }
 .fl-photo[data-fit='whole'] img { object-fit: contain; }
 
 .fl-facts { min-height: 0; min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
@@ -60,7 +63,7 @@
 .fl-fact dt { font-size: 0.62em; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: dimgray; }
 .fl-fact dd { font-size: 1.25em; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 .fl-pair { display: flex; flex-wrap: wrap; gap: 0.75em 1.8em; }
-.fl-reward { justify-self: start; border: 0.18em solid black; border-radius: 99em; padding: 0.15em 0.7em 0.2em; font-size: 1.25em; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+.fl-reward { justify-self: start; white-space: nowrap; border: 0.18em solid black; border-radius: 99em; padding: 0.15em calc(0.7em - 0.06em) 0.2em 0.7em; font-size: 1.25em; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
 .fl-note { font-size: 1.15em; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
 
 /* Last seen. */
@@ -96,10 +99,10 @@
   html, body { height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: white !important; }
   /* Only the sheet goes to the printer: no header, footer, skip link, form, or buttons. */
   body > :not(main), .fl-screen, .fl-ghost { display: none !important; }
-  main, .fl-page, .fl-stage-wrap { display: block !important; margin: 0 !important; padding: 0 !important; max-width: none !important; width: auto !important; position: static !important; }
+  main, .fl-page, .fl-stage-wrap { display: block !important; visibility: visible !important; height: auto !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; max-width: none !important; width: auto !important; position: static !important; }
   .fl-stage { display: block !important; background: none; padding: 0; border-radius: 0; }
-  .fl-paper { width: 8.5in !important; max-width: none !important; margin: 0 !important; box-shadow: none; border-radius: 0; }
-  .fl-frame { width: 8.5in; }
-  .fl { width: 8.5in; height: 10.98in; aspect-ratio: auto; break-inside: avoid; }
-  .fl-main[data-photo='none'] { grid-template-columns: minmax(0, 1fr); }
+  .fl-paper { width: 816px !important; max-width: none !important; margin: 0 !important; box-shadow: none; border-radius: 0; overflow: visible; }
+  .fl-frame { width: 816px; height: 1054px; }
+  .fl-scaler { transform: none !important; }
+  .fl { break-inside: avoid; }
 }

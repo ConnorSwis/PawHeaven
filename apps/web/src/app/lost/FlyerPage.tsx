@@ -184,7 +184,8 @@ function FlyerContent() {
           </div>
         </form>
 
-        <section aria-labelledby="preview-heading" className={cx('fl-stage-wrap lg:sticky lg:top-6', view === 'edit' && 'max-lg:hidden')}>
+        {/* Hidden on phones while editing, but still laid out (not display: none) so the sheet can measure and fit its text. */}
+        <section aria-labelledby="preview-heading" className={cx('fl-stage-wrap lg:sticky lg:top-6', view === 'edit' && 'max-lg:invisible max-lg:h-0 max-lg:overflow-hidden')}>
           <div className="fl-screen mb-3 flex flex-wrap items-center gap-3">
             <h2 id="preview-heading" className="mr-auto text-xl font-semibold text-stone-950">Your flyer</h2>
             <Button variant="primary" onClick={print}>Print flyer</Button>
@@ -198,7 +199,7 @@ function FlyerContent() {
           </div>
           <div className="fl-stage bg-stone-100">
             <div className="fl-paper" style={{ maxWidth: 'min(100%, max(16rem, calc((100dvh - 12rem) * 0.7727)))' }}>
-              <div className="fl-frame"><Flyer data={data} photoUrl={photoUrl} onOverflow={setOverflowing} /></div>
+              <Flyer data={data} photoUrl={photoUrl} onOverflow={setOverflowing} />
             </div>
           </div>
         </section>
