@@ -126,7 +126,7 @@ function Directory() {
 
       <MoreFiltersSheet open={sheetOpen} onOpenChange={setSheetOpen} filters={filters} setFilters={setFilters} resultCount={results.length} onClear={clear} canClear={anyFilter} />
 
-      {pets && !anyFilter && filters.sort !== 'help' && (
+      {pets && !anyFilter && filters.sort === 'waiting' && (
         <NeedsHelpRow
           pets={pets}
           id="directory-needs-help"
