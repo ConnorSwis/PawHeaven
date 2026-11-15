@@ -1,16 +1,74 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { matchStrength, type AdoptionApplicationListResponse, type ApiUser, type FosterApplicationListResponse, type LatestQuizResponse, type MemberFosterRequest, type MyInvolvement, type VisitAppointmentListResponse, type VolunteerRegistrationListResponse } from '@pawheaven/contracts';
+import { matchStrength, type Pet, type AdoptionApplicationListResponse, type ApiUser, type FosterApplicationListResponse, type LatestQuizResponse, type MemberFosterRequest, type MyInvolvement, type VisitAppointmentListResponse, type VolunteerRegistrationListResponse } from '@pawheaven/contracts';
 import { daysUntil, formatShelterRange } from '@pawheaven/contracts/ui';
 import { api, errorMessage, useApi } from '../../lib/fetch';
-import { Badge, Button, ButtonLink, Field, Input, Notice, Skeleton } from '../../ui';
+import { Badge, Button, ButtonLink, EmptyState, Field, Input, Notice, Skeleton, Switch, TextLink, TicketCard } from '../../ui';
 import { CheckIcon } from '../../ui/icons';
+import { dayLong, monthDay, PetPicture, timeRange, zoneName } from '../involve/common';
 import { LoadState, Link, Muted, Row, Section, dayOnly, petPath } from './common';
+import { useSavedIds } from './savedIds';
 
 type Attention = { key: string; title: string; detail: string; tab: string; action: string };
 
 const upcoming = (startsAt: string) => Date.parse(startsAt) > Date.now();
 const recent = (reviewedAt: string | null) => reviewedAt !== null && Date.now() - Date.parse(reviewedAt) < 7 * 86_400_000;
+
+/** The next thing on the calendar, as a ticket: a date block, what and when, and a stub with the details. */
+function NextTicket({ label, title, startsAt, endsAt, detail }: { label: string; title: string; startsAt: string; endsAt: string; detail: string }) {
+  const [month, day] = monthDay(startsAt).split(' ');
+  return (
+    <li>
+      <TicketCard stub={<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"><p className="text-sm text-stone-800">{detail}</p><Link href="?tab=visits" className="text-sm">Manage<span className="sr-only"> {label.toLowerCase()}</span></Link></div>}>
+        <div className="flex items-center gap-4">
+          <div aria-hidden="true" className="grid w-16 shrink-0 place-items-center rounded-[var(--ph-radius-sm)] bg-[var(--ph-brand-soft)] py-2 text-[var(--ph-brand-strong)]">
+            <span className="text-xs font-bold uppercase tracking-wide">{month}</span>
+            <span className="text-2xl font-extrabold leading-none">{day}</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-stone-700">{label}</p>
+            <p className="text-lg font-bold leading-snug text-stone-950">{title}</p>
+            <p className="text-base text-stone-800">{dayLong(startsAt)}, {timeRange(startsAt, endsAt)} {zoneName(startsAt)}</p>
+          </div>
+        </div>
+      </TicketCard>
+    </li>
+  );
+}
+
+/** Animals saved on this device or account, as a strip of photos. */
+function SavedStrip() {
+  const { ids, signedIn } = useSavedIds();
+  const pets = useApi<{ pets: Pet[] }>(ids.length ? '/pets' : null, { staleSeconds: 60 });
+  const byId = new Map((pets.data?.pets ?? []).map((pet) => [pet.id, pet]));
+  const shown = ids.flatMap((id) => (byId.has(id) ? [byId.get(id) as Pet] : [])).slice(0, 12);
+  return (
+    <Section id="saved-strip" title="Saved animals" aside={ids.length ? <Link href="?tab=saved">See all {ids.length}</Link> : undefined}>
+      {!ids.length ? (
+        <EmptyState pose="sleeping" title="You have not saved any animals yet" action={<ButtonLink variant="primary" href="/adopt">Meet the animals</ButtonLink>}>Choose the heart on an animal to keep them here.</EmptyState>
+      ) : pets.isPending ? <Skeleton className="h-40" /> : pets.isError ? (
+        <Muted>We could not load your saved animals. <Link href="?tab=saved">Open the Saved tab</Link> to try again.</Muted>
+      ) : shown.length === 0 ? (
+        <Muted>The animals you saved are no longer listed. They may have found a home. <Link href="?tab=saved">See the Saved tab</Link>.</Muted>
+      ) : (
+        <>
+          {!signedIn && <Muted className="mb-3 text-sm">Kept on this device only.</Muted>}
+          <ul className="-mx-1 flex snap-x gap-4 overflow-x-auto px-1 pb-3 pt-1">
+            {shown.map((pet) => (
+              <li key={pet.id} className="ph-lift w-40 shrink-0 snap-start rounded-[var(--ph-radius)] border border-stone-300 bg-white p-2 shadow-sm sm:w-44">
+                <a href={petPath(pet)} className="block rounded-[calc(var(--ph-radius)-0.5rem)]">
+                  <PetPicture pet={pet} decorative className="aspect-[4/3] w-full rounded-[calc(var(--ph-radius)-0.5rem)]" />
+                  <span className="mt-2 block truncate px-1 pb-1 text-base font-bold text-stone-950">{pet.name}</span>
+                  <span className="sr-only">{[pet.breed || pet.type, pet.age].filter(Boolean).join(', ')}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Section>
+  );
+}
 
 function FosterRequestRow({ request }: { request: MemberFosterRequest }) {
   const queryClient = useQueryClient();
@@ -75,11 +133,8 @@ function Involvement() {
               </Notice>
             )}
             <div>
-              <label className="flex min-h-11 items-center gap-3 text-base text-stone-950">
-                <input type="checkbox" className="size-5" checked={involvement.data.fosterAlerts} disabled={!involvement.data.approvedFoster || busy} onChange={(e) => void setAlerts(e.target.checked)} />
-                Email me when the shelter needs a foster
-              </label>
-              {!involvement.data.approvedFoster && <p className="mt-1 text-sm text-stone-700">Available once one of your foster applications is approved.</p>}
+              <Switch label="Email me when the shelter needs a foster" checked={involvement.data.fosterAlerts} disabled={!involvement.data.approvedFoster || busy} onChange={(e) => void setAlerts(e.target.checked)} />
+              {!involvement.data.approvedFoster && <p className="mt-1.5 text-sm text-stone-700">Available once one of your foster applications is approved.</p>}
               <p role="status" className="mt-1 text-sm text-stone-800">{note}</p>
             </div>
           </div>
@@ -169,33 +224,21 @@ export function Overview({ user }: { user: ApiUser }) {
       </Section>
 
       <Section id="next" title="What is next" aside={<Link href="?tab=visits">All visits and shifts</Link>}>
-        {loading ? <Skeleton className="h-20" /> : !nextVisit && !nextShift ? (
-          <div>
-            <Muted>Nothing is booked yet. Plan a visit to meet the animals, or sign up for a volunteer shift.</Muted>
-            <div className="mt-3 flex flex-wrap gap-2"><ButtonLink variant="primary" href="/visit">Plan a visit</ButtonLink><ButtonLink variant="secondary" href="/volunteer">Find a volunteer shift</ButtonLink></div>
-          </div>
+        {loading ? <Skeleton className="h-28" /> : !nextVisit && !nextShift ? (
+          <EmptyState pose="sleeping" title="Nothing is booked yet" action={<ButtonLink variant="primary" href="/visit">Plan a visit</ButtonLink>}>
+            Plan a visit to meet the animals, or <TextLink href="/volunteer">find a volunteer shift</TextLink>.
+          </EmptyState>
         ) : (
-          <ul>
-            {nextVisit && (
-              <Row>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-stone-950">Shelter visit</p>
-                  <p className="mt-1 text-base text-stone-800">{formatShelterRange(nextVisit.startsAt, nextVisit.endsAt)}</p>
-                  <p className="mt-1 text-sm text-stone-700">{nextVisit.pets.length ? `Meeting ${nextVisit.pets.map((pet) => pet.name).join(', ')} · ` : ''}party of {nextVisit.partySize}</p>
-                </div>
-              </Row>
-            )}
-            {nextShift && (
-              <Row>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-stone-950">Volunteer shift: {nextShift.title}</p>
-                  <p className="mt-1 text-base text-stone-800">{formatShelterRange(nextShift.startsAt, nextShift.endsAt)}</p>
-                </div>
-              </Row>
-            )}
+          <ul className="grid gap-4 lg:grid-cols-2">
+            {[
+              ...(nextVisit ? [{ key: 'visit', startsAt: nextVisit.startsAt, ticket: <NextTicket key="visit" label="Shelter visit" title={nextVisit.pets.length ? `Meeting ${nextVisit.pets.map((pet) => pet.name).join(', ')}` : 'Come and meet the animals'} startsAt={nextVisit.startsAt} endsAt={nextVisit.endsAt} detail={`Party of ${nextVisit.partySize}`} /> }] : []),
+              ...(nextShift ? [{ key: 'shift', startsAt: nextShift.startsAt, ticket: <NextTicket key="shift" label="Volunteer shift" title={nextShift.title} startsAt={nextShift.startsAt} endsAt={nextShift.endsAt} detail={nextShift.requirements || 'Volunteer shift'} /> }] : []),
+            ].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)).map((item) => item.ticket)}
           </ul>
         )}
       </Section>
+
+      <SavedStrip />
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <Matches />

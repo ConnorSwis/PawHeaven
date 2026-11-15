@@ -4,7 +4,7 @@ import type { ScheduleEntry, VisitAppointment, VisitAppointmentListResponse, Vis
 import { formatShelterRange } from '@pawheaven/contracts/ui';
 import { apiBase } from '../../lib/api';
 import { api, errorMessage, useApi } from '../../lib/fetch';
-import { Badge, Button, ButtonLink, Field, Select } from '../../ui';
+import { Badge, Button, ButtonLink, EmptyState, Field, Select, TicketCard } from '../../ui';
 import { CalendarIcon } from '../../ui/icons';
 import { ConfirmAction, LoadState, Muted, Row, Section, calendarDay, petPath } from './common';
 import { StatusBadge } from './common';
@@ -33,34 +33,35 @@ function VisitRow({ visit, slots }: { visit: VisitAppointment; slots: VisitSlotL
   }
 
   return (
-    <Row>
-      <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-center gap-2 font-semibold text-stone-950">Shelter visit <StatusBadge status="booked" /></p>
+    <li>
+      <TicketCard stub={
+        <div className="grid gap-3 sm:max-w-sm">
+          {open.length > 0 ? (
+            <div className="grid gap-2">
+              <Field label="Move to another open time">
+                {(a) => (
+                  <Select {...a} value={slotId} onChange={(e) => { setSlotId(e.target.value); setError(''); }}>
+                    <option value="">Choose a time…</option>
+                    {open.map((slot) => <option key={slot.id} value={slot.id}>{formatShelterRange(slot.startsAt, slot.endsAt)}</option>)}
+                  </Select>
+                )}
+              </Field>
+              <div><Button variant="secondary" disabled={busy !== null} onClick={() => void run('move')}>{busy === 'move' ? 'Moving…' : 'Reschedule'}</Button></div>
+            </div>
+          ) : <p className="text-sm text-stone-700">No other open times right now. <a className="font-medium underline underline-offset-4" href="/visit">See the visit page</a> later for new times.</p>}
+          <ConfirmAction label="Cancel visit" srLabel={`on ${formatShelterRange(visit.startsAt, visit.endsAt)}`} question="Cancel this shelter visit? The time will open for someone else." confirmLabel="Yes, cancel visit" keepLabel="Keep visit" busy={busy === 'cancel'} onConfirm={() => void run('cancel')} />
+          {error && <p role="alert" className="text-sm font-semibold text-red-800">{error}</p>}
+          <p role="status" className="text-sm text-stone-800">{note}</p>
+        </div>
+      }>
+        <p className="flex flex-wrap items-center gap-2 text-lg font-bold text-stone-950">Shelter visit <StatusBadge status="booked" /></p>
         <p className="mt-1 text-base text-stone-800">{formatShelterRange(visit.startsAt, visit.endsAt)}</p>
         <p className="mt-1 text-sm text-stone-700">Party of {visit.partySize}</p>
         {visit.pets.length > 0 ? (
           <p className="mt-1 text-sm text-stone-700">Meeting: {visit.pets.map((pet, index) => <span key={pet.id}>{index > 0 && ', '}<a className="font-medium underline underline-offset-4" href={petPath(pet)}>{pet.name}</a></span>)}</p>
         ) : visit.purpose ? <p className="mt-1 text-sm text-stone-700">{visit.purpose}</p> : null}
-      </div>
-      <div className="grid w-full gap-3 sm:max-w-sm">
-        {open.length > 0 ? (
-          <div className="grid gap-2">
-            <Field label="Move to another open time">
-              {(a) => (
-                <Select {...a} value={slotId} onChange={(e) => { setSlotId(e.target.value); setError(''); }}>
-                  <option value="">Choose a time…</option>
-                  {open.map((slot) => <option key={slot.id} value={slot.id}>{formatShelterRange(slot.startsAt, slot.endsAt)}</option>)}
-                </Select>
-              )}
-            </Field>
-            <div><Button variant="secondary" disabled={busy !== null} onClick={() => void run('move')}>{busy === 'move' ? 'Moving…' : 'Reschedule'}</Button></div>
-          </div>
-        ) : <p className="text-sm text-stone-700">No other open times right now. <a className="font-medium underline underline-offset-4" href="/visit">See the visit page</a> later for new times.</p>}
-        <ConfirmAction label="Cancel visit" srLabel={`on ${formatShelterRange(visit.startsAt, visit.endsAt)}`} question="Cancel this shelter visit? The time will open for someone else." confirmLabel="Yes, cancel visit" keepLabel="Keep visit" busy={busy === 'cancel'} onConfirm={() => void run('cancel')} />
-        {error && <p role="alert" className="text-sm font-semibold text-red-800">{error}</p>}
-        <p role="status" className="text-sm text-stone-800">{note}</p>
-      </div>
-    </Row>
+      </TicketCard>
+    </li>
   );
 }
 
@@ -74,16 +75,13 @@ function ShiftRow({ shift }: { shift: VolunteerRegistration }) {
     catch (exception) { setError(errorMessage(exception)); setBusy(false); }
   }
   return (
-    <Row>
-      <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-center gap-2 font-semibold text-stone-950">{shift.title} <StatusBadge status="registered" /></p>
+    <li>
+      <TicketCard stub={<div className="sm:max-w-sm"><ConfirmAction label="Cancel sign-up" srLabel={`for ${shift.title}`} question="Cancel this volunteer shift? Your spot will open for someone else." confirmLabel="Yes, cancel sign-up" keepLabel="Keep my spot" busy={busy} onConfirm={() => void cancel()} error={error} /></div>}>
+        <p className="flex flex-wrap items-center gap-2 text-lg font-bold text-stone-950">{shift.title} <StatusBadge status="registered" /></p>
         <p className="mt-1 text-base text-stone-800">{formatShelterRange(shift.startsAt, shift.endsAt)}</p>
         {shift.requirements && <p className="mt-1 text-sm text-stone-700">{shift.requirements}</p>}
-      </div>
-      <div className="w-full sm:max-w-sm">
-        <ConfirmAction label="Cancel sign-up" srLabel={`for ${shift.title}`} question="Cancel this volunteer shift? Your spot will open for someone else." confirmLabel="Yes, cancel sign-up" keepLabel="Keep my spot" busy={busy} onConfirm={() => void cancel()} error={error} />
-      </div>
-    </Row>
+      </TicketCard>
+    </li>
   );
 }
 
@@ -134,16 +132,16 @@ export function Visits() {
       <Section id="visits" title="Upcoming visits" aside={<a className="inline-flex min-h-11 items-center font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href="/visit">Plan a visit</a>}>
         <LoadState query={appointments} label="your visits">
           {visits.length ? (
-            <ul>{visits.map((visit) => <VisitRow key={visit.id} visit={visit} slots={slots.data} />)}</ul>
+            <ul className="grid gap-4">{visits.map((visit) => <VisitRow key={visit.id} visit={visit} slots={slots.data} />)}</ul>
           ) : (
-            <div><Muted>You have no visits booked. Plan a visit to meet the animals in person.</Muted><div className="mt-3"><ButtonLink variant="primary" href="/visit">Plan a visit</ButtonLink></div></div>
+            <EmptyState pose="sleeping" title="No visits booked" action={<ButtonLink variant="primary" href="/visit">Plan a visit</ButtonLink>}>Plan a visit to meet the animals in person.</EmptyState>
           )}
         </LoadState>
       </Section>
 
       <Section id="shifts" title="Volunteer shifts" aside={<a className="inline-flex min-h-11 items-center font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href="/volunteer">Find a shift</a>}>
         <LoadState query={registrations} label="your volunteer shifts">
-          {shifts.length ? <ul>{shifts.map((shift) => <ShiftRow key={shift.id} shift={shift} />)}</ul> : (
+          {shifts.length ? <ul className="grid gap-4">{shifts.map((shift) => <ShiftRow key={shift.id} shift={shift} />)}</ul> : (
             <div><Muted>You have not signed up for a shift. Volunteers walk dogs, socialize cats, and help around the shelter.</Muted><div className="mt-3"><ButtonLink variant="secondary" href="/volunteer">See volunteer shifts</ButtonLink></div></div>
           )}
         </LoadState>

@@ -20,6 +20,7 @@ Plan: https://claude.ai/artifact/4UtckZsihLsmTnPL4RFukz. This file is the build 
 | Donate | `/donate`, `/donate/thanks` | `/donate` shows the six newest staff-approved opted-in live supporters, with only their chosen display name, amount, and optional message. |
 | Auth | `/login`, `/sign-up` | Honor `?next=` |
 | My PawHeaven | `/me?tab=overview\|visits\|applications\|saved\|details` | One tabbed page |
+| Not found | any unknown address | `src/pages/404.astro`: mascot searching, "This page wandered off", links to Adopt and Home; `not_found_handling: "404-page"` serves it with a 404 status |
 | Newsletter | `/newsletter/confirm?t=<token>`, `/unsubscribe?t=<signed token>` | Reached from emails. No sign-in. Both `noindex`, both act only on a button press |
 | Content | `/about`, `/contact`, `/faq`, `/privacy`, `/terms` | Done; facts come from `SHELTER` in `packages/contracts/src/site.ts` (placeholders) |
 

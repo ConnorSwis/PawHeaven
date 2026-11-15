@@ -25,6 +25,7 @@ const faq = [
 
 <PageShell title="Volunteer" statusBanner description={`Volunteer at ${SHELTER.name}. See what volunteers do, the age rules, and open shifts, then sign up in two taps.`}>
   <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <p class="mb-2"><a class="inline-flex min-h-11 items-center text-base font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href="/help">All ways to help</a></p>
     <PageHeading title="Volunteer" intro="Volunteers keep the shelter running and make the animals' days better. Pick a shift and sign up in two taps.">
       <p class="mt-3"><a class="inline-flex min-h-11 items-center font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href="#shifts">See open shifts</a></p>
     </PageHeading>
@@ -32,15 +33,15 @@ const faq = [
     <StatusBannerIsland client:load className="mt-8" />
 
     <div class="mt-8 grid gap-6 md:grid-cols-2">
-      <section aria-labelledby="roles-heading" class="rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 sm:p-6">
-        <h2 id="roles-heading" class="text-xl font-semibold text-stone-950">What volunteers do</h2>
+      <section aria-labelledby="roles-heading" class="rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 shadow-sm sm:p-6">
+        <h2 id="roles-heading" class="text-xl font-bold text-stone-950">What volunteers do</h2>
         <ul class="mt-3 grid gap-2 text-base leading-7 text-stone-800">
           {roles.map(([name, text]) => <li><strong class="font-semibold text-stone-950">{name}.</strong> {text}</li>)}
         </ul>
         <p class="mt-3 text-sm text-stone-700">Which roles are open changes week to week. Each shift below says what it needs.</p>
       </section>
-      <section aria-labelledby="age-heading" class="rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 sm:p-6">
-        <h2 id="age-heading" class="text-xl font-semibold text-stone-950">Who can volunteer</h2>
+      <section aria-labelledby="age-heading" class="rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 shadow-sm sm:p-6">
+        <h2 id="age-heading" class="text-xl font-bold text-stone-950">Who can volunteer</h2>
         <ul class="mt-3 grid list-disc gap-2 pl-5 text-base leading-7 text-stone-800">
           <li>Ages {minAgeAlone} and older can volunteer on their own.</li>
           <li>Ages {minAgeAccompanied} to {minAgeAlone - 1} can volunteer with an adult. Call or email us first so we can plan for you.</li>
@@ -52,8 +53,8 @@ const faq = [
     <div id="shifts" class="mt-12 scroll-mt-6"><VolunteerShifts client:load /></div>
 
     <section aria-labelledby="faq-heading" class="mt-14 max-w-3xl">
-      <h2 id="faq-heading" class="text-2xl font-semibold tracking-tight text-stone-950">Questions volunteers ask</h2>
-      <div class="mt-4 divide-y divide-stone-300 rounded-[var(--ph-radius)] border border-stone-300 bg-white">
+      <h2 id="faq-heading" class="text-2xl font-bold tracking-tight text-stone-950">Questions volunteers ask</h2>
+      <div class="mt-4 divide-y divide-stone-300 rounded-[var(--ph-radius)] border border-stone-300 bg-white shadow-sm">
         {faq.map(([question, answer]) => (
           <details class="group px-5 py-1">
             <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-4 py-2 text-base font-semibold text-stone-950">{question}<span aria-hidden="true" class="text-stone-700 group-open:rotate-45">+</span></summary>

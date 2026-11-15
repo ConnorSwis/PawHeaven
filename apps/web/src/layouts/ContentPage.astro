@@ -1,35 +1,79 @@
 ---
 import PageShell from './PageShell.astro';
 
-interface Props { title: string; description: string; intro?: string; noindex?: boolean }
-const { title, description, intro, noindex = false } = Astro.props;
+interface Props {
+  title: string;
+  description: string;
+  intro?: string;
+  noindex?: boolean;
+  /** Small pill above the heading. */
+  eyebrow?: string;
+  /** A friendlier heading than the page title. The title still names the page for the tab and search results. */
+  heading?: string;
+  /** One word inside `heading` (or the title) to underline with the soft highlight stroke. */
+  highlight?: string;
+  /** Skip the reading column and render the slot as full-width sections (About). */
+  bare?: boolean;
+}
+const { title, description, intro, noindex = false, eyebrow, heading, highlight, bare = false } = Astro.props;
+const text = heading ?? title;
+const at = highlight ? text.indexOf(highlight) : -1;
+const parts = at >= 0 && highlight ? [text.slice(0, at), highlight, text.slice(at + highlight.length)] : null;
+const hasActions = Astro.slots.has('actions');
 ---
 
 <PageShell title={title} description={description} noindex={noindex}>
-  <div class="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-    <h1 class="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">{title}</h1>
-    {intro && <p class="mt-3 text-lg leading-8 text-stone-700">{intro}</p>}
-    <div class="prose-ph mt-8"><slot /></div>
+  <div class="mx-auto max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8">
+    <header class="rounded-[var(--ph-radius)] bg-[var(--ph-band)] px-6 py-10 sm:px-10 sm:py-14">
+      <div class="max-w-3xl">
+        {eyebrow && <p class="mb-4 inline-flex items-center gap-2 rounded-[var(--ph-radius-pill)] bg-[var(--ph-brand-soft)] px-3.5 py-1.5 text-sm font-bold text-[var(--ph-brand-strong)]"><span aria-hidden="true" class="size-2 rounded-full bg-current"></span>{eyebrow}</p>}
+        <h1 class="text-4xl font-bold tracking-tight text-stone-950 sm:text-5xl">{parts ? <>{parts[0]}<span class="ph-highlight">{parts[1]}</span>{parts[2]}</> : text}</h1>
+        {intro && <p class="mt-4 text-lg leading-8 text-stone-800">{intro}</p>}
+        {hasActions && <div class="mt-7 flex flex-wrap items-center gap-3"><slot name="actions" /></div>}
+      </div>
+    </header>
   </div>
+  {bare
+    ? <slot />
+    : <div class="mx-auto max-w-3xl px-4 pb-16 pt-8 sm:px-6 sm:pb-20 sm:pt-10"><div class="prose-ph"><slot /></div></div>}
 </PageShell>
 
 <style is:global>
-  .prose-ph h2 { margin-top: 2.25rem; margin-bottom: 0.5rem; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; color: var(--ph-ink-strong); }
-  .prose-ph h3 { margin-top: 1.5rem; margin-bottom: 0.25rem; font-size: 1.15rem; font-weight: 600; color: var(--ph-ink-strong); }
-  .prose-ph p, .prose-ph li, .prose-ph dd { font-size: 1.0625rem; line-height: 1.75; color: var(--ph-ink); }
-  .prose-ph p { margin-top: 0.75rem; }
-  .prose-ph ul, .prose-ph ol { margin-top: 0.75rem; padding-left: 1.4rem; }
+  .prose-ph > :first-child { margin-top: 0; }
+  .prose-ph h2 { margin-top: 3rem; margin-bottom: 0.5rem; font-size: 1.625rem; font-weight: var(--ph-weight-bold, 700); line-height: 1.25; letter-spacing: -0.01em; color: var(--ph-ink-strong); }
+  .prose-ph h3 { margin-top: 2rem; margin-bottom: 0.25rem; font-size: 1.25rem; font-weight: var(--ph-weight-semibold, 700); color: var(--ph-ink-strong); }
+  .prose-ph p, .prose-ph li, .prose-ph dd { font-size: 1.0625rem; line-height: 1.8; color: var(--ph-ink); }
+  .prose-ph p, .prose-ph li { overflow-wrap: anywhere; }
+  .prose-ph p { margin-top: 0.85rem; }
+  .prose-ph ul, .prose-ph ol { margin-top: 0.85rem; padding-left: 1.4rem; }
   .prose-ph ul { list-style: disc; } .prose-ph ol { list-style: decimal; }
-  .prose-ph li { margin-top: 0.35rem; }
+  .prose-ph li { margin-top: 0.4rem; }
+  .prose-ph li::marker { color: var(--ph-brand-strong); }
   .prose-ph a { color: var(--ph-brand-strong); text-decoration: underline; text-underline-offset: 3px; }
   .prose-ph a:hover { color: var(--ph-ink-strong); }
-  .prose-ph table { width: 100%; margin-top: 1rem; border-collapse: collapse; font-size: 1rem; }
-  .prose-ph th, .prose-ph td { border-bottom: 1px solid var(--ph-border); padding: 0.6rem 0.5rem; text-align: left; vertical-align: top; }
-  .prose-ph th { font-weight: 600; color: var(--ph-ink-strong); }
-  .prose-ph .callout { margin-top: 1.5rem; border-left: 4px solid var(--ph-brand); background: var(--ph-brand-soft); padding: 0.9rem 1.1rem; }
+
+  /* Tables sit in a rounded frame. */
+  .prose-ph table { width: 100%; margin-top: 1.1rem; border-collapse: separate; border-spacing: 0; overflow: hidden; border: 1px solid var(--ph-border); border-radius: var(--ph-radius); background: var(--ph-surface); font-size: 1rem; box-shadow: var(--ph-shadow-sm); }
+  .prose-ph th, .prose-ph td { border-bottom: 1px solid var(--ph-border); padding: 0.8rem 1rem; text-align: left; vertical-align: top; }
+  .prose-ph tbody tr:last-child > th, .prose-ph tbody tr:last-child > td { border-bottom: 0; }
+  .prose-ph thead th { background: var(--ph-hover); font-weight: 700; color: var(--ph-ink-strong); }
+  .prose-ph tbody th { font-weight: 600; color: var(--ph-ink-strong); }
+
+  /* Rounded callouts: a plain note (.callout) and a card for fees, hours, and requirements (.panel). */
+  .prose-ph .callout { margin-top: 2rem; border: 1px solid var(--ph-border); border-radius: var(--ph-radius); background: var(--ph-brand-soft); padding: 1.1rem 1.4rem; }
   .prose-ph .callout p { margin-top: 0; color: var(--ph-ink-strong); }
-  .prose-ph details { margin-top: 0.6rem; border: 1px solid var(--ph-border); background: var(--ph-surface); }
-  .prose-ph summary { cursor: pointer; padding: 0.85rem 1rem; font-weight: 600; font-size: 1.0625rem; color: var(--ph-ink-strong); min-height: 44px; }
-  .prose-ph details > div { padding: 0 1rem 1rem; }
+  .prose-ph .panel { margin-top: 1.1rem; border: 1px solid var(--ph-border); border-radius: var(--ph-radius); background: var(--ph-surface); padding: 0.4rem 1.4rem 1.1rem; box-shadow: var(--ph-shadow-sm); }
+  .prose-ph .panel > :first-child { margin-top: 0.85rem; }
+  .prose-ph .panel ul, .prose-ph .panel ol { margin-bottom: 0; }
+
+  /* Questions as rounded accordions. The chevron is drawn with borders so it follows the text color. */
+  .prose-ph details { margin-top: 0.75rem; border: 1px solid var(--ph-border); border-radius: var(--ph-radius); background: var(--ph-surface); box-shadow: var(--ph-shadow-sm); }
+  .prose-ph summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; cursor: pointer; list-style: none; min-height: 3.5rem; padding: 0.8rem 1.25rem; border-radius: var(--ph-radius); font-weight: 700; font-size: 1.0625rem; color: var(--ph-ink-strong); }
+  .prose-ph summary::-webkit-details-marker { display: none; }
+  .prose-ph summary::after { content: ""; flex: none; width: 0.55rem; height: 0.55rem; margin-right: 0.2rem; border-right: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+  .prose-ph details[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
+  .prose-ph summary:hover { background: var(--ph-hover); }
+  .prose-ph details > div { padding: 0 1.25rem 1.1rem; }
   .prose-ph details > div p:first-child { margin-top: 0; }
+  @media (prefers-reduced-motion: no-preference) { .prose-ph summary::after { transition: transform var(--ph-duration-fast) var(--ph-ease); } }
 </style>

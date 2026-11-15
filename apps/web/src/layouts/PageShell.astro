@@ -29,16 +29,18 @@ const {
 const themeSwitcher = import.meta.env.PUBLIC_THEME_SWITCHER === 'true';
 const here = Astro.url.pathname.replace(/\/$/, '') || '/';
 const nav = [
-  { href: '/adopt', label: 'Adopt' },
-  { href: '/foster', label: 'Foster' },
-  { href: '/volunteer', label: 'Volunteer' },
-  { href: '/visit', label: 'Visit' },
-  { href: '/events', label: 'Events' },
-  { href: '/lost-pet', label: 'Lost a pet?' },
+  { href: '/adopt', label: 'Animals', also: ['/visit', '/apply'] },
+  { href: '/help', label: 'Ways to help', also: ['/foster', '/volunteer'] },
+  { href: '/events', label: 'Events', also: [] },
+  { href: '/lost-pet', label: 'Lost a pet?', also: [] },
 ];
-const isHere = (href: string) => here === href || here.startsWith(`${href}/`);
+const matches = (href: string) => here === href || here.startsWith(`${href}/`);
+const isHere = (href: string) => {
+  const item = nav.find((entry) => entry.href === href);
+  return matches(href) || (item?.also ?? []).some(matches);
+};
 const address = `${SHELTER.address.line1}, ${SHELTER.address.city}, ${SHELTER.address.state} ${SHELTER.address.zip}`;
-const linkBase = 'rounded-[var(--ph-radius-pill)] px-4 py-2 text-base font-semibold transition-colors';
+const linkBase = 'whitespace-nowrap rounded-[var(--ph-radius-pill)] px-3.5 py-2 text-base font-semibold transition-colors';
 const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-400 underline-offset-4 hover:decoration-stone-950';
 ---
 
@@ -63,23 +65,23 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
     <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-[var(--ph-radius)] focus:bg-white focus:px-4 focus:py-3 focus:font-semibold focus:text-stone-950 focus:shadow-md">Skip to main content</a>
     {showNavigation && (
       <header class="border-b border-stone-200 bg-white">
-        <div class="mx-auto flex min-h-16 max-w-6xl items-center gap-3 px-4 py-2 sm:px-6">
-          <a class="mr-2 inline-flex min-h-11 items-center gap-2 text-xl font-bold tracking-tight text-stone-950" href="/">
+        <div class="mx-auto flex min-h-16 max-w-6xl items-center gap-2 px-4 py-2 sm:gap-3 sm:px-6">
+          <a class="mr-1 inline-flex min-h-11 items-center gap-2 text-xl sm:mr-2 font-bold tracking-tight text-stone-950" href="/">
             <span aria-hidden="true" class="grid size-8 place-items-center rounded-full bg-[var(--ph-brand)] text-[var(--ph-on-brand)]"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M12 13c-3 0-5 2-5 4 0 1.6 1.4 2.5 3 2.5 1 0 1.4-.4 2-.4s1 .4 2 .4c1.6 0 3-.9 3-2.5 0-2-2-4-5-4z"/><path d="M6.5 10a1.6 1.9 0 100-.01"/><path d="M17.5 10a1.6 1.9 0 100-.01"/><path d="M9.5 6.5a1.5 2 0 100-.01"/><path d="M14.5 6.5a1.5 2 0 100-.01"/></svg></span>
             {SITE.name}
           </a>
-          <nav aria-label="Primary" class="hidden items-center gap-1 md:flex">
+          <nav aria-label="Primary" class="hidden items-center gap-0.5 lg:flex">
             {nav.map((item) => (
               <a href={item.href} aria-current={isHere(item.href) ? 'page' : undefined} class:list={[linkBase, isHere(item.href) ? 'bg-[var(--ph-brand-soft)] font-bold text-[var(--ph-brand-strong)]' : 'text-stone-800 hover:bg-stone-100']}>{item.label}</a>
             ))}
           </nav>
-          <div class="ml-auto flex items-center gap-2">
-            <a href="/donate" aria-current={here === '/donate' ? 'page' : undefined} class="inline-flex min-h-11 items-center rounded-[var(--ph-radius-pill)] bg-[var(--ph-brand)] px-5 py-2 text-base font-semibold text-[var(--ph-on-brand)] shadow-[var(--ph-shadow-brand)] transition-colors hover:bg-[var(--ph-brand-strong)]">Donate</a>
-            <a data-account href="/login" class="hidden min-h-11 items-center rounded-[var(--ph-radius-pill)] border border-stone-400 px-5 py-2 text-base font-semibold text-stone-900 transition-colors hover:bg-stone-100 sm:inline-flex">Log in</a>
-            <button type="button" data-menu-button aria-expanded="false" aria-controls="mobile-nav" class="inline-flex min-h-11 items-center rounded-[var(--ph-radius-pill)] border border-stone-400 px-5 py-2 text-base font-semibold text-stone-900 hover:bg-stone-100 md:hidden">Menu</button>
+          <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
+            <a href="/donate" aria-current={here === '/donate' ? 'page' : undefined} class="whitespace-nowrap inline-flex min-h-11 items-center rounded-[var(--ph-radius-pill)] bg-[var(--ph-brand)] px-3 py-2 text-base font-semibold sm:px-5 text-[var(--ph-on-brand)] shadow-[var(--ph-shadow-brand)] transition-colors hover:bg-[var(--ph-brand-strong)]">Donate</a>
+            <a data-account href="/login" class="hidden min-h-11 items-center rounded-[var(--ph-radius-pill)] border border-stone-400 px-5 py-2 text-base font-semibold text-stone-900 transition-colors hover:bg-stone-100 lg:inline-flex">Log in</a>
+            <button type="button" data-menu-button aria-expanded="false" aria-controls="mobile-nav" class="inline-flex min-h-11 items-center rounded-[var(--ph-radius-pill)] border border-stone-400 px-3 py-2 text-base font-semibold text-stone-900 hover:bg-stone-100 sm:px-5 lg:hidden">Menu</button>
           </div>
         </div>
-        <nav id="mobile-nav" aria-label="Primary (menu)" hidden class="border-t border-stone-200 px-4 pb-3 pt-2 md:hidden">
+        <nav id="mobile-nav" aria-label="Primary (menu)" hidden class="border-t border-stone-200 px-4 pb-3 pt-2 lg:hidden">
           <ul class="grid gap-1">
             {nav.map((item) => <li><a href={item.href} aria-current={isHere(item.href) ? 'page' : undefined} class:list={['block', linkBase, isHere(item.href) ? 'bg-[var(--ph-brand-soft)] font-bold text-[var(--ph-brand-strong)]' : 'text-stone-800 hover:bg-stone-100']}>{item.label}</a></li>)}
             <li><a data-account-mobile href="/login" class:list={['block', linkBase, 'text-stone-800 hover:bg-stone-100']}>Log in</a></li>
@@ -92,7 +94,7 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
     </main>
     {showFooter && (
       <footer class="ph-band" data-status-banner-page={statusBanner ? '' : undefined}>
-        <div class="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div class="mx-auto grid max-w-6xl gap-8 px-4 pb-8 pt-12 sm:px-6 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <p class="text-lg font-bold text-stone-950">{SITE.name}</p>
             <p class="mt-2 max-w-xs text-sm leading-6 text-stone-700">{SITE.tagline}</p>
@@ -103,15 +105,15 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
               <a class={footerLink} href={`mailto:${SHELTER.email}`}>{SHELTER.email}</a>
             </address>
           </div>
-          <nav aria-labelledby="footer-help"><h2 id="footer-help" class="text-sm font-semibold text-stone-950">Ways to help</h2>
-            <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/adopt">Adopt</a></li><li><a class={footerLink} href="/foster">Foster</a></li><li><a class={footerLink} href="/volunteer">Volunteer</a></li><li><a class={footerLink} href="/donate">Donate</a></li></ul></nav>
-          <nav aria-labelledby="footer-visit"><h2 id="footer-visit" class="text-sm font-semibold text-stone-950">Visit and learn</h2>
+          <nav aria-labelledby="footer-help"><h2 id="footer-help" class="text-base font-bold text-stone-950">Ways to help</h2>
+            <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/adopt">Meet the animals</a></li><li><a class={footerLink} href="/help">Ways to help</a></li><li><a class={footerLink} href="/foster">Foster</a></li><li><a class={footerLink} href="/volunteer">Volunteer</a></li><li><a class={footerLink} href="/donate">Donate</a></li></ul></nav>
+          <nav aria-labelledby="footer-visit"><h2 id="footer-visit" class="text-base font-bold text-stone-950">Visit and learn</h2>
             <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/visit">Plan a visit</a></li><li><a class={footerLink} href="/events">Shelter events</a></li><li><a class={footerLink} href="/adopt/process">How adoption works</a></li><li><a class={footerLink} href="/lost-pet">Lost a pet?</a></li><li><a class={footerLink} href="/faq">Questions and answers</a></li></ul></nav>
-          <nav aria-labelledby="footer-about"><h2 id="footer-about" class="text-sm font-semibold text-stone-950">About</h2>
+          <nav aria-labelledby="footer-about"><h2 id="footer-about" class="text-base font-bold text-stone-950">About</h2>
             <ul class="mt-2 grid text-sm"><li><a class={footerLink} href="/about">About us</a></li><li><a class={footerLink} href="/contact">Contact and hours</a></li><li><a class={footerLink} href="/privacy">Privacy</a></li><li><a class={footerLink} href="/terms">Terms</a></li></ul></nav>
         </div>
-        <div class="border-t border-stone-300">
-          <div class="mx-auto grid max-w-6xl gap-4 px-4 py-8 sm:px-6 md:grid-cols-2 md:items-start md:gap-10">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6">
+          <div class="grid gap-4 rounded-[var(--ph-radius)] border border-stone-300 bg-white p-6 shadow-sm md:grid-cols-2 md:items-start md:gap-10 md:p-8">
             <div>
               <h2 id="footer-news" class="text-sm font-semibold text-stone-950">Adoption news</h2>
               <p id="newsletter-hint" class="mt-1 text-sm leading-6 text-stone-700">Adoption news, about once a month. Unsubscribe any time.</p>
@@ -132,7 +134,7 @@ const footerLink = 'inline-block py-1 text-stone-800 underline decoration-stone-
             </div>
           </div>
         </div>
-        <div class="border-t border-stone-300">
+        <div class="mt-8 border-t border-stone-300">
           <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-sm text-stone-700 sm:px-6">
             <p>© {new Date().getFullYear()} {SITE.name}</p>
             {themeSwitcher && (

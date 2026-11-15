@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { EmailPrefs, EmailPrefsInput, SavedSearch, SavedSearchListResponse } from '@pawheaven/contracts';
 import { api, errorMessage, useApi } from '../../lib/fetch';
-import { Button, ButtonLink, Choice } from '../../ui';
+import { Button, ButtonLink, EmptyState, Switch } from '../../ui';
 import { LoadState, Muted, Row, Section } from './common';
 
 type PrefKey = 'matchDigest' | 'savedChanges' | 'newsletter' | 'fosterAlerts';
@@ -53,7 +53,7 @@ export function EmailChoices() {
               <legend className="sr-only">Optional emails</legend>
               <div className="grid gap-2">
                 {CHOICES.filter((choice) => choice.key !== 'fosterAlerts' || prefs.data.approvedFoster).map((choice) => (
-                  <Choice key={choice.key} label={choice.label} checked={prefs.data[choice.key]} onChange={(event) => void change(choice.key, event.target.checked, choice)} />
+                  <Switch key={choice.key} label={choice.label} checked={prefs.data[choice.key]} onChange={(event) => void change(choice.key, event.target.checked, choice)} />
                 ))}
               </div>
             </fieldset>
@@ -102,10 +102,9 @@ export function SavedSearches() {
     <Section id="saved-searches" title="Your saved searches">
       <LoadState query={searches} label="your saved searches" skeleton="h-24">
         {list.length === 0 ? (
-          <div className="max-w-2xl">
-            <Muted>You have no saved searches. On the Adopt page, choose some filters, such as large dogs who are good with kids, then choose Email me new matches. We will email you when a new animal fits.</Muted>
-            <div className="mt-3"><ButtonLink variant="secondary" href="/adopt">Go to the Adopt page</ButtonLink></div>
-          </div>
+          <EmptyState pose="searching" title="You have no saved searches" action={<ButtonLink variant="secondary" href="/adopt">Go to the Adopt page</ButtonLink>}>
+            On the Adopt page, choose some filters, such as large dogs who are good with kids, then choose Email me new matches. We will email you when a new animal fits.
+          </EmptyState>
         ) : (
           <>
             {prefs.data && !prefs.data.matchDigest && <Muted className="mb-3 text-sm">New-match emails are turned off above, so these searches will not email you until you turn them on.</Muted>}

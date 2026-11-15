@@ -2,17 +2,20 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ApiUser, FieldErrors, PublicAvailability, VolunteerRegistration, VolunteerRegistrationListResponse, VolunteerShift, VolunteerShiftListResponse } from '@pawheaven/contracts';
 import { SHELTER } from '@pawheaven/contracts/site';
-import { Badge, Button, Card, EmptyState, Field, Input, Notice, Select, Sheet, Skeleton, TextLink } from '../../ui';
+import { Badge, Button, ButtonLink, Card, ChipToggle, Confirmation, EmptyState, Field, Input, Notice, Select, Sheet, Skeleton, Stepper, SummaryCard, TextLink, TicketCard } from '../../ui';
+import { CalendarIcon } from '../../ui/icons';
 import { api, ApiRequestError, errorMessage, loginUrl, useApi, useMe } from '../../lib/fetch';
 import { loadProfile, saveProfile } from '../../lib/profile';
 import { Providers } from '../../lib/providers';
 import { useToast } from '../../ui/toast';
-import { ageFrom, ClientOnly, Problems, plainDate, dayKey, dayLong, groupBy, plural, shelterToday, timeRange, weekLabel, weekStart, zoneName } from '../involve/common';
+import { ageFrom, calendarFile, ClientOnly, downloadFile, Problems, plainDate, dayKey, dayLong, groupBy, plural, shelterToday, timeRange, weekLabel, weekStart, zoneName } from '../involve/common';
 
 type Shift = Omit<VolunteerShift, 'spotsRemaining'> & { spotsLeft: number };
 
 const normalizeMember = (shift: VolunteerShift): Shift => ({ ...shift, spotsLeft: shift.spotsRemaining });
 const normalizePublic = (shift: PublicAvailability['shifts'][number]): Shift => ({ ...shift, registered: false });
+
+const SIGNUP_STEPS = ['Shift', 'Your details', 'Done'];
 
 function SignUpSheet({ shift, user, onClose, onDone }: { shift: Shift; user: ApiUser; onClose: () => void; onDone: () => void }) {
   const profile = useQuery({ queryKey: ['/profile'], queryFn: loadProfile, staleTime: 30_000 });
@@ -24,11 +27,13 @@ function SignUpSheet({ shift, user, onClose, onDone }: { shift: Shift; user: Api
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [summary, setSummary] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const doneHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { if (done) doneHeading.current?.focus(); }, [done]);
   const savedPhone = profile.data?.phone ?? '';
   const savedDob = profile.data?.dateOfBirth ?? '';
   const askPhone = !savedPhone || changePhone;
   const askDob = !savedDob || changeDob;
-  const toast = useToast();
   const queryClient = useQueryClient();
 
   async function submit(event: { preventDefault(): void }) {
@@ -48,7 +53,7 @@ function SignUpSheet({ shift, user, onClose, onDone }: { shift: Shift; user: Api
     try {
       await api(`/volunteer/shifts/${encodeURIComponent(shift.id)}/register`, { method: 'POST', json: { phone: chosenPhone, dateOfBirth: chosenDob } });
       if (saveDetails && (askPhone || askDob)) void saveProfile({ phone: chosenPhone, dateOfBirth: chosenDob });
-      toast.success(`You are signed up for ${shift.title}. We emailed a confirmation.`);
+      setDone(true);
       onDone();
     } catch (failure) {
       const errors = failure instanceof ApiRequestError ? failure.fieldErrors : undefined;
@@ -66,50 +71,90 @@ function SignUpSheet({ shift, user, onClose, onDone }: { shift: Shift; user: Api
   }
 
   const formId = `signup-${shift.id}`;
+  const when = `${dayLong(shift.startsAt)}, ${timeRange(shift.startsAt, shift.endsAt)} ${zoneName(shift.startsAt)}`;
+  const addToCalendar = () => downloadFile('pawheaven-shift.ics', calendarFile({
+    uid: `shift-${shift.id}`,
+    title: `Volunteer: ${shift.title}`,
+    startsAt: shift.startsAt,
+    endsAt: shift.endsAt,
+    description: `${shift.description} Closed-toe shoes and clothes that can get dirty. Questions: ${SHELTER.phone}.`,
+  }));
+  const rows = [
+    { label: 'Shift', value: shift.title },
+    { label: 'When', value: when },
+    { label: 'Who can join', value: shift.minAge > 0 ? `Ages ${shift.minAge} and up` : 'Any age' },
+  ];
   return (
     <Sheet
       open
       onOpenChange={(open) => { if (!open) onClose(); }}
-      title={`Sign up for ${shift.title}`}
-      description={`${dayLong(shift.startsAt)}, ${timeRange(shift.startsAt, shift.endsAt)} ${zoneName(shift.startsAt)}`}
-      footer={<><Button variant="ghost" onClick={onClose}>Not now</Button><Button variant="primary" type="submit" form={formId} disabled={busy || profile.isLoading}>{busy ? 'Signing up…' : 'Confirm sign-up'}</Button></>}
+      title={done ? 'You are signed up' : `Sign up for ${shift.title}`}
+      description={when}
+      footer={done
+        ? <Button variant="primary" onClick={onClose}>Done</Button>
+        : <><Button variant="ghost" onClick={onClose}>Not now</Button><Button variant="primary" type="submit" form={formId} disabled={busy || profile.isLoading}>{busy ? 'Signing up…' : 'Confirm sign-up'}</Button></>}
     >
-      <form id={formId} onSubmit={submit} noValidate className="grid gap-5">
-        <Problems errors={summary} />
-        <p className="text-base leading-7 text-stone-800">We will email a confirmation to <strong>{user.email}</strong>. {shift.minAge > 0 ? `Volunteers on this shift must be at least ${shift.minAge} years old.` : ''}</p>
-        {profile.isLoading ? (
-          <div aria-hidden="true" className="grid gap-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+      <div className="grid gap-5">
+        <Stepper steps={SIGNUP_STEPS} current={done ? SIGNUP_STEPS.length : 1} />
+        {done ? (
+          <Confirmation
+            title="You are in"
+            headingRef={doneHeading}
+            message={<>Thank you for helping. We emailed a confirmation to {user.email}.</>}
+            next={[
+              'Come a few minutes early on your first day. Training is given on your first shift.',
+              'Wear closed-toe shoes and clothes that can get dirty.',
+              <>If you cannot make it, cancel from this page or <TextLink href="/me?tab=visits">My PawHeaven</TextLink> so someone else can take your spot.</>,
+            ]}
+            actions={<><Button variant="secondary" onClick={addToCalendar}><CalendarIcon /> Add to calendar</Button><ButtonLink href="/me?tab=visits">See my shifts</ButtonLink></>}
+          >
+            <TicketCard>
+              <p className="text-lg font-bold text-stone-950">{shift.title}</p>
+              <p className="mt-1 text-base text-stone-800">{when}</p>
+            </TicketCard>
+          </Confirmation>
         ) : (
           <>
-            {!askPhone ? (
-              <div className="flex items-center justify-between gap-3 rounded-[var(--ph-radius)] border border-stone-300 bg-stone-50 p-3">
-                <p className="text-base text-stone-900"><span className="block text-sm font-semibold text-stone-950">Phone number</span>{savedPhone}</p>
-                <Button variant="ghost" onClick={() => { setPhone(savedPhone); setChangePhone(true); }}>Change<span className="sr-only"> phone number</span></Button>
-              </div>
-            ) : (
-              <Field label="Phone number" required error={fieldErrors.phone} help="So the shelter can reach you if plans change.">
-                {(aria) => <Input {...aria} name="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={30} value={phone} onChange={(event) => { setPhone(event.target.value); setFieldErrors((current) => ({ ...current, phone: '' })); }} placeholder="(404) 555-0142" />}
-              </Field>
-            )}
-            {!askDob ? (
-              <div className="flex items-center justify-between gap-3 rounded-[var(--ph-radius)] border border-stone-300 bg-stone-50 p-3">
-                <p className="text-base text-stone-900"><span className="block text-sm font-semibold text-stone-950">Date of birth</span>{plainDate(savedDob)}</p>
-                <Button variant="ghost" onClick={() => { setDob(savedDob); setChangeDob(true); }}>Change<span className="sr-only"> date of birth</span></Button>
-              </div>
-            ) : (
-              <Field label="Date of birth" required error={fieldErrors.dateOfBirth} help="Used only to check each shift's age rule.">
-                {(aria) => <Input {...aria} name="dateOfBirth" type="date" autoComplete="bday" min="1900-01-01" max={shelterToday()} value={dob} onChange={(event) => { setDob(event.target.value); setFieldErrors((current) => ({ ...current, dateOfBirth: '' })); }} />}
-              </Field>
-            )}
-            {(askPhone || askDob) && (
-              <label className="flex min-h-11 items-start gap-3 text-base text-stone-900">
-                <input type="checkbox" className="mt-1 size-4 shrink-0" checked={saveDetails} onChange={(event) => setSaveDetails(event.target.checked)} />
-                <span>Save these details to My PawHeaven so I do not have to type them again. I can change them any time.</span>
-              </label>
-            )}
+            <SummaryCard title="Your shift" as="h3" rows={rows} />
+            <form id={formId} onSubmit={submit} noValidate className="grid gap-5">
+              <Problems errors={summary} />
+              <p className="text-base leading-7 text-stone-800">We will email a confirmation to <strong>{user.email}</strong>. {shift.minAge > 0 ? `Volunteers on this shift must be at least ${shift.minAge} years old.` : ''}</p>
+              {profile.isLoading ? (
+                <div aria-hidden="true" className="grid gap-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+              ) : (
+                <>
+                  {!askPhone ? (
+                    <div className="flex items-center justify-between gap-3 rounded-[var(--ph-radius-sm)] border border-stone-300 bg-stone-50 p-3">
+                      <p className="text-base text-stone-900"><span className="block text-sm font-semibold text-stone-950">Phone number</span>{savedPhone}</p>
+                      <Button variant="ghost" onClick={() => { setPhone(savedPhone); setChangePhone(true); }}>Change<span className="sr-only"> phone number</span></Button>
+                    </div>
+                  ) : (
+                    <Field label="Phone number" required error={fieldErrors.phone} help="So the shelter can reach you if plans change.">
+                      {(aria) => <Input {...aria} name="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={30} value={phone} onChange={(event) => { setPhone(event.target.value); setFieldErrors((current) => ({ ...current, phone: '' })); }} placeholder="(404) 555-0142" />}
+                    </Field>
+                  )}
+                  {!askDob ? (
+                    <div className="flex items-center justify-between gap-3 rounded-[var(--ph-radius-sm)] border border-stone-300 bg-stone-50 p-3">
+                      <p className="text-base text-stone-900"><span className="block text-sm font-semibold text-stone-950">Date of birth</span>{plainDate(savedDob)}</p>
+                      <Button variant="ghost" onClick={() => { setDob(savedDob); setChangeDob(true); }}>Change<span className="sr-only"> date of birth</span></Button>
+                    </div>
+                  ) : (
+                    <Field label="Date of birth" required error={fieldErrors.dateOfBirth} help="Used only to check each shift's age rule.">
+                      {(aria) => <Input {...aria} name="dateOfBirth" type="date" autoComplete="bday" min="1900-01-01" max={shelterToday()} value={dob} onChange={(event) => { setDob(event.target.value); setFieldErrors((current) => ({ ...current, dateOfBirth: '' })); }} />}
+                    </Field>
+                  )}
+                  {(askPhone || askDob) && (
+                    <label className="flex min-h-11 items-start gap-3 text-base text-stone-900">
+                      <input type="checkbox" className="mt-1 size-4 shrink-0" checked={saveDetails} onChange={(event) => setSaveDetails(event.target.checked)} />
+                      <span>Save these details to My PawHeaven so I do not have to type them again. I can change them any time.</span>
+                    </label>
+                  )}
+                </>
+              )}
+            </form>
           </>
         )}
-      </form>
+      </div>
     </Sheet>
   );
 }
@@ -149,10 +194,10 @@ function SpotsBadge({ shift }: { shift: Shift }) {
 function ShiftCard({ shift, registration, overlaps, onSignUp, onCancel }: { shift: Shift; registration?: VolunteerRegistration; overlaps?: string; onSignUp: () => void; onCancel: () => void }) {
   const full = shift.spotsLeft <= 0 && !shift.registered;
   return (
-    <article className={`rounded-[var(--ph-radius)] border p-5 ${shift.registered ? 'border-[var(--ph-brand)] bg-[var(--ph-brand-soft)]' : 'border-stone-300 bg-white'}`}>
+    <article className={`rounded-[var(--ph-radius)] border p-5 shadow-sm sm:p-6 ${shift.registered ? 'border-[var(--ph-brand)] bg-[var(--ph-brand-soft)]' : 'border-stone-300 bg-white'}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h4 className="text-lg font-semibold text-stone-950">{shift.title}</h4>
+          <h4 className="text-lg font-bold text-stone-950">{shift.title}</h4>
           <p className="mt-0.5 text-base text-stone-900">{dayLong(shift.startsAt)}, {timeRange(shift.startsAt, shift.endsAt)} {zoneName(shift.startsAt)}</p>
         </div>
         {shift.registered ? <Badge tone="good">You are signed up</Badge> : <SpotsBadge shift={shift} />}
@@ -227,10 +272,10 @@ function Shifts() {
     <div className="grid gap-10">
       {user && mine.length > 0 && (
         <section aria-labelledby="my-shifts">
-          <h2 id="my-shifts" className="text-2xl font-semibold tracking-tight text-stone-950">Your sign-ups</h2>
+          <h2 id="my-shifts" className="text-2xl font-bold tracking-tight text-stone-950">Your sign-ups</h2>
           <ul className="mt-4 grid gap-3">
             {mine.map((item) => (
-              <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--ph-radius)] border border-[var(--ph-brand)] bg-[var(--ph-brand-soft)] p-4">
+              <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--ph-radius)] border border-[var(--ph-brand)] bg-[var(--ph-brand-soft)] p-4 shadow-sm sm:px-5">
                 <div>
                   <p className="font-semibold text-stone-950">{item.title}</p>
                   <p className="text-base text-stone-900">{dayLong(item.startsAt)}, {timeRange(item.startsAt, item.endsAt)} {zoneName(item.startsAt)}</p>
@@ -245,10 +290,18 @@ function Shifts() {
       <section aria-labelledby="open-shifts">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 id="open-shifts" className="text-2xl font-semibold tracking-tight text-stone-950">Open shifts</h2>
+            <h2 id="open-shifts" className="text-2xl font-bold tracking-tight text-stone-950">Open shifts</h2>
             <p className="mt-1 text-base text-stone-800">{user ? 'Tap Sign up and confirm your phone number and date of birth.' : 'You can look at every shift. You only log in when you sign up.'}</p>
           </div>
-          {roles.length > 1 && (
+          {roles.length > 1 && roles.length <= 5 && (
+            <div role="group" aria-label="Show shifts">
+              <ul className="flex flex-wrap gap-2">
+                <li><ChipToggle pressed={role === ''} onClick={() => setRole('')}>All shifts</ChipToggle></li>
+                {roles.map((title) => <li key={title}><ChipToggle pressed={role === title} onClick={() => setRole(role === title ? '' : title)}>{title}</ChipToggle></li>)}
+              </ul>
+            </div>
+          )}
+          {roles.length > 5 && (
             <Field label="Show" className="min-w-52">
               {(aria) => <Select {...aria} value={role} onChange={(event) => setRole(event.target.value)}><option value="">All shifts</option>{roles.map((title) => <option key={title} value={title}>{title}</option>)}</Select>}
             </Field>
@@ -261,7 +314,7 @@ function Shifts() {
           ) : failed ? (
             <Notice tone="error" title="We could not load the shifts.">Please try again, or call <TextLink href={SHELTER.phoneHref}>{SHELTER.phone}</TextLink>. <Button variant="secondary" className="mt-3" onClick={refresh}>Try again</Button></Notice>
           ) : !weeks.length ? (
-            <Card><EmptyState title="No open shifts right now" action={<TextLink href={`mailto:${SHELTER.email}?subject=Volunteering`}>Email us to hear about new shifts</TextLink>}>New shifts are added often. Check back soon or write to us and we will tell you when there is room.</EmptyState></Card>
+            <Card><EmptyState pose="sleeping" title="No open shifts right now" action={<ButtonLink variant="secondary" href={`mailto:${SHELTER.email}?subject=Volunteering`}>Email us to hear about new shifts</ButtonLink>}>New shifts are added often. Check back soon or write to us and we will tell you when there is room.</EmptyState></Card>
           ) : (
             weeks.map(([key, items]) => (
               <div key={key}>
@@ -275,7 +328,7 @@ function Shifts() {
         </div>
       </section>
 
-      {signing && user && <SignUpSheet shift={signing} user={user} onClose={() => setSigning(null)} onDone={() => { setSigning(null); refresh(); }} />}
+      {signing && user && <SignUpSheet shift={signing} user={user} onClose={() => setSigning(null)} onDone={refresh} />}
       {canceling && <CancelSheet registration={canceling} onClose={() => setCanceling(null)} onDone={() => { setCanceling(null); refresh(); }} />}
     </div>
   );

@@ -1,24 +1,99 @@
 import type { SVGProps } from 'react';
+import { ArrowRightIcon as PhArrowRight } from '@phosphor-icons/react/dist/ssr/ArrowRight';
+import { ArrowSquareOutIcon as PhArrowSquareOut } from '@phosphor-icons/react/dist/ssr/ArrowSquareOut';
+import { ArrowsDownUpIcon as PhArrowsDownUp } from '@phosphor-icons/react/dist/ssr/ArrowsDownUp';
+import { BabyIcon as PhBaby } from '@phosphor-icons/react/dist/ssr/Baby';
+import { CalendarBlankIcon as PhCalendarBlank } from '@phosphor-icons/react/dist/ssr/CalendarBlank';
+import { CaretDownIcon as PhCaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown';
+import { CaretLeftIcon as PhCaretLeft } from '@phosphor-icons/react/dist/ssr/CaretLeft';
+import { CaretRightIcon as PhCaretRight } from '@phosphor-icons/react/dist/ssr/CaretRight';
+import { CatIcon as PhCat } from '@phosphor-icons/react/dist/ssr/Cat';
+import { CheckIcon as PhCheck } from '@phosphor-icons/react/dist/ssr/Check';
+import { ClockIcon as PhClock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { CoinsIcon as PhCoins } from '@phosphor-icons/react/dist/ssr/Coins';
+import { DogIcon as PhDog } from '@phosphor-icons/react/dist/ssr/Dog';
+import { EnvelopeIcon as PhEnvelope } from '@phosphor-icons/react/dist/ssr/Envelope';
+import { GearSixIcon as PhGearSix } from '@phosphor-icons/react/dist/ssr/GearSix';
+import { GenderIntersexIcon as PhGenderIntersex } from '@phosphor-icons/react/dist/ssr/GenderIntersex';
+import { HeartIcon as PhHeart } from '@phosphor-icons/react/dist/ssr/Heart';
+import { HouseIcon as PhHouse } from '@phosphor-icons/react/dist/ssr/House';
+import { InfoIcon as PhInfo } from '@phosphor-icons/react/dist/ssr/Info';
+import { LightningIcon as PhLightning } from '@phosphor-icons/react/dist/ssr/Lightning';
+import { ListIcon as PhList } from '@phosphor-icons/react/dist/ssr/List';
+import { MagnifyingGlassIcon as PhMagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { MapPinIcon as PhMapPin } from '@phosphor-icons/react/dist/ssr/MapPin';
+import { PawPrintIcon as PhPawPrint } from '@phosphor-icons/react/dist/ssr/PawPrint';
+import { PhoneIcon as PhPhone } from '@phosphor-icons/react/dist/ssr/Phone';
+import { PlusIcon as PhPlus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { RulerIcon as PhRuler } from '@phosphor-icons/react/dist/ssr/Ruler';
+import { ShareNetworkIcon as PhShareNetwork } from '@phosphor-icons/react/dist/ssr/ShareNetwork';
+import { ShieldCheckIcon as PhShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
+import { SparkleIcon as PhSparkle } from '@phosphor-icons/react/dist/ssr/Sparkle';
+import { TrayIcon as PhTray } from '@phosphor-icons/react/dist/ssr/Tray';
+import { UsersIcon as PhUsers } from '@phosphor-icons/react/dist/ssr/Users';
+import { WarningIcon as PhWarning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { XIcon as PhX } from '@phosphor-icons/react/dist/ssr/X';
 
-const base = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const;
-const icon = (paths: string[]) => (props: SVGProps<SVGSVGElement>) => (
-  <svg {...base} {...props}>{paths.map((d) => <path key={d} d={d} />)}</svg>
-);
+/**
+ * Soft Clay icons: thin wrappers around Phosphor glyphs. Each export keeps the old name, accepts SVG props
+ * (width, height, className, ...) and defaults to 18px. They paint with currentColor, so the surrounding text
+ * color (and every theme) decides the color. Duotone glyphs add a 20% tint of the same color behind the line;
+ * small utility glyphs use bold so they stay crisp at 12-16px, and duotone glyphs switch to bold at 20px or smaller. The /ssr entry points are plain components
+ * (no context), so they render the same in Astro's server pass and in the browser, and each icon is its own
+ * module, so only the ones used end up in a bundle. Add a glyph by importing it above and adding a line below.
+ */
+type Weight = 'regular' | 'bold' | 'duotone' | 'fill';
+type Glyph = typeof PhPawPrint;
+export type IconProps = Omit<SVGProps<SVGSVGElement>, 'ref'>;
 
-export const HomeIcon = icon(['M3 11l9-8 9 8', 'M5 10v10h14V10', 'M10 20v-6h4v6']);
-export const PawIcon = icon(['M12 13c-3 0-5 2-5 4 0 1.6 1.4 2.5 3 2.5 1 0 1.4-.4 2-.4s1 .4 2 .4c1.6 0 3-.9 3-2.5 0-2-2-4-5-4z', 'M6.5 10a1.6 1.9 0 100-.01', 'M17.5 10a1.6 1.9 0 100-.01', 'M9.5 6.5a1.5 2 0 100-.01', 'M14.5 6.5a1.5 2 0 100-.01']);
-export const InboxIcon = icon(['M4 13l2-8h12l2 8', 'M4 13v6h16v-6', 'M4 13h5l1 2h4l1-2h5']);
-export const CalendarIcon = icon(['M4 6h16v14H4z', 'M4 10h16', 'M8 3v4', 'M16 3v4']);
-export const HeartIcon = icon(['M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z']);
-export const CoinIcon = icon(['M12 3a9 9 0 100 18 9 9 0 000-18z', 'M14.5 9a2.5 2 0 00-2.5-1.5c-1.4 0-2.5.7-2.5 1.8s1.1 1.5 2.5 1.7 2.5.6 2.5 1.8-1.1 1.7-2.5 1.7A2.5 2 0 019.5 14.5', 'M12 6v1.5', 'M12 16.5V18']);
-export const UsersIcon = icon(['M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7z', 'M2.5 20c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5', 'M16 4.5a3.5 3.5 0 010 6.5', 'M18 14.8c2.2.6 3.5 2.3 3.5 5.2']);
-export const SearchIcon = icon(['M11 18a7 7 0 100-14 7 7 0 000 14z', 'M20 20l-4-4']);
-export const MenuIcon = icon(['M4 6h16', 'M4 12h16', 'M4 18h16']);
-export const CloseIcon = icon(['M6 6l12 12', 'M18 6L6 18']);
-export const PlusIcon = icon(['M12 5v14', 'M5 12h14']);
-export const ChevronLeftIcon = icon(['M15 6l-6 6 6 6']);
-export const ChevronRightIcon = icon(['M9 6l6 6-6 6']);
-export const SortIcon = icon(['M8 9l4-4 4 4', 'M8 15l4 4 4-4']);
-export const ExternalIcon = icon(['M14 4h6v6', 'M20 4l-9 9', 'M18 14v5H5V6h5']);
-export const SettingsIcon = icon(['M12 15a3 3 0 100-6 3 3 0 000 6z', 'M19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 002 1.2l.4 2.6h4l.4-2.6a7 7 0 002-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z']);
-export const MailIcon = icon(['M3 6h18v12H3z', 'M3.5 7l8.5 6.5L20.5 7']);
+const DEFAULT_SIZE = 18;
+/** Duotone glyphs keep the same 1px-at-16px line as regular, which is too faint for small UI. At this size or smaller they switch to bold. */
+const SMALL_MAX = 20;
+
+const icon = (Glyph: Glyph, weight: Weight, name: string) => {
+  const Component = (props: IconProps) => {
+    const px = Number(props.width ?? props.height ?? DEFAULT_SIZE);
+    const w: Weight = weight === 'duotone' && px <= SMALL_MAX ? 'bold' : weight;
+    return <Glyph weight={w} width={DEFAULT_SIZE} height={DEFAULT_SIZE} aria-hidden="true" focusable="false" {...props} />;
+  };
+  Component.displayName = name;
+  return Component;
+};
+
+export const SearchIcon = /* @__PURE__ */ icon(PhMagnifyingGlass, 'bold', 'SearchIcon');
+export const CloseIcon = /* @__PURE__ */ icon(PhX, 'bold', 'CloseIcon');
+export const CheckIcon = /* @__PURE__ */ icon(PhCheck, 'bold', 'CheckIcon');
+export const PlusIcon = /* @__PURE__ */ icon(PhPlus, 'bold', 'PlusIcon');
+export const MenuIcon = /* @__PURE__ */ icon(PhList, 'bold', 'MenuIcon');
+export const SortIcon = /* @__PURE__ */ icon(PhArrowsDownUp, 'bold', 'SortIcon');
+export const ExternalIcon = /* @__PURE__ */ icon(PhArrowSquareOut, 'bold', 'ExternalIcon');
+export const ArrowRightIcon = /* @__PURE__ */ icon(PhArrowRight, 'bold', 'ArrowRightIcon');
+export const ChevronLeftIcon = /* @__PURE__ */ icon(PhCaretLeft, 'bold', 'ChevronLeftIcon');
+export const ChevronRightIcon = /* @__PURE__ */ icon(PhCaretRight, 'bold', 'ChevronRightIcon');
+export const ChevronDownIcon = /* @__PURE__ */ icon(PhCaretDown, 'bold', 'ChevronDownIcon');
+export const HeartIcon = /* @__PURE__ */ icon(PhHeart, 'bold', 'HeartIcon');
+export const HeartFilledIcon = /* @__PURE__ */ icon(PhHeart, 'fill', 'HeartFilledIcon');
+export const PawIcon = /* @__PURE__ */ icon(PhPawPrint, 'duotone', 'PawIcon');
+export const HomeIcon = /* @__PURE__ */ icon(PhHouse, 'duotone', 'HomeIcon');
+export const HouseIcon = /* @__PURE__ */ icon(PhHouse, 'duotone', 'HouseIcon');
+export const InboxIcon = /* @__PURE__ */ icon(PhTray, 'duotone', 'InboxIcon');
+export const CoinIcon = /* @__PURE__ */ icon(PhCoins, 'duotone', 'CoinIcon');
+export const SettingsIcon = /* @__PURE__ */ icon(PhGearSix, 'duotone', 'SettingsIcon');
+export const CalendarIcon = /* @__PURE__ */ icon(PhCalendarBlank, 'duotone', 'CalendarIcon');
+export const ClockIcon = /* @__PURE__ */ icon(PhClock, 'duotone', 'ClockIcon');
+export const PinIcon = /* @__PURE__ */ icon(PhMapPin, 'duotone', 'PinIcon');
+export const MapPinIcon = /* @__PURE__ */ icon(PhMapPin, 'duotone', 'MapPinIcon');
+export const PhoneIcon = /* @__PURE__ */ icon(PhPhone, 'duotone', 'PhoneIcon');
+export const MailIcon = /* @__PURE__ */ icon(PhEnvelope, 'duotone', 'MailIcon');
+export const RulerIcon = /* @__PURE__ */ icon(PhRuler, 'duotone', 'RulerIcon');
+export const SexIcon = /* @__PURE__ */ icon(PhGenderIntersex, 'duotone', 'SexIcon');
+export const LightningIcon = /* @__PURE__ */ icon(PhLightning, 'duotone', 'LightningIcon');
+export const BabyIcon = /* @__PURE__ */ icon(PhBaby, 'duotone', 'BabyIcon');
+export const UsersIcon = /* @__PURE__ */ icon(PhUsers, 'duotone', 'UsersIcon');
+export const DogIcon = /* @__PURE__ */ icon(PhDog, 'duotone', 'DogIcon');
+export const CatIcon = /* @__PURE__ */ icon(PhCat, 'duotone', 'CatIcon');
+export const ShieldCheckIcon = /* @__PURE__ */ icon(PhShieldCheck, 'duotone', 'ShieldCheckIcon');
+export const SparkleIcon = /* @__PURE__ */ icon(PhSparkle, 'duotone', 'SparkleIcon');
+export const ShareIcon = /* @__PURE__ */ icon(PhShareNetwork, 'duotone', 'ShareIcon');
+export const InfoIcon = /* @__PURE__ */ icon(PhInfo, 'duotone', 'InfoIcon');
+export const WarningIcon = /* @__PURE__ */ icon(PhWarning, 'duotone', 'WarningIcon');

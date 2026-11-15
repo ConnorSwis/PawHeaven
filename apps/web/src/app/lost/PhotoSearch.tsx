@@ -2,8 +2,8 @@ import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { matchStrength, type FieldErrors, type LostPetInquiry, type LostPetInquiryListResponse, type LostPetMatch, type LostPetSearchResponse, type MemberProfileResponse } from '@pawheaven/contracts';
 import { ApiRequestError, api, errorMessage, loginUrl, useApi, useMe } from '../../lib/fetch';
-import { Badge, Button, Card, ErrorSummary, Field, Input, Notice, Select, Skeleton, Textarea, TextLink, cx } from '../../ui';
-import { PawIcon } from '../../ui/icons';
+import { Badge, Button, Card, EmptyState, ErrorSummary, Field, Input, Notice, Select, Skeleton, Textarea, TextLink, cx } from '../../ui';
+import { PawIcon, PlusIcon } from '../../ui/icons';
 
 const MAX_PHOTOS = 3;
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -24,7 +24,7 @@ const clearDraft = () => { try { window.sessionStorage.removeItem(DRAFT_KEY); } 
 
 const article = (word: string) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
 const matchAlt = (pet: LostPetMatch['pet']) => { const kind = pet.breed || pet.type; return `${pet.name}, ${article(kind)} ${kind}`; };
-const sizeMb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+const sizeMb = (bytes: number) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
 
 /** What each band means, in words, so the band is never the only information. */
 const STRENGTH_TEXT = { Strong: 'Looks very similar to your photos', Likely: 'Looks fairly similar to your photos', Possible: 'Has some things in common with your photos' } as const;
@@ -35,6 +35,7 @@ let photoCounter = 0;
 function PhotoPicker({ photos, setPhotos, error }: { photos: Photo[]; setPhotos: (next: (current: Photo[]) => Photo[]) => void; error?: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
+  const [dragging, setDragging] = useState(false);
   const urls = useRef(new Set<string>());
   useEffect(() => { const held = urls.current; return () => { for (const url of held) URL.revokeObjectURL(url); }; }, []);
 
@@ -64,19 +65,40 @@ function PhotoPicker({ photos, setPhotos, error }: { photos: Photo[]; setPhotos:
     setMessage(`Removed ${photo.file.name}.`);
   }
 
+  const full = photos.length >= MAX_PHOTOS;
   return (
     <div>
       <Field label="Photos of your pet" required help={`Add up to ${MAX_PHOTOS} JPEG, PNG, or WebP photos, each smaller than 5 MB. Clear, well-lit photos of the face and whole body work best.`} error={error}>
-        {(a) => <input {...a} ref={inputRef} type="file" accept={TYPES.join(',')} multiple disabled={photos.length >= MAX_PHOTOS} onChange={(event) => add(event.target.files)} className="block w-full min-h-11 rounded-[var(--ph-radius)] border border-stone-500 bg-white p-2 text-base text-stone-950 file:mr-3 file:min-h-9 file:rounded-[var(--ph-radius)] file:border-0 file:bg-stone-200 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-stone-950 disabled:bg-stone-100 disabled:text-stone-600" />}
+        {(a) => (
+          <div>
+            <input {...a} ref={inputRef} type="file" accept={TYPES.join(',')} multiple disabled={full} onChange={(event) => add(event.target.files)} className="peer sr-only" />
+            <label
+              htmlFor={a.id}
+              onDragOver={(event) => { if (full) return; event.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(event) => { event.preventDefault(); setDragging(false); if (!full) add(event.dataTransfer.files); }}
+              className={cx('flex min-h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--ph-radius)] border-2 border-dashed px-5 py-8 text-center transition-colors peer-focus-visible:outline-[length:var(--ph-focus-width)] peer-focus-visible:outline-solid peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--ph-accent)] peer-disabled:cursor-not-allowed peer-disabled:opacity-70', dragging ? 'border-[var(--ph-brand)] bg-[var(--ph-brand-soft)]' : error ? 'border-red-800 bg-stone-50' : 'border-stone-500 bg-stone-50 hover:bg-stone-100')}
+            >
+              <span aria-hidden="true" className="grid size-12 place-items-center rounded-full bg-[var(--ph-brand-soft)] text-[var(--ph-brand-strong)]"><PlusIcon width={26} height={26} /></span>
+              <span aria-hidden="true" className="text-base font-bold text-stone-950">{full ? `All ${MAX_PHOTOS} photos added` : dragging ? 'Drop your photos here' : 'Drag photos here, or choose files'}</span>
+              <span aria-hidden="true" className="text-sm text-stone-700">{full ? 'Remove one to choose a different photo.' : `${photos.length} of ${MAX_PHOTOS} added`}</span>
+              {!full && <span aria-hidden="true" className="mt-1 inline-flex min-h-11 items-center rounded-[var(--ph-radius-pill)] border border-stone-400 bg-white px-5 text-base font-semibold text-stone-900">Choose photos</span>}
+            </label>
+          </div>
+        )}
       </Field>
       <p role="status" className={cx('mt-2 text-sm', message ? 'text-stone-800' : 'sr-only')}>{message}</p>
       {photos.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-3" aria-label="Photos you chose">
+        <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2" aria-label="Photos you chose">
           {photos.map((photo, index) => (
-            <li key={photo.id} className="w-28">
-              <img src={photo.url} alt={`Your photo ${index + 1}: ${photo.file.name}`} className="aspect-square w-28 rounded-[var(--ph-radius)] border border-stone-300 object-cover" />
-              <button type="button" onClick={() => remove(photo)} className="mt-1 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--ph-radius)] border border-stone-400 bg-white px-2 text-sm font-semibold text-stone-900 hover:bg-stone-100">
-                Remove<span className="sr-only"> photo {index + 1}</span>
+            <li key={photo.id} className="flex items-center gap-3 rounded-[var(--ph-radius)] border border-stone-300 bg-white p-2 shadow-sm">
+              <img src={photo.url} alt={`Your photo ${index + 1}`} className="size-14 shrink-0 rounded-[calc(var(--ph-radius)-0.5rem)] bg-stone-200 object-cover" />
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold text-stone-950 [overflow-wrap:anywhere]">{photo.file.name}</p>
+                <p className="text-sm text-stone-700">{sizeMb(photo.file.size)}</p>
+              </div>
+              <button type="button" onClick={() => remove(photo)} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-[var(--ph-radius-pill)] border border-stone-400 bg-white px-4 text-sm font-semibold text-stone-900 hover:bg-stone-100">
+                Remove<span className="sr-only"> photo {index + 1}, {photo.file.name}</span>
               </button>
             </li>
           ))}
@@ -163,24 +185,25 @@ function MatchCard({ searchId, match, onSent }: { searchId: string; match: LostP
   );
 }
 
-function Results({ result, onSent }: { result: LostPetSearchResponse; onSent: () => void }) {
+function Results({ result, species, onSent }: { result: LostPetSearchResponse; species: string; onSent: () => void }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { headingRef.current?.focus(); headingRef.current?.scrollIntoView({ block: 'start' }); }, [result]);
   const count = result.matches.length;
   return (
-    <section aria-labelledby="results-heading" className="mt-8 border-t border-stone-300 pt-6">
+    <section aria-labelledby="results-heading" className="mt-10 border-t border-stone-300 pt-8">
       <h3 id="results-heading" ref={headingRef} tabIndex={-1} className="text-xl font-semibold text-stone-950 focus:outline-none">
         {count && result.searchId ? `${count} possible ${count === 1 ? 'match' : 'matches'}` : 'No possible match right now'}
       </h3>
       <div role="status" className="sr-only">{count && result.searchId ? `${count} possible ${count === 1 ? 'match' : 'matches'} found.` : 'No possible match found.'}</div>
       {!count || !result.searchId ? (
-        <div className="mt-3 grid max-w-2xl gap-3">
-          <p className="text-base leading-7 text-stone-800">{result.notice ?? 'We did not find a possible match among the animals in the shelter right now.'}</p>
-          <p className="text-base leading-7 text-stone-800">New animals arrive often. <TextLink href="#visit-often">Check back soon</TextLink>, <TextLink href="/lost-pet/flyer">make a flyer</TextLink>, or call the shelter.</p>
-        </div>
+        <Card as="div" className="mt-4 max-w-2xl">
+          <EmptyState pose="searching" species={species === 'Cat' ? 'cat' : 'dog'} title="We did not find a possible match yet">
+            {result.notice ?? 'We did not find a possible match among the animals in the shelter right now.'} New animals arrive often, so <TextLink href="#visit-often">check back soon</TextLink>, <TextLink href="/lost-pet/flyer">make a flyer</TextLink>, or call the shelter.
+          </EmptyState>
+        </Card>
       ) : (
         <>
-          <p className="mt-2 max-w-2xl border-l-4 border-stone-400 pl-3 text-sm leading-6 text-stone-800">These are visual comparisons made by an AI model. A similar-looking animal is not proof that it is your pet: shelter staff confirm ownership. Choose an animal to send staff a message.</p>
+          <p className="mt-3 max-w-2xl rounded-[var(--ph-radius-sm)] border border-stone-300 bg-stone-50 px-4 py-3 text-sm leading-6 text-stone-800">These are visual comparisons made by an AI model. A similar-looking animal is not proof that it is your pet: shelter staff confirm ownership. Choose an animal to send staff a message.</p>
           <ul className="mt-5 grid gap-4">{result.matches.map((match) => <MatchCard key={match.pet.id} searchId={result.searchId as string} match={match} onSent={onSent} />)}</ul>
         </>
       )}
@@ -197,7 +220,7 @@ export function Inquiries({ heading = 'Your messages to the shelter' }: { headin
       {list.isError && <p className="mt-2 text-base text-stone-800">We could not load your messages right now. Please refresh in a moment.</p>}
       {list.data && !list.data.inquiries.length && <p className="mt-2 text-base text-stone-800">You have not contacted the shelter about a possible match yet.</p>}
       {list.data && list.data.inquiries.length > 0 && <ul className="mt-4 grid gap-3">{list.data.inquiries.map((inquiry: LostPetInquiry) => (
-        <li key={inquiry.id} className="rounded-[var(--ph-radius)] border border-stone-300 bg-white px-4 py-3">
+        <li key={inquiry.id} className="rounded-[var(--ph-radius)] border border-stone-300 bg-white px-5 py-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold text-stone-950">{inquiry.petName}</p><Badge tone={inquiry.status === 'Resolved' ? 'good' : inquiry.status === 'In progress' ? 'warn' : 'neutral'}>{inquiry.status}</Badge></div>
           <p className="mt-1 text-sm text-stone-700">Sent {new Date(inquiry.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
           <p className="mt-2 whitespace-pre-wrap text-base leading-7 text-stone-800">{inquiry.message}</p>
@@ -282,7 +305,7 @@ export function PhotoSearch() {
         <Notice tone="success" title="Welcome back." className="mt-5 max-w-2xl">We kept what you typed. Please choose your photos again to run the search.</Notice>
       )}
 
-      <form onSubmit={submit} noValidate className="mt-6 grid max-w-xl gap-5" aria-describedby={`${idBase}-note`}>
+      <form onSubmit={submit} noValidate className="mt-6 grid max-w-xl gap-5 [&>*]:min-w-0" aria-describedby={`${idBase}-note`}>
         <ErrorSummary errors={summary} />
         <Field label="Kind of animal" required>
           {(a) => <Select {...a} ref={speciesRef} name="species" value={species} onChange={(e) => setSpecies(e.target.value)}>{['Dog', 'Cat', 'Other'].map((value) => <option key={value}>{value}</option>)}</Select>}
@@ -307,7 +330,7 @@ export function PhotoSearch() {
         )}
       </form>
 
-      {result && <Results result={result} onSent={() => void queryClient.invalidateQueries({ queryKey: ['/lost-pet/inquiries'] })} />}
+      {result && <Results result={result} species={species} onSent={() => void queryClient.invalidateQueries({ queryKey: ['/lost-pet/inquiries'] })} />}
       {signedIn && <Inquiries />}
     </div>
   );

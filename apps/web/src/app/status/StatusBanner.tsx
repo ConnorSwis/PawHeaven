@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { ButtonLink, cx } from '../../ui';
+import { PawIcon } from '../../ui/icons';
 import { groupWords, pressedGroup } from './status';
 import { useShelterStatus } from './useShelterStatus';
 
@@ -29,8 +30,9 @@ export function StatusBanner({ contained = false, className }: { contained?: boo
   const noun = words.species === 'other' ? 'an animal' : `a ${words.species}`;
 
   const banner = (
-    <section aria-labelledby={headingId} data-status-banner className={cx('rounded-[var(--ph-radius)] border border-amber-700 bg-amber-50 p-5 text-amber-900 sm:p-6', !contained && className)}>
-      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+    <section aria-labelledby={headingId} data-status-banner className={cx('rounded-[var(--ph-radius)] border border-amber-700 bg-amber-50 p-5 text-amber-900 shadow-sm sm:p-7', !contained && className)}>
+      <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-6">
+        <span aria-hidden="true" className="hidden size-14 place-items-center rounded-full bg-white text-amber-900 md:grid"><PawIcon width={28} height={28} /></span>
         <div>
           <h2 id={headingId} className="text-xl font-semibold tracking-tight text-stone-950 sm:text-2xl">{heading}</h2>
           <div
@@ -40,9 +42,9 @@ export function StatusBanner({ contained = false, className }: { contained?: boo
             aria-valuemax={100}
             aria-valuenow={fill}
             aria-valuetext={`${fill} percent full`}
-            className="mt-3 h-3 w-full max-w-lg overflow-hidden rounded-full border border-amber-700 bg-white"
+            className="mt-3 h-4 w-full max-w-lg overflow-hidden rounded-full border border-amber-700 bg-white p-0.5"
           >
-            <div className="h-full bg-amber-700 motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-out" style={{ width: `${shown}%` }} />
+            <div className="h-full rounded-full bg-amber-700 motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-out" style={{ width: `${shown}%` }} />
           </div>
           <p className="mt-2 text-sm font-semibold">
             {fill}% full{usable > 0 ? `, ${group.used} of ${usable} kennels in use` : ''}

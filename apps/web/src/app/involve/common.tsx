@@ -117,6 +117,8 @@ export function petHref(pet: Pick<Pet, 'id' | 'name'>): string {
   const name = pet.name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'animal';
   return `/adopt/${name}-${pet.id.slice(0, 8)}`;
 }
+/** Which mascot to show beside an animal: a cat for cats, a dog for everything else. */
+export const speciesFor = (type?: string): 'dog' | 'cat' => (/cat|kitten/i.test(type ?? '') ? 'cat' : 'dog');
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** A photo with a fixed shape that falls back to a paw when the animal has no picture or it fails to load. */

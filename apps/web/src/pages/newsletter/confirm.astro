@@ -1,8 +1,10 @@
 ---
-import ContentPage from '../../layouts/ContentPage.astro';
+import PageShell from '../../layouts/PageShell.astro';
 import { ConfirmPage } from '../../app/newsletter/Confirm';
 ---
 
-<ContentPage title="Newsletter subscription" description="Confirm that you want the PawHeaven adoption newsletter." noindex>
-  <ConfirmPage client:load />
-</ContentPage>
+<PageShell title="Newsletter subscription" description="Confirm that you want the PawHeaven adoption newsletter." noindex>
+  <div class="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
+    <ConfirmPage client:load />
+  </div>
+</PageShell>

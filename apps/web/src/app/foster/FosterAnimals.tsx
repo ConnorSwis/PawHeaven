@@ -2,11 +2,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import type { MemberFosterRequest, Pet } from '@pawheaven/contracts';
 import { SHELTER } from '@pawheaven/contracts/site';
-import { Badge, Button, ButtonLink, Card, EmptyState, Field, Input, Notice, Skeleton, TextLink } from '../../ui';
+import { Badge, Button, ButtonLink, Card, EmptyState, Field, Input, Notice, Section, SectionHeader, TextLink } from '../../ui';
 import { api, errorMessage, useApi, useMe } from '../../lib/fetch';
 import { Providers } from '../../lib/providers';
 import { useToast } from '../../ui/toast';
-import { addDays, ClientOnly, petFactsLine, petHref, PetPicture, plainDate, shelterToday } from '../involve/common';
+import { addDays, ClientOnly, plainDate, shelterToday } from '../involve/common';
+import { AnimalCard, AnimalCardSkeleton } from '../adopt/AnimalCard';
 
 function FosterRequest({ request, onDone }: { request: MemberFosterRequest; onDone: () => void }) {
   const today = shelterToday();
@@ -28,7 +29,7 @@ function FosterRequest({ request, onDone }: { request: MemberFosterRequest; onDo
   }
 
   return (
-    <li className="rounded-[var(--ph-radius)] border border-amber-700 bg-amber-50 p-4">
+    <li className="rounded-[var(--ph-radius)] border border-amber-700 bg-amber-50 p-5 shadow-sm">
       <p className="text-lg font-semibold text-stone-950">{request.petName} needs a foster home</p>
       {request.note && <p className="mt-1 text-base text-stone-800">{request.note}</p>}
       {request.response === 'accepted' ? <p className="mt-2"><Badge tone="good">You said yes. Staff will be in touch.</Badge></p>
@@ -54,21 +55,6 @@ function FosterRequest({ request, onDone }: { request: MemberFosterRequest; onDo
   );
 }
 
-function AnimalCard({ pet }: { pet: Pet }) {
-  return (
-    <article className="relative flex flex-col overflow-hidden rounded-[var(--ph-radius)] border border-stone-300 bg-white">
-      <PetPicture pet={pet} className="aspect-[4/3] w-full" />
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex flex-wrap gap-1.5">{pet.fosterUrgent ? <Badge tone="danger">Needs a home now</Badge> : <Badge>Open to foster</Badge>}</div>
-        <h3 className="text-xl font-semibold leading-tight text-stone-950"><a href={petHref(pet)} className="hover:underline hover:underline-offset-4">{pet.name}</a></h3>
-        <p className="text-sm leading-5 text-stone-800">{petFactsLine(pet)}</p>
-        {pet.summary && <p className="line-clamp-3 text-sm leading-6 text-stone-700">{pet.summary}</p>}
-        <div className="mt-auto pt-2"><ButtonLink variant="primary" className="w-full" href={`/apply?type=foster&pet=${pet.id}`}>Foster {pet.name}</ButtonLink></div>
-      </div>
-    </article>
-  );
-}
-
 function Animals() {
   const me = useMe();
   const queryClient = useQueryClient();
@@ -79,34 +65,42 @@ function Animals() {
   const urgent = pets.filter((pet) => pet.fosterUrgent).length;
 
   return (
-    <div className="grid gap-10">
+    <>
       {requests.length > 0 && (
-        <section aria-labelledby="requests-heading">
-          <h2 id="requests-heading" className="text-2xl font-semibold tracking-tight text-stone-950">The shelter is asking for your help</h2>
-          <p className="mt-1 text-base text-stone-800">You are an approved foster, so staff sent you these requests.</p>
-          <ul className="mt-4 grid gap-3">{requests.map((request) => <FosterRequest key={request.id} request={request} onDone={() => void queryClient.invalidateQueries({ queryKey: ['/foster-requests'] })} />)}</ul>
-        </section>
+        <Section labelledBy="requests-heading">
+          <SectionHeader id="requests-heading" title="The shelter is asking for your help" intro="You are an approved foster, so staff sent you these requests." />
+          <ul className="mt-6 grid gap-4 md:grid-cols-2">{requests.map((request) => <FosterRequest key={request.id} request={request} onDone={() => void queryClient.invalidateQueries({ queryKey: ['/foster-requests'] })} />)}</ul>
+        </Section>
       )}
 
-      <section aria-labelledby="animals-heading">
-        <h2 id="animals-heading" className="text-2xl font-semibold tracking-tight text-stone-950">Animals who need a foster home</h2>
-        <p role="status" className="mt-1 text-base text-stone-800">{petsQuery.isLoading ? 'Loading animals…' : pets.length ? `${pets.length} ${pets.length === 1 ? 'animal is' : 'animals are'} open to foster${urgent ? `, ${urgent} who need${urgent === 1 ? 's' : ''} a home now` : ''}.` : ''}</p>
-        <div className="mt-5">
+      <Section id="animals" tone="tint" labelledBy="animals-heading" className="scroll-mt-4">
+        <SectionHeader id="animals-heading" title="Animals who need a foster home" intro={<span role="status">{petsQuery.isLoading ? 'Loading animals…' : pets.length ? `${pets.length} ${pets.length === 1 ? 'animal is' : 'animals are'} open to foster${urgent ? `, ${urgent} who need${urgent === 1 ? 's' : ''} a home now` : ''}.` : ''}</span>} />
+        <div className="mt-8">
           {petsQuery.isLoading ? (
-            <div aria-hidden="true" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-80 w-full" />)}</div>
+            <div aria-hidden="true" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <AnimalCardSkeleton key={index} />)}</div>
           ) : petsQuery.isError ? (
             <Notice tone="error" title="We could not load the animals.">Please try again, or call <TextLink href={SHELTER.phoneHref}>{SHELTER.phone}</TextLink>. <Button variant="secondary" className="mt-3" onClick={() => void petsQuery.refetch()}>Try again</Button></Notice>
           ) : !pets.length ? (
-            <Card><EmptyState title="No animals are listed for fostering right now" action={<TextLink href={`mailto:${SHELTER.email}?subject=Fostering`}>Email us and we will tell you when someone needs a home</TextLink>}>Needs change quickly. Write to us and we will reach out when an animal needs a foster home.</EmptyState></Card>
+            <Card><EmptyState pose="sleeping" title="No animals are listed for fostering right now" action={<TextLink href={`mailto:${SHELTER.email}?subject=Fostering`}>Email us and we will tell you when someone needs a home</TextLink>}>Needs change quickly. Write to us and we will reach out when an animal needs a foster home.</EmptyState></Card>
           ) : (
-            <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{pets.map((pet) => <li key={pet.id} className="flex"><div className="flex w-full"><AnimalCard pet={pet} /></div></li>)}</ul>
+            <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {pets.map((pet, index) => (
+                <li key={pet.id} className="flex">
+                  <div className="flex w-full flex-col [&>article]:flex-1">
+                    <AnimalCard pet={pet} priority={index < 3}>
+                      <ButtonLink variant="primary" className="relative z-10 mt-1 w-full" href={`/apply?type=foster&pet=${pet.id}`}>Foster {pet.name}</ButtonLink>
+                    </AnimalCard>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
-      </section>
-    </div>
+      </Section>
+    </>
   );
 }
 
 export default function FosterAnimals() {
-  return <Providers><ClientOnly fallback={<div aria-hidden="true" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-80 w-full" />)}</div>}><Animals /></ClientOnly></Providers>;
+  return <Providers><ClientOnly fallback={<Section tone="tint" labelledBy="animals-heading"><h2 id="animals-heading" className="sr-only">Animals who need a foster home</h2><div aria-hidden="true" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }, (_, index) => <AnimalCardSkeleton key={index} />)}</div></Section>}><Animals /></ClientOnly></Providers>;
 }

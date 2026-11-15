@@ -19,8 +19,9 @@ function Heading() {
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <header className="max-w-2xl">
-        <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">Adopt a <span className="ph-highlight">pet</span></h1>
-        <p className="mt-2 text-lg leading-7 text-stone-800">Every animal here needs a home. Search, filter, and save your favorites.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">Meet the <span className="ph-highlight">animals</span></h1>
+        <p className="mt-2 text-lg leading-7 text-stone-800">Every animal here needs a home. Search, save your favorites, then meet them, adopt, or foster.</p>
+        <p className="mt-3"><ButtonLink variant="primary" href="/visit">Plan a visit</ButtonLink></p>
       </header>
       <aside aria-label="Matching quiz" className="flex items-center gap-3 rounded-[var(--ph-radius)] border border-stone-300 bg-[var(--ph-brand-soft)] p-3 pl-4 lg:max-w-md">
         <span aria-hidden="true" className="hidden size-10 shrink-0 place-items-center rounded-full bg-white text-[var(--ph-brand-strong)] sm:grid"><PawIcon /></span>
@@ -125,7 +126,7 @@ function Directory() {
 
       <MoreFiltersSheet open={sheetOpen} onOpenChange={setSheetOpen} filters={filters} setFilters={setFilters} resultCount={results.length} onClear={clear} canClear={anyFilter} />
 
-      {pets && !anyFilter && filters.sort !== 'help' && (
+      {pets && !anyFilter && filters.sort === 'waiting' && (
         <NeedsHelpRow
           pets={pets}
           id="directory-needs-help"

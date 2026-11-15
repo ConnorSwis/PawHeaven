@@ -1,23 +1,62 @@
 ---
 import ContentPage from '../layouts/ContentPage.astro';
+import { Card, ButtonLink, IconTile, Section, SectionHeader } from '../ui';
+import { CoinIcon, HeartIcon, HomeIcon, PawIcon } from '../ui/icons';
 import { SHELTER, SITE } from '@pawheaven/contracts/site';
+
+const ways = [
+  { href: '/adopt', title: 'Adopt', text: 'Meet the animals who are ready for a home now.', icon: PawIcon },
+  { href: '/foster', title: 'Foster', text: 'Give an animal a break from the kennel while they wait.', icon: HomeIcon },
+  { href: '/volunteer', title: 'Volunteer', text: 'Walk dogs, socialize cats, and help at events.', icon: HeartIcon },
+  { href: '/donate', title: 'Donate', text: 'Gifts pay for food, vaccines, and medical care.', icon: CoinIcon },
+];
 ---
 
-<ContentPage title="About us" description={`Who ${SITE.name} is, what we do, and how you can help.`} intro={`${SITE.name} cares for lost, stray, and surrendered animals until they are reunited with their families or placed in new homes.`}>
-  <h2>What we do</h2>
-  <p>Every animal that comes through our doors gets a safe place to stay, food, veterinary care, and a chance to be matched with the right person. We work to reunite lost pets with their owners, find homes for the ones who are not claimed, and keep animals out of the kennel by placing them with foster families.</p>
+<ContentPage
+  eyebrow="About us"
+  title="About us"
+  heading="We care for animals until they find home"
+  highlight="home"
+  description={`Who ${SITE.name} is, what we do, and how you can help.`}
+  intro={`${SITE.name} cares for lost, stray, and surrendered animals until they are reunited with their families or placed in new homes.`}
+  bare
+>
+  <ButtonLink slot="actions" variant="primary" href="/adopt">Meet the animals</ButtonLink>
+  <ButtonLink slot="actions" href="/visit">Plan a visit</ButtonLink>
 
-  <h2>How you can help</h2>
-  <ul>
-    <li><a href="/adopt">Adopt</a>: meet the animals who are ready for a home now.</li>
-    <li><a href="/foster">Foster</a>: give an animal a break from the kennel while they wait.</li>
-    <li><a href="/volunteer">Volunteer</a>: walk dogs, socialize cats, and help at events.</li>
-    <li><a href="/donate">Donate</a>: gifts pay for food, vaccines, and medical care.</li>
-  </ul>
+  <Section labelledBy="what-heading">
+    <div class="mx-auto max-w-3xl">
+      <h2 id="what-heading" class="text-2xl font-bold tracking-tight text-stone-950 sm:text-3xl">What we do</h2>
+      <p class="mt-3 text-lg leading-8 text-stone-800">Every animal that comes through our doors gets a safe place to stay, food, veterinary care, and a chance to be matched with the right person. We work to reunite lost pets with their owners, find homes for the ones who are not claimed, and keep animals out of the kennel by placing them with foster families.</p>
+    </div>
+  </Section>
 
-  <h2>Our promise</h2>
-  <p>We describe every animal honestly, tell you what we know about their health and behavior, and are here after the adoption. If it does not work out, you can return an adopted pet to us by appointment during open hours.</p>
+  <Section tone="tint" labelledBy="help-heading">
+    <SectionHeader id="help-heading" title="How you can help" />
+    <ul class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {ways.map((way) => (
+        <li>
+          <Card as="div" className="ph-lift relative flex h-full flex-col gap-2">
+            <IconTile><way.icon width={24} height={24} /></IconTile>
+            <h3 class="mt-1 text-xl font-semibold text-stone-950"><a href={way.href} class="after:absolute after:inset-0 after:rounded-[var(--ph-radius)] hover:underline hover:underline-offset-4">{way.title}</a></h3>
+            <p class="text-base leading-7 text-stone-800">{way.text}</p>
+          </Card>
+        </li>
+      ))}
+    </ul>
+  </Section>
 
-  <h2>Visit us</h2>
-  <p>{SHELTER.address.line1}, {SHELTER.address.city}, {SHELTER.address.state} {SHELTER.address.zip}. See our <a href="/contact">hours and contact details</a>, or <a href="/visit">plan a visit</a>.</p>
+  <Section labelledBy="promise-heading">
+    <div class="mx-auto grid max-w-5xl gap-6 md:grid-cols-2">
+      <Card as="div" className="p-6 sm:p-8">
+        <h2 id="promise-heading" class="text-2xl font-bold tracking-tight text-stone-950">Our promise</h2>
+        <p class="mt-3 text-base leading-7 text-stone-800">We describe every animal honestly, tell you what we know about their health and behavior, and are here after the adoption. If it does not work out, you can return an adopted pet to us by appointment during open hours.</p>
+      </Card>
+      <Card as="div" className="p-6 sm:p-8">
+        <h2 class="text-2xl font-bold tracking-tight text-stone-950">Visit us</h2>
+        <p class="mt-3 text-base leading-7 text-stone-800">{SHELTER.address.line1}, {SHELTER.address.city}, {SHELTER.address.state} {SHELTER.address.zip}.</p>
+        <p class="mt-3 text-base leading-7 text-stone-800">See our <a class="font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href="/contact">hours and contact details</a>, or <a class="font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href="/visit">plan a visit</a>.</p>
+      </Card>
+    </div>
+  </Section>
 </ContentPage>

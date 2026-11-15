@@ -29,9 +29,9 @@ export function StatusBadge({ status }: { status: string }) {
 export function Section({ id, title, aside, children, className }: { id?: string; title: string; aside?: ReactNode; children: ReactNode; className?: string }) {
   const heading = id ? `${id}-heading` : undefined;
   return (
-    <section aria-labelledby={heading} className={cx('rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 sm:p-6', className)}>
+    <section aria-labelledby={heading} className={cx('min-w-0 rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 shadow-sm sm:p-6', className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 id={heading} className="text-xl font-semibold text-stone-950">{title}</h2>
+        <h2 id={heading} className="text-xl font-bold text-stone-950">{title}</h2>
         {aside}
       </div>
       <div className="mt-3">{children}</div>
@@ -83,7 +83,7 @@ export function ConfirmAction({ label, srLabel, question, confirmLabel, keepLabe
     );
   }
   return (
-    <div role="group" aria-label={question} className="w-full rounded-[var(--ph-radius)] border border-amber-700 bg-amber-50 p-3 text-amber-900">
+    <div role="group" aria-label={question} className="w-full rounded-[var(--ph-radius-sm)] border border-amber-700 bg-amber-50 p-3 text-amber-900">
       <p className="text-sm font-semibold">{question}</p>
       <div className="mt-2 flex flex-wrap gap-2">
         <Button ref={keepRef} variant="secondary" onClick={() => setAsking(false)}>{keepLabel}</Button>

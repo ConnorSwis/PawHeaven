@@ -1,6 +1,6 @@
 import type { AdoptionApplicationListResponse, FosterApplicationListResponse, LostPetInquiryListResponse } from '@pawheaven/contracts';
 import { useApi } from '../../lib/fetch';
-import { ButtonLink } from '../../ui';
+import { ButtonLink, EmptyState } from '../../ui';
 import { LoadState, Muted, Row, Section, StatusBadge, calendarDay, dayOnly } from './common';
 
 export function Applications() {
@@ -20,7 +20,7 @@ export function Applications() {
                 <StatusBadge status={item.status} />
               </Row>
             ))}</ul>
-          ) : <div><Muted>No adoption applications yet. When you find an animal you love, choose Apply on their page.</Muted><div className="mt-3"><ButtonLink variant="secondary" href="/adopt">Meet the animals</ButtonLink></div></div>}
+          ) : <EmptyState pose="searching" title="No adoption applications yet" action={<ButtonLink variant="primary" href="/adopt">Meet the animals</ButtonLink>}>When you find an animal you love, choose Apply on their page.</EmptyState>}
         </LoadState>
       </Section>
 

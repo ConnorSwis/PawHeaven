@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { forwardRef, useId, useRef, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { forwardRef, useId, useRef, type AnchorHTMLAttributes, type Ref, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { CheckIcon, CloseIcon, SearchIcon } from './icons';
+import { Mascot, type MascotPose, type MascotSpecies } from './Mascot';
 
 export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
 
@@ -180,20 +181,137 @@ export function ErrorSummary({ errors, title = 'Please fix the following' }: { e
   );
 }
 
-// --- Steps ---------------------------------------------------------------------------------------
-export function Stepper({ steps, current }: { steps: string[]; current: number }) {
+// --- Steps, choices, summaries, and confirmations ----------------------------------------------------------
+/**
+ * Progress through a flow: numbered dots joined by a line. The current dot is filled, finished steps show a check.
+ * Labels sit beside the dots from `sm` up; on phones they stay for screen readers and the current step is spelled
+ * out in a line underneath ("Step 2 of 4: Animals").
+ */
+export function Stepper({ steps, current, className }: { steps: string[]; current: number; className?: string }) {
+  const position = Math.min(Math.max(current, 0), steps.length - 1);
   return (
-    <ol className="flex flex-wrap gap-2 text-sm" aria-label="Progress">
-      {steps.map((label, index) => {
-        const state = index < current ? 'done' : index === current ? 'current' : 'todo';
-        return (
-          <li key={label} aria-current={state === 'current' ? 'step' : undefined} className={cx('flex items-center gap-2 rounded-full px-3 py-1 font-medium', state === 'current' ? 'bg-[var(--ph-brand)] text-[var(--ph-on-brand)]' : state === 'done' ? 'bg-[var(--ph-brand-soft)] text-[var(--ph-brand-strong)]' : 'bg-stone-100 text-stone-700')}>
-            {state === 'done' ? <CheckIcon width={14} height={14} /> : <span aria-hidden="true">{index + 1}</span>}
-            <span>{label}</span><span className="sr-only">{state === 'done' ? ' (done)' : state === 'current' ? ' (current step)' : ''}</span>
-          </li>
-        );
-      })}
-    </ol>
+    <div className={className}>
+      <ol className="flex items-center" aria-label="Progress">
+        {steps.map((label, index) => {
+          const state = index < current ? 'done' : index === current ? 'current' : 'todo';
+          const last = index === steps.length - 1;
+          return (
+            <li key={label} aria-current={state === 'current' ? 'step' : undefined} className={cx('flex items-center', !last && 'flex-1')}>
+              <span aria-hidden="true" className={cx('grid size-9 shrink-0 place-items-center rounded-full border-2 text-sm font-bold transition-colors duration-150', state === 'current' ? 'border-[var(--ph-brand)] bg-[var(--ph-brand)] text-[var(--ph-on-brand)] shadow-[var(--ph-shadow-brand)]' : state === 'done' ? 'border-[var(--ph-brand)] bg-[var(--ph-brand-soft)] text-[var(--ph-brand-strong)]' : 'border-stone-500 bg-white text-stone-800')}>
+                {state === 'done' ? <CheckIcon width={16} height={16} /> : index + 1}
+              </span>
+              <span className={cx('sr-only sm:not-sr-only sm:ml-2 sm:whitespace-nowrap sm:text-sm', state === 'current' ? 'font-bold text-stone-950' : 'font-semibold text-stone-800')}>{label}</span>
+              <span className="sr-only">{state === 'done' ? ' (done)' : state === 'current' ? ' (current step)' : ''}</span>
+              {!last && <span aria-hidden="true" className={cx('mx-2 h-0.5 min-w-3 flex-1 rounded-full sm:mx-3', index < current ? 'bg-[var(--ph-brand)]' : 'bg-stone-300')} />}
+            </li>
+          );
+        })}
+      </ol>
+      <p aria-hidden="true" className="mt-2 text-sm font-semibold text-stone-800 sm:hidden">Step {position + 1} of {steps.length}: {steps[position]}</p>
+    </div>
+  );
+}
+
+/**
+ * A big tappable option (a radio, or a checkbox) for choices of five or fewer. The real input is visually hidden but
+ * focusable; the card shows a check circle when chosen, so color is never the only signal. `compact` is a small
+ * centered tile for short values such as a number of people.
+ */
+export const ChoiceCard = forwardRef<HTMLInputElement, Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & { type?: 'checkbox' | 'radio'; label: ReactNode; hint?: ReactNode; icon?: ReactNode; compact?: boolean; cardClassName?: string }>(function ChoiceCard({ type = 'radio', label, hint, icon, compact = false, cardClassName, ...props }, ref) {
+  return (
+    <label className={cx('relative flex min-h-11 cursor-pointer gap-3 rounded-[var(--ph-radius)] border border-stone-400 bg-white text-stone-950 shadow-sm transition-[color,background-color,border-color,box-shadow] duration-150 hover:bg-stone-50 has-[:checked]:border-[var(--ph-brand)] has-[:checked]:shadow-md has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 has-[:focus-visible]:outline-[length:var(--ph-focus-width)] has-[:focus-visible]:outline-solid has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--ph-accent)]', compact ? 'items-center justify-center px-3 py-2.5 text-center has-[:checked]:bg-[var(--ph-brand)] has-[:checked]:text-[var(--ph-on-brand)]' : 'items-start p-4 has-[:checked]:bg-[var(--ph-brand-soft)]', cardClassName)}>
+      <input ref={ref} type={type} className="peer sr-only" {...props} />
+      {icon && !compact && <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--ph-warning-soft)] text-[var(--ph-warning-strong)]">{icon}</span>}
+      <span className={cx('min-w-0', !compact && 'flex-1')}>
+        <span className="block text-base font-bold leading-6">{label}</span>
+        {hint && <span className={cx('mt-0.5 block text-sm leading-5', compact ? 'font-normal' : 'text-stone-700')}>{hint}</span>}
+      </span>
+      {compact
+        ? <span aria-hidden="true" className="hidden peer-checked:inline-flex"><CheckIcon width={16} height={16} /></span>
+        : <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full border-2 border-stone-500 bg-white text-transparent peer-checked:border-[var(--ph-brand)] peer-checked:bg-[var(--ph-brand)] peer-checked:text-[var(--ph-on-brand)]"><CheckIcon width={14} height={14} /></span>}
+    </label>
+  );
+});
+
+/**
+ * An on/off setting. A real checkbox (announced as a switch) drawn as a track and thumb, with "On" or "Off" in words
+ * beside it. Controlled: pass `checked` and `onChange`.
+ */
+export const Switch = forwardRef<HTMLInputElement, Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'role' | 'checked'> & { checked: boolean; label: ReactNode; hint?: ReactNode }>(function Switch({ checked, label, hint, className, ...props }, ref) {
+  return (
+    <label className={cx('flex min-h-11 cursor-pointer items-center justify-between gap-4 rounded-[var(--ph-radius-sm)] border border-stone-300 bg-white px-4 py-3 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 has-[:focus-visible]:outline-[length:var(--ph-focus-width)] has-[:focus-visible]:outline-solid has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--ph-accent)]', className)}>
+      <span className="min-w-0"><span className="block text-base font-semibold leading-6 text-stone-950">{label}</span>{hint && <span className="mt-0.5 block text-sm leading-5 text-stone-700">{hint}</span>}</span>
+      <span className="flex shrink-0 items-center gap-2.5">
+        <span aria-hidden="true" className="w-7 text-right text-sm font-bold text-stone-800">{checked ? 'On' : 'Off'}</span>
+        <input ref={ref} type="checkbox" role="switch" checked={checked} className="peer sr-only" {...props} />
+        <span aria-hidden="true" className="relative block h-7 w-12 rounded-full border-2 border-stone-500 bg-stone-100 transition-colors duration-150 peer-checked:border-[var(--ph-brand)] peer-checked:bg-[var(--ph-brand)] after:absolute after:left-0.5 after:top-1/2 after:size-5 after:-translate-y-1/2 after:rounded-full after:bg-stone-600 after:transition-transform after:duration-150 after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-[var(--ph-on-brand)]" />
+      </span>
+    </label>
+  );
+});
+
+/** A ticket: main details on top, a dashed tear line, then a stub for the small print or actions. Use it for the next visit or shift. */
+export function TicketCard({ children, stub, className }: { children: ReactNode; stub?: ReactNode; className?: string }) {
+  return (
+    <div className={cx('overflow-hidden rounded-[var(--ph-radius)] border border-stone-300 bg-white shadow-sm', className)}>
+      <div className="p-5 sm:p-6">{children}</div>
+      {stub && <div className="border-t-2 border-dashed border-stone-300 bg-stone-50 px-5 py-4 sm:px-6">{stub}</div>}
+    </div>
+  );
+}
+
+/**
+ * The rounded "Your visit / shift / application" card: a short list of what has been chosen so far. Sticky beside the
+ * steps on desktop; on phones render a second copy above the submit button. `onChange` on a row adds a Change button.
+ */
+export function SummaryCard({ title, rows, as: Heading = 'h2', children, className }: { title: string; rows: { label: string; value: ReactNode; onChange?: () => void }[]; as?: 'h2' | 'h3'; children?: ReactNode; className?: string }) {
+  return (
+    <section className={cx('rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 shadow-sm', className)}>
+      <Heading className="text-lg font-bold text-stone-950">{title}</Heading>
+      <dl className="mt-3 grid gap-3">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-start justify-between gap-3 border-t border-stone-200 pt-3 first:border-t-0 first:pt-0">
+            <div className="min-w-0">
+              <dt className="text-sm font-semibold text-stone-700">{row.label}</dt>
+              <dd className="break-words text-base font-semibold text-stone-950">{row.value}</dd>
+            </div>
+            {row.onChange && <button type="button" onClick={row.onChange} className="-my-1.5 inline-flex min-h-11 shrink-0 items-center rounded-[var(--ph-radius-pill)] px-3 text-sm font-semibold text-[var(--ph-brand-strong)] underline underline-offset-4 hover:bg-stone-100">Change<span className="sr-only"> {row.label.toLowerCase()}</span></button>}
+          </div>
+        ))}
+      </dl>
+      {children && <div className="mt-4">{children}</div>}
+    </section>
+  );
+}
+
+/**
+ * The warm "it worked" screen: the celebrating mascot, one sentence, the details as children (usually a `TicketCard`),
+ * what happens next, and the links. The heading takes focus through `headingRef`. Only for successes, never errors.
+ */
+export function Confirmation({ title, headingRef, message, species = 'dog', next, nextTitle = 'What happens next', actions, children, className }: { title: string; headingRef?: Ref<HTMLHeadingElement>; message: ReactNode; species?: MascotSpecies; next?: ReactNode[]; nextTitle?: string; actions?: ReactNode; children?: ReactNode; className?: string }) {
+  return (
+    <div className={cx('grid gap-6', className)}>
+      <div className="flex flex-col items-center rounded-[var(--ph-radius)] border border-stone-300 bg-[var(--ph-brand-soft)] px-5 py-8 text-center shadow-sm sm:px-8">
+        <Mascot pose="celebrating" species={species} size={144} className="ph-enter" />
+        <h2 ref={headingRef} tabIndex={-1} className="mt-3 text-3xl font-bold tracking-tight text-stone-950 focus:outline-none sm:text-4xl">{title}</h2>
+        <p className="mt-2 max-w-xl text-lg leading-8 text-stone-800">{message}</p>
+      </div>
+      {children}
+      {next && next.length > 0 && (
+        <section className="rounded-[var(--ph-radius)] border border-stone-300 bg-white p-5 shadow-sm sm:p-6">
+          <h3 className="text-lg font-bold text-stone-950">{nextTitle}</h3>
+          <ol className="mt-3 grid gap-3">
+            {next.map((item, index) => (
+              <li key={index} className="flex items-start gap-3">
+                <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--ph-brand-soft)] text-sm font-bold text-[var(--ph-brand-strong)]">{index + 1}</span>
+                <span className="min-w-0 pt-0.5 text-base leading-7 text-stone-800">{item}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {actions && <div className="flex flex-wrap gap-3">{actions}</div>}
+    </div>
   );
 }
 
@@ -224,10 +342,12 @@ export function Sheet({ open, onOpenChange, title, description, children, footer
   );
 }
 
-export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+/** An empty list: one sentence and one action. Pass `pose` (`sleeping` or `searching`) to add the mascot. */
+export function EmptyState({ title, children, action, pose, species = 'dog' }: { title: string; children?: ReactNode; action?: ReactNode; pose?: MascotPose; species?: MascotSpecies }) {
   return (
     <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-      <p className="text-lg font-semibold text-stone-950">{title}</p>
+      {pose && <Mascot pose={pose} species={species} size={128} className="mb-1" />}
+      <p className="text-lg font-bold text-stone-950">{title}</p>
       {children && <p className="max-w-md text-base leading-7 text-stone-700">{children}</p>}
       {action}
     </div>
@@ -242,3 +362,48 @@ export const PageHeading = ({ title, intro, children }: { title: string; intro?:
     {children}
   </header>
 );
+
+// --- Page headers, icon tiles, and accordions (Soft Clay landing pages) ---------------------------------------
+/**
+ * The friendly header block at the top of a landing page: an eyebrow pill, the h1 (at most one `.ph-highlight`
+ * word, and none on lost-pet, donation, medical, or application pages), one sentence, then the primary action.
+ * Astro pages cannot pass JSX in props, so give `title` as a string with `highlight` as the word to mark, and put the buttons
+ * in `children`. `aside` is an optional picture or card shown beside the text on wide screens (and above it on phones when
+ * `asideFirst` is set). `children` render under the actions.
+ */
+export function PageHero({ eyebrow, title, highlight, intro, actions, aside, asideFirst = false, id = 'page-title', children, className }: { eyebrow?: ReactNode; title: ReactNode; highlight?: string; intro?: ReactNode; actions?: ReactNode; aside?: ReactNode; asideFirst?: boolean; id?: string; children?: ReactNode; className?: string }) {
+  return (
+    <section aria-labelledby={id} className={cx('overflow-x-clip', className)}>
+      <div className={cx('mx-auto grid max-w-6xl items-center gap-10 px-4 pb-10 pt-8 sm:px-6 lg:gap-12 lg:pb-12 lg:pt-14', aside ? 'lg:grid-cols-[1.15fr_0.85fr]' : undefined)}>
+        <div className={cx(aside && asideFirst ? 'order-2 lg:order-1' : undefined)}>
+          {eyebrow && <p className="mb-4 inline-flex items-center gap-2 rounded-[var(--ph-radius-pill)] bg-[var(--ph-brand-soft)] px-3.5 py-1.5 text-sm font-bold text-[var(--ph-brand-strong)]"><span aria-hidden="true" className="size-2 rounded-full bg-current" />{eyebrow}</p>}
+          <h1 id={id} className="max-w-2xl text-4xl font-bold tracking-tight text-stone-950 sm:text-5xl lg:leading-[1.08]">{typeof title === 'string' && highlight && title.includes(highlight) ? <>{title.slice(0, title.indexOf(highlight))}<span className="ph-highlight">{highlight}</span>{title.slice(title.indexOf(highlight) + highlight.length)}</> : title}</h1>
+          {intro && <p className="mt-4 max-w-xl text-lg leading-8 text-stone-800">{intro}</p>}
+          {actions && <div className="mt-7 flex flex-wrap items-center gap-3">{actions}</div>}
+          {children}
+        </div>
+        {aside && <div className={cx(asideFirst ? 'order-1 lg:order-2' : undefined)}>{aside}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** A round, warm tile that holds an icon. Decorative: the words next to it carry the meaning. */
+export const IconTile = ({ children, size = 'md', className }: { children: ReactNode; size?: 'sm' | 'md' | 'lg'; className?: string }) => (
+  <span aria-hidden="true" className={cx('grid shrink-0 place-items-center rounded-full bg-[var(--ph-brand-soft)] text-[var(--ph-brand-strong)]', size === 'sm' ? 'size-9' : size === 'lg' ? 'size-14' : 'size-12', className)}>{children}</span>
+);
+
+/** A stack of rounded accordions. Each item is a real `<details>`, so it works with the keyboard and without scripts. */
+export const Accordion = ({ children, className }: { children: ReactNode; className?: string }) => <div className={cx('grid gap-3', className)}>{children}</div>;
+
+export function AccordionItem({ question, children, defaultOpen = false, className }: { question: ReactNode; children: ReactNode; defaultOpen?: boolean; className?: string }) {
+  return (
+    <details open={defaultOpen || undefined} className={cx('group rounded-[var(--ph-radius)] border border-stone-300 bg-white shadow-sm open:shadow-md', className)}>
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 rounded-[var(--ph-radius)] px-5 py-3 text-base font-bold text-stone-950 hover:bg-stone-50 [&::-webkit-details-marker]:hidden">
+        <span>{question}</span>
+        <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-stone-700 motion-safe:transition-transform motion-safe:duration-150 group-open:rotate-180"><path d="m6 9 6 6 6-6" /></svg>
+      </summary>
+      <div className="px-5 pb-5 text-base leading-7 text-stone-800">{children}</div>
+    </details>
+  );
+}
