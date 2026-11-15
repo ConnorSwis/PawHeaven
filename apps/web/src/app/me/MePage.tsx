@@ -156,7 +156,7 @@ function MeContent() {
 
       <div className="mt-6" id="panel">
         <h2 ref={panelHeading} tabIndex={-1} className="sr-only focus:outline-none">{current.label}</h2>
-        {tab === 'overview' && <Overview name={user.name} />}
+        {tab === 'overview' && <Overview />}
         {tab === 'activity' && <Activity />}
         {tab === 'saved' && <div className="grid gap-6"><Saved /><SavedSearches /><Matches /></div>}
         {tab === 'settings' && <Settings user={user} />}

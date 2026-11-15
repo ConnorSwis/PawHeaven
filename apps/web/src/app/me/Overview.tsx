@@ -3,13 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { matchStrength, type Pet, type AdoptionApplicationListResponse, type FosterApplicationListResponse, type LatestQuizResponse, type MemberFosterRequest, type MyInvolvement, type VisitAppointmentListResponse, type VolunteerRegistrationListResponse } from '@pawheaven/contracts';
 import { daysUntil, formatShelterRange } from '@pawheaven/contracts/ui';
 import { api, errorMessage, useApi } from '../../lib/fetch';
-import { Badge, Button, ButtonLink, Field, Input, Notice, Skeleton, TicketCard } from '../../ui';
+import { Badge, Button, ButtonLink, EmptyState, Field, Input, Notice, Skeleton, TextLink, TicketCard } from '../../ui';
 import { dayLong, monthDay, PetPicture, timeRange, zoneName } from '../involve/common';
 import { LoadState, Link, Muted, Row, Section, dayOnly, petPath } from './common';
 import { useSavedIds } from './savedIds';
-import { Mascot } from '../../ui/Mascot';
-import { applyFilters, DEFAULT_FILTERS } from '../adopt/filters';
-import { helpLabel } from '../status/help';
 
 type Attention = { key: string; title: string; detail: string; tab: string; action: string };
 
@@ -146,57 +143,7 @@ export function Matches() {
   );
 }
 
-/** Four animals who could use a friend most, so Home always has someone to meet. Animals already saved are left out. */
-function Discover() {
-  const { ids } = useSavedIds();
-  const pets = useApi<{ pets: Pet[] }>('/pets', { staleSeconds: 60 });
-  const picks = pets.data ? applyFilters(pets.data.pets, { ...DEFAULT_FILTERS, sort: 'help' }).filter((pet) => !ids.includes(pet.id)).slice(0, 4) : [];
-  if (pets.isError || (pets.data && !picks.length)) return null;
-  return (
-    <Section id="discover" title="Could use a friend" aside={<Link href="/adopt?sort=help">See more</Link>}>
-      {pets.isPending ? <Skeleton className="h-40" /> : (
-        <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {picks.map((pet) => (
-            <li key={pet.id} className="ph-lift rounded-[var(--ph-radius)] border border-stone-300 bg-white p-2 shadow-sm">
-              <a href={petPath(pet)} className="block">
-                <PetPicture pet={pet} decorative className="aspect-[4/3] w-full rounded-[calc(var(--ph-radius)-0.5rem)]" />
-                <span className="mt-2 block truncate px-1 text-base font-bold text-stone-950">{pet.name}</span>
-                <span className="block truncate px-1 pb-1 text-sm text-stone-700">{helpLabel(pet) || [pet.breed || pet.type, pet.age].filter(Boolean).join(' · ')}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Section>
-  );
-}
-
-const JUMP_IN = [
-  { href: '/adopt/match', title: 'Find my match', text: 'A few quick questions' },
-  { href: '/visit', title: 'Plan a visit', text: 'Meet animals in person' },
-  { href: '/volunteer', title: 'Volunteer', text: 'Walk dogs, play with cats' },
-  { href: '/foster', title: 'Foster', text: 'A temporary home' },
-] as const;
-
-function JumpIn() {
-  return (
-    <section aria-label="Things to do">
-      <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {JUMP_IN.map((item) => (
-          <li key={item.href}>
-            <a href={item.href} className="ph-lift block h-full rounded-[var(--ph-radius)] border border-stone-300 bg-[var(--ph-brand-soft)] p-4 text-stone-950">
-              <span className="block text-base font-bold">{item.title}</span>
-              <span className="mt-0.5 block text-sm text-stone-800">{item.text}</span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-export function Overview({ name }: { name: string }) {
-  const first = name.trim().split(/\s+/)[0] || 'there';
+export function Overview() {
   const appointments = useApi<VisitAppointmentListResponse>('/appointments');
   const registrations = useApi<VolunteerRegistrationListResponse>('/volunteer/registrations');
   const adoption = useApi<AdoptionApplicationListResponse>('/applications');
@@ -253,14 +200,9 @@ export function Overview({ name }: { name: string }) {
       {!loading && (
         <Section id="next" title="Next up" aside={nextVisit || nextShift ? <Link href="?tab=activity">See all</Link> : undefined}>
           {!nextVisit && !nextShift ? (
-            <div className="flex items-center gap-4">
-              <Mascot pose="welcome" size={72} className="shrink-0" />
-              <div className="min-w-0">
-                <p className="text-lg font-bold leading-snug text-stone-950">Nothing booked yet, {first}.</p>
-                <p className="mt-0.5 text-base text-stone-800">Want to meet someone?</p>
-                <p className="mt-2"><ButtonLink variant="primary" href="/visit">Plan a visit</ButtonLink></p>
-              </div>
-            </div>
+            <EmptyState pose="sleeping" title="Nothing booked" action={<ButtonLink variant="primary" href="/visit">Plan a visit</ButtonLink>}>
+              Meet the animals, or <TextLink href="/volunteer">find a shift</TextLink>.
+            </EmptyState>
           ) : (
             <ul className="grid gap-4 lg:grid-cols-2">
               {[
@@ -274,8 +216,6 @@ export function Overview({ name }: { name: string }) {
 
       {failed && <Muted className="text-sm">Some of your information did not load. Refresh to try again.</Muted>}
       <SavedStrip />
-      <Discover />
-      <JumpIn />
       {hours && <Muted className="text-sm">{hours}</Muted>}
     </div>
   );
