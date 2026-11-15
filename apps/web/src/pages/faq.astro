@@ -17,7 +17,7 @@ const faqs = [
 ];
 ---
 
-<ContentPage title="Questions and answers" description="Quick answers about adopting, fostering, volunteering, visiting, and lost pets." intro="Short answers to what people ask most. Cannot find yours? Contact us.">
+<ContentPage eyebrow="Help" title="Questions and answers" description="Quick answers about adopting, fostering, volunteering, visiting, and lost pets." intro="Short answers to what people ask most. Cannot find yours? Contact us.">
   <div>
     {faqs.map((item) => <details><summary>{item.q}</summary><div><p>{item.a}</p></div></details>)}
   </div>

@@ -3,7 +3,7 @@ import ContentPage from '../layouts/ContentPage.astro';
 import { SHELTER, SITE } from '@pawheaven/contracts/site';
 ---
 
-<ContentPage title="Contact and hours" description={`How to reach ${SITE.name}, where to find us, and when we are open.`}>
+<ContentPage eyebrow="Visit and contact" title="Contact and hours" description={`How to reach ${SITE.name}, where to find us, and when we are open.`}>
   <h2>Find us</h2>
   <p>
     <strong>{SHELTER.name}</strong><br />
@@ -18,7 +18,7 @@ import { SHELTER, SITE } from '@pawheaven/contracts/site';
     <thead><tr><th scope="col">Day</th><th scope="col">Hours</th></tr></thead>
     <tbody>{SHELTER.hours.map((row) => <tr><th scope="row">{row.days}</th><td>{row.open}</td></tr>)}</tbody>
   </table>
-  <p>{SHELTER.hoursNote} Times are Eastern.</p>
+  <div class="callout"><p>{SHELTER.hoursNote} Times are Eastern.</p></div>
 
   <h2>Get in touch</h2>
   <ul>

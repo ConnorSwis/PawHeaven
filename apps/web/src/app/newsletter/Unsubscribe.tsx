@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type { UnsubscribeResponse, UnsubscribeScope } from '@pawheaven/contracts';
 import { ApiRequestError, api, errorMessage } from '../../lib/fetch';
 import { Providers } from '../../lib/providers';
-import { Button, TextLink } from '../../ui';
+import { Button, ButtonLink, Card, TextLink } from '../../ui';
+import { Mascot, type MascotPose } from '../../ui/Mascot';
 
 const SCOPES: UnsubscribeScope[] = ['newsletter', 'alerts', 'all'];
 
@@ -63,34 +64,40 @@ function UnsubscribeContent() {
   }
 
   const manage = <TextLink className="inline-flex min-h-11 items-center" href="/me#details">Manage your email choices in My PawHeaven</TextLink>;
+  const pose: MascotPose = state === 'invalid' ? 'searching' : state === 'loading' || state === 'ready' || state === 'busy' ? 'welcome' : state === 'error' ? 'searching' : 'sleeping';
+  const heading = 'text-3xl font-bold tracking-tight text-stone-950';
+  const body = 'max-w-md text-base leading-7 text-stone-800';
   return (
-    <div aria-live="polite">
-      {state === 'loading' && <p>Checking your link…</p>}
-      {(state === 'ready' || state === 'busy' || state === 'error') && info && (
-        <>
-          <h2>{ACTION[info.scope](mask(info.email))}</h2>
-          {info.scope !== 'newsletter' && <p>You will still get reminders for your visits and shifts, and updates on your applications.</p>}
-          <p><Button variant="primary" disabled={state === 'busy'} onClick={() => void unsubscribe()}>{state === 'busy' ? 'Unsubscribing…' : 'Unsubscribe'}</Button></p>
-          {state === 'error' && <p role="alert" className="font-semibold text-red-800">{problem}</p>}
-        </>
-      )}
-      {state === 'done' && (
-        <>
-          <h2>You are unsubscribed</h2>
-          <p>{DONE[done]}</p>
-          <p>Changed your mind? {manage}.</p>
-          <p><TextLink className="inline-flex min-h-11 items-center" href="/">Go to the home page</TextLink></p>
-        </>
-      )}
-      {state === 'invalid' && (
-        <>
-          <h2>That unsubscribe link did not work</h2>
-          <p>{problem || 'The unsubscribe link looks incomplete or out of date. Try the link in your most recent email, or change your choices yourself in My PawHeaven.'}</p>
-          <p>{manage}</p>
-          <p><TextLink className="inline-flex min-h-11 items-center" href="/">Go to the home page</TextLink></p>
-        </>
-      )}
-    </div>
+    <Card className="text-center sm:p-10">
+      <div aria-live="polite" className="flex flex-col items-center gap-3">
+        <Mascot pose={pose} size={132} />
+        {state === 'loading' && <p className="text-base text-stone-800">Checking your link…</p>}
+        {(state === 'ready' || state === 'busy' || state === 'error') && info && (
+          <>
+            <h1 className="text-2xl font-bold tracking-tight text-stone-950 sm:text-3xl">{ACTION[info.scope](mask(info.email))}</h1>
+            {info.scope !== 'newsletter' && <p className={body}>You will still get reminders for your visits and shifts, and updates on your applications.</p>}
+            <Button variant="primary" disabled={state === 'busy'} onClick={() => void unsubscribe()}>{state === 'busy' ? 'Unsubscribing…' : 'Unsubscribe'}</Button>
+            {state === 'error' && <p role="alert" className="font-semibold text-red-800">{problem}</p>}
+          </>
+        )}
+        {state === 'done' && (
+          <>
+            <h1 className={heading}>You are unsubscribed</h1>
+            <p className={body}>{DONE[done]}</p>
+            <p className={body}>Changed your mind? {manage}.</p>
+            <ButtonLink variant="secondary" href="/">Go to the home page</ButtonLink>
+          </>
+        )}
+        {state === 'invalid' && (
+          <>
+            <h1 className={heading}>That unsubscribe link did not work</h1>
+            <p className={body}>{problem || 'The unsubscribe link looks incomplete or out of date. Try the link in your most recent email, or change your choices yourself in My PawHeaven.'}</p>
+            <p>{manage}</p>
+            <ButtonLink variant="secondary" href="/">Go to the home page</ButtonLink>
+          </>
+        )}
+      </div>
+    </Card>
   );
 }
 

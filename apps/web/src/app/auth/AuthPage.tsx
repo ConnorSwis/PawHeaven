@@ -4,6 +4,7 @@ import { ApiRequestError, api, errorMessage, useMe } from '../../lib/fetch';
 import { Providers } from '../../lib/providers';
 import { Button, ButtonLink, Card, ErrorSummary, Field, Input, Notice, TextLink } from '../../ui';
 import { CheckIcon } from '../../ui/icons';
+import { Mascot } from '../../ui/Mascot';
 import { finishSignIn, readNext, withNext } from './next';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,12 +33,32 @@ function ShowPassword({ show, onToggle, label = 'Show password' }: { show: boole
   );
 }
 
-function Shell({ title, intro, children }: { title: string; intro: string; children: ReactNode }) {
+/** Form card on the left; on desktop a soft panel with the welcome mascot on the right. One column on phones. */
+function Shell({ title, intro, aside, children }: { title: string; intro: string; aside: { heading: string; text: string }; children: ReactNode }) {
   return (
-    <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">
-      <h1 className="text-3xl font-semibold tracking-tight text-stone-950">{title}</h1>
-      <p className="mt-2 text-base leading-7 text-stone-700">{intro}</p>
-      <Card className="mt-6">{children}</Card>
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,30rem)_minmax(0,1fr)] lg:items-start lg:gap-10">
+        <div className="mx-auto w-full max-w-md lg:mx-0 lg:max-w-none">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">{title}</h1>
+              <p className="mt-2 text-base leading-7 text-stone-700">{intro}</p>
+            </div>
+            <Mascot pose="welcome" size={76} className="shrink-0 lg:hidden" />
+          </div>
+          <Card className="mt-6">{children}</Card>
+        </div>
+        <div className="hidden min-h-[30rem] flex-col items-center justify-center gap-6 rounded-[var(--ph-radius)] border border-stone-300 bg-[var(--ph-brand-soft)] p-10 text-center shadow-sm lg:sticky lg:top-24 lg:flex">
+          <div className="relative grid place-items-center">
+            <span aria-hidden="true" className="absolute size-60 rounded-full bg-[var(--ph-pop)] opacity-50" />
+            <Mascot pose="welcome" size={220} className="relative" />
+          </div>
+          <div className="max-w-xs">
+            <p className="text-2xl font-bold tracking-tight text-stone-950">{aside.heading}</p>
+            <p className="mt-2 text-base leading-7 text-stone-800">{aside.text}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -77,7 +98,7 @@ function LoginForm() {
     setFieldErrors(problems);
     if (Object.keys(problems).length) {
       setSummaryTitle('Please fix the following');
-      setSummaryTitle('Please fix the following'); setSummary(Object.values(problems));
+      setSummary(Object.values(problems));
       (problems.email ? emailRef : passwordRef).current?.focus();
       return;
     }
@@ -88,14 +109,13 @@ function LoginForm() {
       finishSignIn(next);
     } catch (error) {
       setSummaryTitle('We could not log you in');
-      setSummaryTitle('We could not log you in');
       setSummary([error instanceof DOMException && error.name === 'TimeoutError' ? 'Logging in is taking too long. Check your connection and try again.' : requestMessage(error, 'log in')]);
       setBusy(false);
     }
   }
 
   return (
-    <Shell title="Log in" intro="Welcome back. Log in to see your visits, applications, and saved details.">
+    <Shell title="Log in" intro="Welcome back. Log in to see your visits, applications, and saved details." aside={{ heading: 'Good to see you', text: 'Your visits, applications, and saved animals are right where you left them.' }}>
       {me.data && <AlreadySignedIn name={me.data.name} next={next} />}
       <form onSubmit={submit} noValidate className="grid gap-5">
         <ErrorSummary errors={summary} title={summaryTitle} />
@@ -127,7 +147,7 @@ const RULES: { text: string; test: (value: string) => boolean }[] = [
 /** Shown before anyone submits. Each rule says "met" or "needed" in words, not only with an icon. */
 export function PasswordRules({ value, id }: { value: string; id?: string }) {
   return (
-    <div id={id} className="rounded-[var(--ph-radius)] border border-stone-300 bg-stone-50 p-3 text-sm text-stone-800">
+    <div id={id} className="rounded-[var(--ph-radius-sm)] border border-stone-300 bg-stone-50 p-3 text-sm text-stone-800">
       <p className="font-semibold text-stone-950">Your password needs:</p>
       <ul className="mt-1.5 grid gap-1">
         {RULES.map((rule) => {
@@ -183,7 +203,7 @@ function SignUpForm() {
     const first = order.find((key) => problems[key]);
     if (first) {
       setSummaryTitle('Please fix the following');
-      setSummaryTitle('Please fix the following'); setSummary(order.flatMap((key) => (problems[key] ? [problems[key]] : [])));
+      setSummary(order.flatMap((key) => (problems[key] ? [problems[key]] : [])));
       refs[first].current?.focus();
       return;
     }
@@ -196,7 +216,6 @@ function SignUpForm() {
     } catch (error) {
       if (error instanceof ApiRequestError && error.fieldErrors) setFieldErrors((current) => ({ ...current, ...error.fieldErrors }));
       setSummaryTitle('We could not create your account');
-      setSummaryTitle('We could not create your account');
       setSummary([error instanceof DOMException && error.name === 'TimeoutError' ? 'Creating your account is taking too long. Check your connection and try again.' : requestMessage(error, 'create your account')]);
       setBusy(false);
     }
@@ -204,7 +223,7 @@ function SignUpForm() {
 
   if (checkInbox) {
     return (
-      <Shell title="Check your inbox" intro="One more step before you can log in.">
+      <Shell title="Check your inbox" intro="One more step before you can log in." aside={{ heading: 'Almost there', text: 'Confirm your address from the email, then come back and log in.' }}>
         <div ref={inboxRef} tabIndex={-1} className="grid gap-4 focus:outline-none">
           <Notice tone="success" title="We sent you an email.">
             If the address can be used for an account, the next steps are in your inbox. Open the email and confirm your address, then log in. If it does not arrive in a few minutes, check your spam folder.
@@ -216,7 +235,7 @@ function SignUpForm() {
   }
 
   return (
-    <Shell title="Create your account" intro="An account lets you book a visit, apply to adopt or foster, and sign up to volunteer. You can look around the whole site without one.">
+    <Shell title="Create your account" intro="An account lets you book a visit, apply to adopt or foster, and sign up to volunteer. You can look around the whole site without one." aside={{ heading: 'Glad you are here', text: 'With an account you can book a visit, apply, and sign up to volunteer. It takes about a minute.' }}>
       {me.data && <AlreadySignedIn name={me.data.name} next={next} />}
       <form onSubmit={submit} noValidate className="grid gap-5">
         <ErrorSummary errors={summary} title={summaryTitle} />

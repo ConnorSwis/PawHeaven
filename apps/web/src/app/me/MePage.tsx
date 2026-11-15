@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Providers } from '../../lib/providers';
 import { loginUrl, useMe } from '../../lib/fetch';
-import { ButtonLink, Card, Notice, Skeleton, cx } from '../../ui';
+import { ButtonLink, Card, Notice, Skeleton, chipClass } from '../../ui';
+import { Mascot } from '../../ui/Mascot';
 import { Applications } from './Applications';
 import { Details } from './Details';
 import { Overview } from './Overview';
@@ -26,9 +27,26 @@ const readTab = (): TabId => {
 function Heading({ lead, children }: { lead?: string; children?: string }) {
   return (
     <header>
-      <h1 className="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">My PawHeaven</h1>
+      <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">My PawHeaven</h1>
       {lead && <p className="mt-2 text-lg leading-8 text-stone-700">{lead}</p>}
       {children}
+    </header>
+  );
+}
+
+/** Greeting for a signed-in member: their first name, one warm line, and the welcome mascot. */
+function Greeting({ name }: { name: string }) {
+  const first = name.trim().split(/\s+/)[0] || 'there';
+  return (
+    <header className="flex items-center justify-between gap-4 rounded-[var(--ph-radius)] border border-stone-300 bg-[var(--ph-brand-soft)] px-5 py-5 shadow-sm sm:px-8 sm:py-6">
+      <div className="min-w-0">
+        <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">
+          <span className="block text-sm font-semibold uppercase tracking-wide text-stone-700">My PawHeaven</span>
+          Hi, <span className="ph-highlight">{first}</span>
+        </h1>
+        <p className="mt-2 text-base leading-7 text-stone-800 sm:text-lg">Your visits, applications, and saved animals are all here.</p>
+      </div>
+      <Mascot pose="welcome" size={112} className="hidden shrink-0 sm:block" />
     </header>
   );
 }
@@ -103,7 +121,8 @@ function MeContent() {
           </div>
         ) : (
           <Card className="mt-8 max-w-xl">
-            <h2 className="text-xl font-semibold text-stone-950">Log in to see your account</h2>
+            <Mascot pose="welcome" size={96} className="mb-2" />
+            <h2 className="text-xl font-bold text-stone-950">Log in to see your account</h2>
             <p className="mt-2 text-base leading-7 text-stone-800">Once you are logged in you can see your upcoming visits and volunteer shifts, check on your applications, and update your saved details. New here? An account takes a minute to create.</p>
             <div className="mt-4 flex flex-wrap gap-3">
               <ButtonLink variant="primary" href={loginUrl()}>Log in</ButtonLink>
@@ -119,18 +138,18 @@ function MeContent() {
   const current = TABS.find((item) => item.id === tab) ?? TABS[0];
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14" onClick={onLinkClick}>
-      <Heading lead={`Welcome back, ${user.name.split(' ')[0]}.`} />
-      <nav aria-label="My PawHeaven sections" className="mt-6 border-b border-stone-300">
-        <ul className="-mb-px flex gap-1 overflow-x-auto">
+      <Greeting name={user.name} />
+      <nav aria-label="My PawHeaven sections" className="mt-6">
+        <ul className="flex flex-wrap gap-2">
           {TABS.map((item) => {
             const active = item.id === tab;
             return (
-              <li key={item.id} className="shrink-0">
+              <li key={item.id}>
                 <a
                   href={`?tab=${item.id}`}
                   aria-current={active ? 'page' : undefined}
                   onClick={(event) => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return; event.preventDefault(); event.stopPropagation(); go(item.id); }}
-                  className={cx('inline-flex min-h-11 items-center border-b-4 px-4 py-2 text-base font-semibold transition-colors', active ? 'border-[var(--ph-brand)] text-stone-950' : 'border-transparent text-stone-700 hover:border-stone-400 hover:text-stone-950')}
+                  className={chipClass(active)}
                 >{item.label}</a>
               </li>
             );

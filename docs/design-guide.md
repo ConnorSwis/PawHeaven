@@ -91,6 +91,27 @@ round heart button. Do not add new shadow values; pick one of the three.
 - **Fields.** `Field` + `Input`/`Select`/`Textarea` from the kit: label above, help below, error in
   words under the field, `ErrorSummary` at the top of long forms. Prefer big tappable `Choice`
   options over a dropdown when there are five or fewer options.
+- **Stepper.** `Stepper` (`steps`, `current`): numbered rounded dots joined by a line; the current dot is
+  filled, finished steps show a check. Labels sit beside the dots from `sm` up; on phones they stay for
+  screen readers and a line underneath says "Step 2 of 4: Animals". Pass `steps.length` as `current` on the
+  confirmation so every step shows done. Used by visit, apply, and the volunteer sign-up sheet.
+- **Choice cards.** `ChoiceCard` (radio or checkbox) is the big tappable option for five or fewer choices
+  (visit purpose, party size). The real input is visually hidden but focusable; the card shows a check circle
+  when chosen so color is not the only signal. `compact` makes a small centered tile for short values such as
+  a number. Use it instead of a `Select` when it fits; keep the form value and payload the same.
+- **Summary card.** `SummaryCard` (`title`, `rows`): the rounded "Your visit / shift / application" card.
+  Sticky beside the steps on desktop (`hidden lg:block lg:sticky lg:top-24`), and a second copy with
+  `lg:hidden` above the submit button on phones. A row with `onChange` gets a Change button.
+- **Confirmation.** `Confirmation` is the success screen after booking, signing up, or applying: celebrating
+  mascot, one warm sentence, the details (usually a `TicketCard`), "What happens next", and the links
+  (add to calendar, My PawHeaven). The heading takes focus through `headingRef`. Success only, never errors.
+  Applications stay calm: no confetti, no motion beyond the soft entrance.
+- **Ticket card.** `TicketCard` (`children`, `stub`): main details on top, a dashed tear line, then a stub
+  for small print or controls. Used for the next visit or shift on My PawHeaven and for booked visits.
+- **Switch.** `Switch` is an on/off setting: a real checkbox (announced as a switch) drawn as a track and
+  thumb, with "On" or "Off" in words beside it. Controlled (`checked`, `onChange`). Used for email choices.
+- **Empty states.** `EmptyState` takes an optional `pose` (`sleeping` or `searching`) and `species`: the
+  mascot, one sentence, one action. Never use `celebrating` outside `Confirmation`.
 - **Notices.** `Notice` for inline messages; toasts for results of an action. Errors say what
   happened and what to do next.
 - **Photos.** `object-cover`, a fixed aspect ratio (4:3 in cards), `bg-stone-200` behind while
@@ -150,6 +171,27 @@ Staff kit pieces in `apps/admin/src/portal/ui/index.tsx` (use these, do not rest
 - **Charts and canvas** cannot read `var(...)`: use `resolveVar()` and `useThemeVersion()` from `lib/theme.ts` so a chart reads the live theme and redraws when the theme changes. Turn animation off for reduced motion.
 - **Sheet and dialog footers** are right-aligned with the primary action last; destructive actions sit at the left.
 
+## Icons
+
+Icons are [Phosphor](https://phosphoricons.com) (MIT), wrapped in `apps/web/src/ui/icons.tsx` and
+`apps/admin/src/portal/ui/icons.tsx`. Import from those files (`import { PawIcon } from '../../ui/icons'`),
+never from `@phosphor-icons/react` directly, so a glyph can be swapped in one place.
+
+- Every icon takes normal SVG props (`width`, `height`, `className`), defaults to 20px (public) or
+  18px (staff), uses `currentColor`, and is `aria-hidden` by default. Put the meaning in nearby words.
+- Utility glyphs (search, close, check, chevrons, plus, menu, sort, external, arrow, heart) are
+  `bold` so they hold up at 12-16px. Decorative glyphs are `duotone` (a 20% tint behind the line),
+  and switch to `bold` automatically at 20px or smaller. Use duotone sizes of 24px and up for spot
+  icons such as a paw on an empty state, and for the "good to know" rows.
+- For a glyph that is missing, add one line to both files (import it from
+  `@phosphor-icons/react/dist/ssr/<Name>` and call `icon(Glyph, 'duotone', 'NameIcon')`). Always use
+  the per-icon `/dist/ssr/` path: it renders on the server and in the browser, and only the icons you
+  import reach the bundle (each one carries all six weights, about 2-3 kB raw).
+- Available beyond the basics: `HouseIcon`, `MapPinIcon`, `PhoneIcon`, `MailIcon`, `RulerIcon` (size),
+  `SexIcon`, `LightningIcon` (energy), `BabyIcon` and `UsersIcon` (good with kids), `DogIcon`,
+  `CatIcon`, `ShieldCheckIcon` (vaccinated, neutered), `SparkleIcon`, `ShareIcon`, `InfoIcon`,
+  `WarningIcon`, `ArrowRightIcon`.
+
 ## Do not
 
 - Emoji as icons, gradients on text, glass or blur panels, glowing borders, purple-to-blue
@@ -180,6 +222,15 @@ Staff kit pieces in `apps/admin/src/portal/ui/index.tsx` (use these, do not rest
 5. `npm run qa:theme` and `npm run check` pass.
 6. Loading, empty, and error states exist and read well.
 
+- **Page hero.** `PageHero` (kit): eyebrow pill, h1, one sentence, actions, and an optional `aside`. Astro pages cannot pass JSX in props, so give `title` as a string with `highlight` (the one word to mark) and put the buttons in `children`. No highlight word on lost-pet, donation, medical, or application pages. Content pages get the same look from `ContentPage.astro` (`eyebrow`, `heading`, `highlight`, an `actions` slot, and `bare` for pages that lay out their own sections, such as About).
+- **Accordion.** `Accordion` and `AccordionItem` (kit): rounded real `<details>` items with a chevron that turns; keyboard and no-script friendly. Raw `<details>` inside a `ContentPage` get the same look from its CSS (the FAQ page).
+- **Icon tile.** `IconTile` (kit): the round warm tile that holds a decorative icon at the top of a card.
+- **Content pages.** `ContentPage` has a soft rounded header band, a reading column (`max-w-3xl`), spaced headings, tables in a rounded frame, `.callout` (a plain note) and `.panel` (a card for fees, hours, and requirements), and accordion `<details>`.
+- **Status banner** (`app/status`): a rounded warm callout with an icon tile, a pill meter (`role="meter"` plus the numbers in words), and pill actions. Same logic and copy as before.
+- **Events.** Each event is a card with a month/day date tile (decorative; the full date is in the text), time, place (the shelter address), featured animals as small round photo chips that link to the animal, and "Plan a visit". Photos come from the cached animals list. The empty state uses the sleeping mascot.
+- **Lost a pet.** Calm only: no highlight word, no celebratory mascot. The phone number and hours sit in one prominent panel; three large choices link to the three sections; the photo picker is a rounded dashed drop target (drag and drop or "Choose photos") that lists each file name with its size and a Remove button; matches are cards; the `searching` mascot appears only in the "no match" state.
+- **Donate.** Amount choices are big pill radios with a check when chosen; the wishlist items are cards without meters because `SHELTER.wishlist` has no stock or goal numbers (add a meter only when real numbers exist, using `role="meter"` with `aria-valuetext`). The supporter wall is a set of warm cards. The thank-you page uses the `celebrating` mascot.
+
 ## What is not built yet
 
 Phase 1 delivered the tokens, the font, and the restyled kit and animal card. Phase 2 delivered the
@@ -187,10 +238,17 @@ public site pages: Home (photo hero with the live count, search pill and chips, 
 blob with a note card, tinted bands), Adopt (search, sort and quick chips above the grid, "More filters"
 sheet, removable active filters, same URL parameters as before), the animal profile (framed gallery,
 note in the animal's voice from real data, icon rows, sticky action card with Share, similar animals),
-and a pill header and soft footer. Still planned: the shared stepper and confirmations on the forms
-(apply, visit, volunteer, donate), restyling the remaining public pages (foster, events, lost pet,
-content pages) with `Section` bands, the staff portal pass (rounded meters, thumbnails, chart colors),
-softer icons (the icon set is still the thin line set; more glyphs for the "good to know" rows),
-shadcn registry components, and a mascot with spot illustrations. Candidates to move into `theme.css`
-as tokens: `.ph-band` (a `--ph-band` color), `.ph-enter` and its keyframes. When you build those,
-follow this guide and extend it.
+and a pill header and soft footer. Phase 3 delivered the flows and account area: the shared stepper,
+choice cards, summary card, confirmation, ticket card, switch, and mascot empty states in the kit; visit,
+apply, and the volunteer sign-up (stepper, sticky summary, celebratory confirmation with add to calendar);
+a split login and sign-up with the welcome mascot; My PawHeaven (greeting, pill tabs, next visit and shift
+as tickets, saved animals as a photo strip, switches for email choices); the newsletter pages; and a
+friendly 404 ("This page wandered off", built from `src/pages/404.astro`, served with a 404 status by
+`not_found_handling` in `apps/web/wrangler.jsonc`).
+
+Still planned: the staff portal pass (rounded meters, thumbnails, chart colors), softer icons for the
+remaining thin line glyphs, shadcn registry components, and more spot illustrations beyond the four mascot
+poses. The "Pick a time" day tiles and the animal picker on the visit page are still custom tiles rather
+than `ChoiceCard`s because they hold many options. Candidates to move into `theme.css` as tokens:
+`.ph-band` (a `--ph-band` color), `.ph-enter` and its keyframes. When you build more, follow this guide
+and extend it.

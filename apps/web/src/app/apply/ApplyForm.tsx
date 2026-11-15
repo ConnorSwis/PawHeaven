@@ -2,11 +2,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Pet } from '@pawheaven/contracts';
 import { SHELTER } from '@pawheaven/contracts/site';
-import { Button, ButtonLink, Card, Field, Input, Notice, Select, Skeleton, Stepper, Textarea, TextLink } from '../../ui';
+import { Button, ButtonLink, Card, Confirmation, Field, Input, Notice, Select, Skeleton, Stepper, SummaryCard, TicketCard, Textarea, TextLink } from '../../ui';
 import { api, ApiRequestError, errorMessage, loginUrl, useApi, useMe } from '../../lib/fetch';
 import { loadProfile, saveProfile } from '../../lib/profile';
 import { Providers } from '../../lib/providers';
-import { ageFrom, ClientOnly, draftStore, petAlt, petFactsLine, petHref, PetPicture, plainDate, Problems, shelterToday, UUID, useStepFocus } from '../involve/common';
+import { ageFrom, ClientOnly, draftStore, petAlt, petFactsLine, petHref, PetPicture, plainDate, Problems, shelterToday, speciesFor, UUID, useStepFocus } from '../involve/common';
 
 type Kind = 'adopt' | 'foster';
 type Key = 'phone' | 'address' | 'dob' | 'household' | 'from' | 'until' | 'experience' | 'note';
@@ -89,10 +89,10 @@ function readQuery(): { kind: Kind; petId: string } {
 function PetSummary({ pet, kind }: { pet: Pet; kind: Kind }) {
   return (
     <Card as="div" className="flex gap-4 p-4 sm:p-4 lg:flex-col">
-      <PetPicture pet={pet} className="aspect-[4/3] w-28 shrink-0 rounded-[var(--ph-radius)] lg:w-full" />
+      <PetPicture pet={pet} className="aspect-[4/3] w-28 shrink-0 rounded-[calc(var(--ph-radius)-0.5rem)] lg:w-full" />
       <div className="min-w-0">
         <p className="text-sm font-semibold text-stone-700">{kind === 'foster' ? 'You are applying to foster' : 'You are applying to adopt'}</p>
-        <p className="text-xl font-semibold text-stone-950">{pet.name}</p>
+        <p className="text-xl font-bold text-stone-950">{pet.name}</p>
         <p className="text-sm leading-5 text-stone-800">{petFactsLine(pet)}</p>
         <p className="mt-2"><TextLink href={petHref(pet)} className="inline-flex min-h-11 items-center text-sm" aria-label={`About ${petAlt(pet)}`}>About {pet.name}</TextLink></p>
       </div>
@@ -107,7 +107,7 @@ function AnimalPicker({ kind, onChoose }: { kind: Kind; onChoose: (id: string) =
   const pets = (petsQuery.data?.pets ?? []).filter((pet) => (kind === 'foster' ? pet.fosterAvailable : true));
   return (
     <section aria-labelledby="pick-heading" className="grid max-w-xl gap-4">
-      <h2 id="pick-heading" className="text-2xl font-semibold tracking-tight text-stone-950">Choose an animal</h2>
+      <h2 id="pick-heading" className="text-2xl font-bold tracking-tight text-stone-950">Choose an animal</h2>
       <p className="text-base leading-7 text-stone-800">{kind === 'foster' ? 'These animals are open to foster applications.' : 'Applications are for one animal at a time.'} You can also <TextLink href={kind === 'foster' ? '/foster' : '/adopt'}>look through the photos first</TextLink>.</p>
       {petsQuery.isLoading ? <Skeleton className="h-12 w-full" /> : petsQuery.isError ? <Notice tone="error">We could not load the animals. Please refresh the page.</Notice> : (
         <Field label="Animal" required error={error}>
@@ -228,7 +228,7 @@ function Application({ kind, petId }: { kind: Kind; petId: string }) {
   if (petQuery.isError || !pet) {
     return (
       <div className="grid max-w-xl gap-4">
-        <h1 className="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">We cannot find that animal</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">We cannot find that animal</h1>
         <Notice tone="info">This animal may have been adopted or is no longer taking applications. {petQuery.isError && petQuery.error instanceof ApiRequestError && petQuery.error.status !== 404 ? errorMessage(petQuery.error) : ''}</Notice>
         <div className="flex flex-wrap gap-3"><ButtonLink variant="primary" href="/adopt">See animals looking for a home</ButtonLink><ButtonLink href="/foster">Foster an animal</ButtonLink></div>
       </div>
@@ -239,7 +239,7 @@ function Application({ kind, petId }: { kind: Kind; petId: string }) {
   if (kind === 'foster' && !pet.fosterAvailable) {
     return (
       <div className="grid max-w-xl gap-4">
-        <h1 className="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">{title}</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">{title}</h1>
         <Notice tone="warning" title={`${pet.name} is not open to foster applications right now.`}>Staff choose which animals need a foster home, and this one does not at the moment. You can apply to adopt {pet.name} or look at the animals who do need a foster home.</Notice>
         <div className="flex flex-wrap gap-3"><ButtonLink variant="primary" href={`/apply?type=adopt&pet=${pet.id}`}>Apply to adopt {pet.name}</ButtonLink><ButtonLink href="/foster">See animals who need a foster home</ButtonLink></div>
       </div>
@@ -249,26 +249,34 @@ function Application({ kind, petId }: { kind: Kind; petId: string }) {
   // --- Confirmation ---------------------------------------------------------------------------------
   if (done) {
     return (
-      <div className="grid max-w-3xl gap-6">
-        <div>
-          <h1 className="sr-only">{title}</h1>
-          <h2 ref={heading} tabIndex={-1} className="text-3xl font-semibold tracking-tight text-stone-950 focus:outline-none sm:text-4xl">Thank you, your application is in</h2>
-          <p className="mt-3 text-lg leading-8 text-stone-800">Your application to {verb} {pet.name} has been sent{me.data?.email ? `, and we emailed a confirmation to ${me.data.email}` : ''}.</p>
-        </div>
-        <Card>
-          <h3 className="text-lg font-semibold text-stone-950">What happens next</h3>
-          <ol className="mt-3 grid list-decimal gap-2 pl-5 text-base leading-7 text-stone-800">
-            <li>Our team reads your application. We may call or email with questions.</li>
-            {kind === 'foster'
-              ? <li>If it is a good fit, we agree on a pick-up time and go over what {pet.name} needs.</li>
-              : <li>If it is a good fit, we invite you to meet {pet.name}. Bring a government-issued photo ID. <TextLink href="/adopt/process">See how adoption works</TextLink>.</li>}
-            <li>You can check the status any time in My PawHeaven.</li>
-          </ol>
-        </Card>
-        <div className="flex flex-wrap gap-3">
-          <ButtonLink variant="primary" href="/me?tab=applications">See my applications</ButtonLink>
-          <ButtonLink href={kind === 'foster' ? '/foster' : '/adopt'}>{kind === 'foster' ? 'See more animals to foster' : 'Keep looking'}</ButtonLink>
-        </div>
+      <div className="mx-auto grid max-w-3xl gap-6">
+        <h1 className="sr-only">{title}</h1>
+        <Stepper steps={STEPS} current={STEPS.length} />
+        <Confirmation
+          title="Thank you, your application is in"
+          headingRef={heading}
+          species={speciesFor(pet.type)}
+          message={<>Your application to {verb} {pet.name} has been sent{me.data?.email ? `, and we emailed a confirmation to ${me.data.email}` : ''}.</>}
+          next={[
+            'Our team reads your application. We may call or email with questions.',
+            kind === 'foster'
+              ? `If it is a good fit, we agree on a pick-up time and go over what ${pet.name} needs.`
+              : <>If it is a good fit, we invite you to meet {pet.name}. Bring a government-issued photo ID. <TextLink href="/adopt/process">See how adoption works</TextLink>.</>,
+            'You can check the status any time in My PawHeaven.',
+          ]}
+          actions={<><ButtonLink variant="primary" href="/me?tab=applications">See my applications</ButtonLink><ButtonLink href={kind === 'foster' ? '/foster' : '/adopt'}>{kind === 'foster' ? 'See more animals to foster' : 'Keep looking'}</ButtonLink></>}
+        >
+          <TicketCard>
+            <div className="flex items-center gap-4">
+              <PetPicture pet={pet} decorative className="aspect-[4/3] w-24 shrink-0 rounded-[calc(var(--ph-radius)-0.5rem)]" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-stone-700">{kind === 'foster' ? 'Foster application' : 'Adoption application'}</p>
+                <p className="text-xl font-bold text-stone-950">{pet.name}</p>
+                <p className="text-sm leading-5 text-stone-800">{petFactsLine(pet)}</p>
+              </div>
+            </div>
+          </TicketCard>
+        </Confirmation>
       </div>
     );
   }
@@ -283,12 +291,23 @@ function Application({ kind, petId }: { kind: Kind; petId: string }) {
   ];
   const savedHint = profile.data && (profile.data.phone || profile.data.address || profile.data.dateOfBirth) ? 'Filled in from My PawHeaven. Change it if it is out of date.' : undefined;
 
+  const progress = (index: number) => (step > index ? 'Done' : step === index ? 'In progress' : 'Not started yet');
+  const summaryRows = [
+    { label: 'Animal', value: pet.name },
+    { label: 'About you', value: progress(0), onChange: step > 0 ? () => edit(0) : undefined },
+    { label: 'Your home', value: progress(1), onChange: step > 1 ? () => edit(1) : undefined },
+    { label: 'Experience', value: progress(2), onChange: step > 2 ? () => edit(2) : undefined },
+  ];
+
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-      <div className="lg:col-start-2 lg:row-start-1"><PetSummary pet={pet} kind={kind} /></div>
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
+      <div className="grid gap-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1">
+        <PetSummary pet={pet} kind={kind} />
+        <SummaryCard title="Your application" rows={summaryRows} className="hidden lg:block" />
+      </div>
       <div className="grid gap-6 lg:col-start-1 lg:row-start-1">
         <header>
-          <h1 className="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">{title}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">{title}</h1>
           <p className="mt-2 text-base leading-7 text-stone-800">It takes about five minutes. We save your answers on this device as you go.</p>
         </header>
         <Stepper steps={STEPS} current={step} />
@@ -302,7 +321,7 @@ function Application({ kind, petId }: { kind: Kind; petId: string }) {
 
         {step === 0 && (
           <section aria-labelledby="apply-step" className="grid gap-5">
-            <h2 id="apply-step" ref={heading} tabIndex={-1} className="text-2xl font-semibold tracking-tight text-stone-950 focus:outline-none">About you</h2>
+            <h2 id="apply-step" ref={heading} tabIndex={-1} className="text-2xl font-bold tracking-tight text-stone-950 focus:outline-none">About you</h2>
             {me.data === null && <Notice tone="info">You can fill this in now. We will ask you to log in or create an account when you send it, and keep your answers.</Notice>}
             <Field label="Phone number" required error={errors.phone} help={savedHint ?? 'Where the shelter can reach you.'}>
               {(aria) => <Input {...aria} name="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={30} value={values.phone} onChange={(event) => set('phone', event.target.value)} />}
@@ -325,7 +344,7 @@ function Application({ kind, petId }: { kind: Kind; petId: string }) {
 
         {step === 1 && (
           <section aria-labelledby="apply-step" className="grid gap-5">
-            <h2 id="apply-step" ref={heading} tabIndex={-1} className="text-2xl font-semibold tracking-tight text-stone-950 focus:outline-none">Your home</h2>
+            <h2 id="apply-step" ref={heading} tabIndex={-1} className="text-2xl font-bold tracking-tight text-stone-950 focus:outline-none">Your home</h2>
             <Field label="Tell us about your household" required error={errors.household} help="Who lives with you, any other pets, whether you rent or own, and who is home during the day. At least 20 characters.">
               {(aria) => <Textarea {...aria} name="household" rows={6} maxLength={2000} value={values.household} onChange={(event) => set('household', event.target.value)} />}
             </Field>
@@ -346,7 +365,7 @@ function Application({ kind, petId }: { kind: Kind; petId: string }) {
 
         {step === 2 && (
           <section aria-labelledby="apply-step" className="grid gap-5">
-            <h2 id="apply-step" ref={heading} tabIndex={-1} className="text-2xl font-semibold tracking-tight text-stone-950 focus:outline-none">Experience</h2>
+            <h2 id="apply-step" ref={heading} tabIndex={-1} className="text-2xl font-bold tracking-tight text-stone-950 focus:outline-none">Experience</h2>
             <Field label={kind === 'foster' ? 'Your experience with pets or fostering' : 'Your experience with pets'} required error={errors.experience} help={kind === 'foster' ? 'Past pets, fostering, or how you will prepare. At least 20 characters.' : 'Past pets, training, or how you will prepare for the responsibility. At least 20 characters.'}>
               {(aria) => <Textarea {...aria} name="experience" rows={5} maxLength={1000} value={values.experience} onChange={(event) => set('experience', event.target.value)} />}
             </Field>
@@ -359,7 +378,7 @@ function Application({ kind, petId }: { kind: Kind; petId: string }) {
 
         {step === 3 && (
           <section aria-labelledby="apply-step" className="grid gap-5">
-            <h2 id="apply-step" ref={heading} tabIndex={-1} className="text-2xl font-semibold tracking-tight text-stone-950 focus:outline-none">Check your answers</h2>
+            <h2 id="apply-step" ref={heading} tabIndex={-1} className="text-2xl font-bold tracking-tight text-stone-950 focus:outline-none">Check your answers</h2>
             <Card>
               <dl className="grid gap-4">
                 {review.map(([label, value, target]) => (
@@ -371,6 +390,7 @@ function Application({ kind, petId }: { kind: Kind; petId: string }) {
                 ))}
               </dl>
             </Card>
+            <SummaryCard title="Your application" rows={[{ label: 'Animal', value: `${pet.name} (${kind === 'foster' ? 'foster' : 'adopt'})` }, { label: 'Answers', value: 'Ready to send' }]} className="lg:hidden" />
             {me.isLoading ? <Skeleton className="h-12 w-60" /> : me.data ? (
               <div className="grid gap-3">
                 <p className="text-base text-stone-800">Sending as <strong>{me.data.name}</strong> ({me.data.email}). We will email you a confirmation.</p>
@@ -412,7 +432,7 @@ function Page() {
   if (!query.petId) {
     return (
       <div className="grid gap-6">
-        <h1 className="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">{query.kind === 'foster' ? 'Apply to foster' : 'Apply to adopt'}</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">{query.kind === 'foster' ? 'Apply to foster' : 'Apply to adopt'}</h1>
         <AnimalPicker kind={query.kind} onChoose={choosePet} />
       </div>
     );
