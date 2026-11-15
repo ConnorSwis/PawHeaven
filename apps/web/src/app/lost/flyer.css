@@ -1,0 +1,105 @@
+/*
+ * The printed lost-pet flyer.
+ *
+ * A flyer is always black ink on white paper, whatever the site theme is, so this file uses plain keyword colors
+ * (the one deliberate exception to "colors come from the theme"). It also avoids relying on background fills,
+ * which most browsers do not print by default: structure comes from thick black borders instead.
+ *
+ * Everything inside the sheet is sized in em, and the sheet's font size is 1/51 of its width. On paper (8.5in wide)
+ * 1em is 16px; the on-screen preview is the same drawing, just smaller, so what you see is what prints.
+ */
+
+.fl-frame { container-type: inline-size; width: 100%; }
+
+.fl {
+  --fit: 1;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 8.5 / 11;
+  font-size: calc(100cqw / 51);
+  line-height: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1em;
+  padding: 2.3em 2.5em 2em;
+  overflow: hidden;
+  background: white;
+  color: black;
+  font-family: var(--ph-font-sans), system-ui, sans-serif;
+  text-align: left;
+}
+.fl p, .fl dl, .fl dd, .fl dt, .fl h2 { margin: 0; }
+.fl * { box-sizing: border-box; }
+
+/* Headline: the first thing read from across the street. */
+.fl-head {
+  border-block: 0.2em solid black;
+  padding: 0.12em 0 0.2em;
+  text-align: center;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  flex: none;
+}
+
+/* Photo and facts. */
+.fl-main { display: grid; grid-template-columns: 24em minmax(0, 1fr); gap: 1.4em; flex: 1 1 0; min-height: 0; }
+.fl-main[data-photo='none'] { grid-template-columns: minmax(0, 1fr); }
+.fl-photo { position: relative; min-height: 0; border: 0.25em solid black; border-radius: 1em; overflow: hidden; background: white; }
+.fl-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.fl-photo[data-fit='whole'] img { object-fit: contain; }
+
+.fl-facts { min-height: 0; min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+.fl-facts-in { flex: none; font-size: calc(1em * var(--fit)); display: grid; gap: 0.75em; }
+.fl-answers { font-size: 0.8em; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: dimgray; }
+.fl-name { font-weight: 900; line-height: 1; overflow-wrap: anywhere; text-wrap: balance; }
+.fl-fact dt { font-size: 0.62em; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: dimgray; }
+.fl-fact dd { font-size: 1.25em; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.fl-pair { display: flex; flex-wrap: wrap; gap: 0.75em 1.8em; }
+.fl-reward { justify-self: start; border: 0.18em solid black; border-radius: 99em; padding: 0.15em 0.7em 0.2em; font-size: 1.25em; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+.fl-note { font-size: 1.15em; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+
+/* Last seen. */
+.fl-seen { border: 0.18em solid black; border-radius: 0.8em; padding: 0.5em 0.8em 0.6em; }
+.fl-seen-label { font-size: 0.7em; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+.fl-seen-where { font-weight: 900; line-height: 1.12; overflow-wrap: anywhere; }
+.fl-seen-when { font-size: 1em; font-weight: 700; margin-top: 0.15em; }
+
+/* How to reach the owner. */
+.fl-contact { flex: none; text-align: center; }
+.fl-call { font-size: 1.15em; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; overflow-wrap: anywhere; }
+.fl-phone { font-weight: 900; line-height: 1.02; margin-top: 0.1em; overflow-wrap: anywhere; letter-spacing: -0.01em; }
+.fl-who { font-size: 1.2em; font-weight: 700; margin-top: 0.15em; overflow-wrap: anywhere; }
+
+/* Tear-off tabs. */
+.fl-tabs { flex: none; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); height: 8em; border-top: 0.14em dashed black; margin-inline: -0.5em; }
+.fl-tab { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; border-left: 0.12em dashed black; padding: 0.4em 0.1em; }
+.fl-tab:first-child { border-left: 0; }
+.fl-tab span { writing-mode: vertical-rl; transform: rotate(180deg); max-height: 100%; font-size: 1.1em; font-weight: 900; line-height: 1.2; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fl-tab small { font-size: 0.8em; font-weight: 700; }
+
+/* Hints that only exist on screen, to show where something will go. They never print. */
+.fl-ghost { border: 0.15em dashed gray; border-radius: 0.7em; padding: 0.6em 0.9em; color: dimgray; font-size: 1.05em; font-weight: 700; line-height: 1.25; text-align: center; display: flex; align-items: center; justify-content: center; }
+.fl-ghost-photo { position: absolute; inset: 0; border: 0; border-radius: 0; flex-direction: column; gap: 0.4em; }
+.fl-ghost-strip { flex: none; }
+
+/* The grey page behind the sheet on screen. */
+.fl-stage { border-radius: var(--ph-radius); padding: 1rem; }
+.fl-paper { margin-inline: auto; background: white; box-shadow: var(--ph-shadow-lg); border-radius: 2px; overflow: hidden; }
+
+@media print {
+  @page { size: letter portrait; margin: 0; }
+  html, body { height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: white !important; }
+  /* Only the sheet goes to the printer: no header, footer, skip link, form, or buttons. */
+  body > :not(main), .fl-screen, .fl-ghost { display: none !important; }
+  main, .fl-page, .fl-stage-wrap { display: block !important; margin: 0 !important; padding: 0 !important; max-width: none !important; width: auto !important; position: static !important; }
+  .fl-stage { display: block !important; background: none; padding: 0; border-radius: 0; }
+  .fl-paper { width: 8.5in !important; max-width: none !important; margin: 0 !important; box-shadow: none; border-radius: 0; }
+  .fl-frame { width: 8.5in; }
+  .fl { width: 8.5in; height: 10.98in; aspect-ratio: auto; break-inside: avoid; }
+  .fl-main[data-photo='none'] { grid-template-columns: minmax(0, 1fr); }
+}

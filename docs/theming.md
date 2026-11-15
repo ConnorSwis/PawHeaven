@@ -91,8 +91,9 @@ theme can make cards dark and keep button text readable.
 
 ## One deliberate exception
 
-The lost-pet flyer pins its own black-on-white colors, because it is meant to be printed and posted and
-must stay legible whatever the site theme is. Its preview on screen follows the same rule.
+The lost-pet flyer pins its own black-on-white colors (in `apps/web/src/app/lost/flyer.css`), because it is
+meant to be printed and posted and must stay legible whatever the site theme is. Its preview on screen follows
+the same rule: the sheet stays white paper in every theme, including dark.
 
 ## Debug menu for demos
 
