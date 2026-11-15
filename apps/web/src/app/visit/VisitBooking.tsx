@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import type { Pet, PublicAvailability } from '@pawheaven/contracts';
 import { SHELTER } from '@pawheaven/contracts/site';
-import { Button, ButtonLink, Card, Field, Fieldset, Input, Notice, Select, Skeleton, Stepper, Textarea, TextLink, cx } from '../../ui';
+import { Button, ButtonLink, Card, Choice, Field, Fieldset, Input, Notice, Select, Skeleton, Stepper, Textarea, TextLink, cx } from '../../ui';
 import { CalendarIcon } from '../../ui/icons';
 import { api, ApiRequestError, errorMessage, loginUrl, useApi, useMe } from '../../lib/fetch';
 import { Providers } from '../../lib/providers';
@@ -12,9 +12,17 @@ const STEPS = ['Time', 'Animals', 'You', 'Done'];
 const DRAFT_KEY = 'ph:visit-draft';
 const PAGE_SIZE = 24;
 
-type Draft = { slotId: string; petIds: string[]; party: number; purpose: string; step: number };
+const INTERESTS = [
+  ['adopt', 'Adopting', 'I am hoping to take an animal home.'],
+  ['foster', 'Fostering', 'I could give an animal a temporary home.'],
+  ['visit', 'Just visiting', 'I would like to meet the animals first.'],
+] as const;
+type Interest = (typeof INTERESTS)[number][0];
+const interestLabel = (value: Interest) => INTERESTS.find((item) => item[0] === value)?.[1] ?? '';
+
+type Draft = { slotId: string; petIds: string[]; party: number; purpose: string; step: number; interest?: Interest };
 type Slot = PublicAvailability['visits'][number];
-type Booked = { startsAt: string; endsAt: string; animals: string[]; party: number; appointmentId: string };
+type Booked = { startsAt: string; endsAt: string; animals: string[]; party: number; appointmentId: string; interest: Interest; firstPetId?: string };
 
 const stepHeading = 'text-2xl font-semibold tracking-tight text-stone-950 focus:outline-none';
 
@@ -23,7 +31,7 @@ function readStart(): Draft {
   const wanted = new URLSearchParams(window.location.search).get('pet');
   const petIds = [...(saved?.petIds ?? [])];
   if (wanted && UUID.test(wanted) && !petIds.includes(wanted) && petIds.length < 5) petIds.push(wanted);
-  return { slotId: saved?.slotId ?? '', petIds, party: saved?.party && saved.party >= 1 && saved.party <= 6 ? saved.party : 1, purpose: saved?.purpose ?? '', step: Math.min(saved?.step ?? 0, 2) };
+  return { slotId: saved?.slotId ?? '', petIds, party: saved?.party && saved.party >= 1 && saved.party <= 6 ? saved.party : 1, purpose: saved?.purpose ?? '', step: Math.min(saved?.step ?? 0, 2), interest: INTERESTS.map((item) => item[0]).find((value) => value === new URLSearchParams(window.location.search).get('interest')) ?? (INTERESTS.some((item) => item[0] === saved?.interest) ? saved?.interest : undefined) };
 }
 
 function Booking() {
@@ -37,6 +45,7 @@ function Booking() {
   const [petIds, setPetIds] = useState(start.petIds);
   const [party, setParty] = useState(start.party);
   const [purpose, setPurpose] = useState(start.purpose);
+  const [interest, setInterest] = useState<Interest>(start.interest ?? 'visit');
   const [day, setDay] = useState('');
   const [filter, setFilter] = useState('');
   const [shown, setShown] = useState(PAGE_SIZE);
@@ -57,7 +66,7 @@ function Booking() {
   const dayItems: Slot[] = days.find(([key]) => key === activeDay)?.[1] ?? [];
 
   // Keep the draft so a trip to the sign-in page loses nothing.
-  useEffect(() => { if (!booked) draftStore.write(DRAFT_KEY, { slotId, petIds, party, purpose, step } satisfies Draft); }, [slotId, petIds, party, purpose, step, booked]);
+  useEffect(() => { if (!booked) draftStore.write(DRAFT_KEY, { slotId, petIds, party, purpose, step, interest } satisfies Draft); }, [slotId, petIds, party, purpose, step, interest, booked]);
 
   // A time chosen earlier may have been taken since. Say so kindly and let them pick again.
   useEffect(() => {
@@ -80,10 +89,12 @@ function Booking() {
   const togglePet = (id: string) => setPetIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.length < 5 ? [...current, id] : current));
   const go = (next: number) => { setError(''); setNotice(null); setStep(next); };
 
-  const reason = purpose.trim() || (chosenPets.length ? `Meet ${chosenPets.map((pet) => pet.name).join(', ')}`.slice(0, 500) : 'Shelter visit');
+  const note = purpose.trim() || (chosenPets.length ? `Meet ${chosenPets.map((pet) => pet.name).join(', ')}` : 'Shelter visit');
+  // Staff see this line on the visit, so the member's interest leads it.
+  const reason = `Interested in: ${interestLabel(interest)}. ${note}`.slice(0, 500);
 
   function saveAndSignIn(path: 'login' | 'sign-up') {
-    draftStore.write(DRAFT_KEY, { slotId, petIds, party, purpose, step: 2 } satisfies Draft);
+    draftStore.write(DRAFT_KEY, { slotId, petIds, party, purpose, step: 2, interest } satisfies Draft);
     const next = `${window.location.pathname}${window.location.search}`;
     window.location.assign(path === 'login' ? loginUrl(next) : `/sign-up?next=${encodeURIComponent(next)}`);
   }
@@ -94,7 +105,7 @@ function Booking() {
     setError('');
     try {
       const result = await api<{ appointmentId: string }>('/appointments', { method: 'POST', json: { slotId: slot.id, purpose: reason, partySize: party, petIds } });
-      setBooked({ startsAt: slot.startsAt, endsAt: slot.endsAt, animals: chosenPets.map((pet) => pet.name), party, appointmentId: result.appointmentId });
+      setBooked({ startsAt: slot.startsAt, endsAt: slot.endsAt, animals: chosenPets.map((pet) => pet.name), party, interest, firstPetId: petIds[0], appointmentId: result.appointmentId });
       draftStore.clear(DRAFT_KEY);
       void queryClient.invalidateQueries({ queryKey: ['/public/availability'] });
       void queryClient.invalidateQueries({ queryKey: ['/appointments'] });
@@ -153,6 +164,13 @@ function Booking() {
             <ButtonLink href="/me?tab=visits">See it in My PawHeaven</ButtonLink>
           </div>
         </Card>
+        {booked.interest !== 'visit' && (
+          <Card className="grid gap-3 border-[var(--ph-brand)] bg-[var(--ph-brand-soft)]">
+            <h3 className="text-lg font-semibold text-stone-950">{booked.interest === 'adopt' ? 'Get a head start on adopting' : 'Get a head start on fostering'}</h3>
+            <p className="text-base leading-7 text-stone-800">{booked.interest === 'adopt' ? 'You can send your application now, or after you have met the animal. Either works.' : 'Tell us about your home and the dates you can offer. It takes about five minutes.'}</p>
+            <p><ButtonLink variant="primary" href={`/apply?type=${booked.interest}${booked.firstPetId ? `&pet=${booked.firstPetId}` : ''}`}>{booked.interest === 'adopt' ? 'Start my adoption application' : 'Start my foster application'}</ButtonLink></p>
+          </Card>
+        )}
         <Card>
           <h3 className="text-lg font-semibold text-stone-950">What to bring and what to expect</h3>
           <ul className="mt-3 grid list-disc gap-1.5 pl-5 text-base leading-7 text-stone-800">
@@ -296,6 +314,13 @@ function Booking() {
             <h2 id="visit-step" ref={heading} tabIndex={-1} className={stepHeading}>Check your visit</h2>
           </div>
           <Card>{summary}</Card>
+          <Fieldset legend="I would like to be…" help="This helps us prepare. You can change your mind after you meet them.">
+            <div className="grid gap-2 sm:grid-cols-3">
+              {INTERESTS.map(([value, label, hint]) => (
+                <Choice key={value} type="radio" name="visit-interest" label={label} hint={hint} checked={interest === value} onChange={() => setInterest(value)} />
+              ))}
+            </div>
+          </Fieldset>
           <Field label="Anything we should know? (optional)" help="For example, whether you are looking for a dog that is good with cats. Leave it blank if not.">
             {(aria) => <Textarea {...aria} rows={3} maxLength={400} value={purpose} onChange={(event) => setPurpose(event.target.value)} />}
           </Field>
