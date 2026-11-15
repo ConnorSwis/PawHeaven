@@ -26,12 +26,12 @@ export function Saved() {
   function unsave(pet: Pet) { remove([pet.id]); setMessage(`${pet.name} was removed from your saved animals.`); }
 
   return (
-    <Section id="saved" title="Saved animals" aside={ids.length ? <a className="inline-flex min-h-11 items-center font-medium text-[var(--ph-brand-strong)] underline underline-offset-4" href="/adopt">Find more animals</a> : undefined}>
-      <Muted className="mb-4 text-sm">{signedIn ? 'Saved to your account, so they show on every device.' : 'Saved animals are kept on this device only. They are not tied to an account.'}</Muted>
+    <Section id="saved" title="Saved animals">
+      {!signedIn && <Muted className="mb-4 text-sm">Kept on this device only.</Muted>}
       <p role="status" className="mb-3 text-sm text-stone-800">{message}</p>
       {!ids.length ? (
         <EmptyState pose="sleeping" title="You have not saved any animals yet" action={<ButtonLink variant="primary" href="/adopt" className="mt-2">Meet the animals</ButtonLink>}>
-          On the Adopt page, choose the heart on an animal to save them here and come back to them later.
+          Tap the heart on an animal to keep them here.
         </EmptyState>
       ) : (
         <LoadState query={pets} label="your saved animals" skeleton="h-48">
@@ -56,12 +56,11 @@ export function Saved() {
               )}
               {gone.length > 0 && (
                 <div className="mt-5 rounded-[var(--ph-radius-sm)] border border-stone-300 bg-stone-50 p-4">
-                  <p className="text-base text-stone-800">{gone.length === 1 ? '1 animal you saved is' : `${gone.length} animals you saved are`} no longer listed. They may have found a home.</p>
+                  <p className="text-base text-stone-800">{gone.length === 1 ? '1 saved animal is' : `${gone.length} saved animals are`} no longer listed. They may have found a home.</p>
                   <div className="mt-2"><Button variant="secondary" onClick={() => { remove(gone); setMessage('Animals that are no longer listed were removed.'); }}>Remove {gone.length === 1 ? 'it' : 'them'} from my list</Button></div>
                 </div>
               )}
-              {!shown.length && !gone.length && <Muted>Nothing to show.</Muted>}
-            </>
+                          </>
           )}
         </LoadState>
       )}

@@ -3,26 +3,26 @@ import { Providers } from '../../lib/providers';
 import { loginUrl, useMe } from '../../lib/fetch';
 import { ButtonLink, Card, Notice, Skeleton, chipClass } from '../../ui';
 import { Mascot } from '../../ui/Mascot';
-import { Applications } from './Applications';
-import { Details } from './Details';
-import { Overview } from './Overview';
+import { Activity } from './Activity';
+import { SavedSearches } from './EmailChoices';
+import { Matches, Overview } from './Overview';
 import { Saved } from './Saved';
-import { Visits } from './Visits';
+import { Settings, SignOutButton } from './Settings';
 
 const TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'visits', label: 'Visits and shifts' },
-  { id: 'applications', label: 'Applications' },
+  { id: 'overview', label: 'Home' },
+  { id: 'activity', label: 'Activity' },
   { id: 'saved', label: 'Saved' },
-  { id: 'details', label: 'My details' },
+  { id: 'settings', label: 'Settings' },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
 
-/** `?tab=details` or, for links in emails, `#details`. */
-const readTab = (): TabId => {
-  const value = new URLSearchParams(window.location.search).get('tab') ?? window.location.hash.slice(1);
-  return TABS.find((tab) => tab.id === value)?.id ?? 'overview';
-};
+/** Older links, such as the ones already in emails, keep working. */
+const ALIASES: Record<string, TabId> = { home: 'overview', visits: 'activity', applications: 'activity', details: 'settings' };
+const findTab = (value: string | null | undefined): TabId | undefined => TABS.find((tab) => tab.id === value)?.id ?? (value ? ALIASES[value] : undefined);
+
+/** `?tab=settings` or, for links in emails, `#settings`. */
+const readTab = (): TabId => findTab(new URLSearchParams(window.location.search).get('tab') ?? window.location.hash.slice(1)) ?? 'overview';
 
 function Heading({ lead, children }: { lead?: string; children?: string }) {
   return (
@@ -34,19 +34,16 @@ function Heading({ lead, children }: { lead?: string; children?: string }) {
   );
 }
 
-/** Greeting for a signed-in member: their first name, one warm line, and the welcome mascot. */
+/** A short greeting with the sign-out button, where people look for it. */
 function Greeting({ name }: { name: string }) {
   const first = name.trim().split(/\s+/)[0] || 'there';
   return (
-    <header className="flex items-center justify-between gap-4 rounded-[var(--ph-radius)] border border-stone-300 bg-[var(--ph-brand-soft)] px-5 py-5 shadow-sm sm:px-8 sm:py-6">
-      <div className="min-w-0">
-        <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">
-          <span className="block text-sm font-semibold uppercase tracking-wide text-stone-700">My PawHeaven</span>
-          Hi, <span className="ph-highlight">{first}</span>
-        </h1>
-        <p className="mt-2 text-base leading-7 text-stone-800 sm:text-lg">Your visits, applications, and saved animals are all here.</p>
+    <header className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <Mascot pose="welcome" size={64} className="hidden shrink-0 sm:block" />
+        <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl"><span className="sr-only">My PawHeaven: </span>Hi, <span className="ph-highlight">{first}</span></h1>
       </div>
-      <Mascot pose="welcome" size={112} className="hidden shrink-0 sm:block" />
+      <div className="shrink-0"><SignOutButton /></div>
     </header>
   );
 }
@@ -86,8 +83,8 @@ function MeContent() {
     const href = link?.getAttribute('href');
     if (!link || !href?.startsWith('?tab=') || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
     const id = new URLSearchParams(href.slice(1)).get('tab');
-    const found = TABS.find((item) => item.id === id);
-    if (found) { event.preventDefault(); go(found.id); }
+    const found = findTab(id);
+    if (found) { event.preventDefault(); go(found); }
   }
 
   if (!ready || me.isPending) {
@@ -113,22 +110,22 @@ function MeContent() {
   if (!user) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
-        <Heading lead="Your visits, shifts, applications, and saved animals, all in one place." />
+        <Heading lead="Your visits, applications, and saved animals." />
         {tab === 'saved' ? (
           <div className="mt-8 grid gap-6">
-            <Notice tone="info" title="You are not signed in.">Your saved animals are kept on this device, so you can see them here. <a className="font-semibold underline underline-offset-4" href={loginUrl()}>Log in</a> to see the rest of My PawHeaven.</Notice>
+            <Notice tone="info" title="You are not signed in.">Saved animals stay on this device. <a className="font-semibold underline underline-offset-4" href={loginUrl()}>Log in</a> for the rest.</Notice>
             <Saved />
           </div>
         ) : (
           <Card className="mt-8 max-w-xl">
             <Mascot pose="welcome" size={96} className="mb-2" />
             <h2 className="text-xl font-bold text-stone-950">Log in to see your account</h2>
-            <p className="mt-2 text-base leading-7 text-stone-800">Once you are logged in you can see your upcoming visits and volunteer shifts, check on your applications, and update your saved details. New here? An account takes a minute to create.</p>
+            <p className="mt-2 text-base leading-7 text-stone-800">See your visits, shifts and applications. New here? An account takes a minute.</p>
             <div className="mt-4 flex flex-wrap gap-3">
               <ButtonLink variant="primary" href={loginUrl()}>Log in</ButtonLink>
               <ButtonLink variant="secondary" href={`/sign-up?next=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`}>Create an account</ButtonLink>
             </div>
-            <p className="mt-5 text-sm text-stone-700"><a className="font-medium underline underline-offset-4" href="?tab=saved" onClick={(event) => { event.preventDefault(); go('saved'); }}>See animals you saved on this device</a></p>
+            <p className="mt-5 text-sm text-stone-700"><a className="font-medium underline underline-offset-4" href="?tab=saved" onClick={(event) => { event.preventDefault(); go('saved'); }}>Saved animals on this device</a></p>
           </Card>
         )}
       </div>
@@ -140,7 +137,7 @@ function MeContent() {
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14" onClick={onLinkClick}>
       <Greeting name={user.name} />
       <nav aria-label="My PawHeaven sections" className="mt-6">
-        <ul className="flex flex-wrap gap-2">
+        <ul className="flex gap-2 overflow-x-auto pb-1">
           {TABS.map((item) => {
             const active = item.id === tab;
             return (
@@ -159,11 +156,10 @@ function MeContent() {
 
       <div className="mt-6" id="panel">
         <h2 ref={panelHeading} tabIndex={-1} className="sr-only focus:outline-none">{current.label}</h2>
-        {tab === 'overview' && <Overview user={user} />}
-        {tab === 'visits' && <Visits />}
-        {tab === 'applications' && <Applications />}
-        {tab === 'saved' && <Saved />}
-        {tab === 'details' && <Details user={user} />}
+        {tab === 'overview' && <Overview name={user.name} />}
+        {tab === 'activity' && <Activity />}
+        {tab === 'saved' && <div className="grid gap-6"><Saved /><SavedSearches /><Matches /></div>}
+        {tab === 'settings' && <Settings user={user} />}
       </div>
     </div>
   );
