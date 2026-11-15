@@ -39,7 +39,7 @@ function Contact() {
 
 const CHOICES = [
   { href: '#check', icon: SearchIcon, title: 'Check if we have your pet', text: 'Compare your pet’s photos with the animals in our care.', time: 'Takes a few minutes' },
-  { href: '#flyer', icon: PawIcon, title: 'Make a flyer', text: 'Fill in a template and print it to put up around your neighborhood.', time: 'Takes about ten minutes' },
+  { href: '#flyer', icon: PawIcon, title: 'Make a flyer', text: 'Fill in what you know and watch the flyer build itself. Print it or save it as a PDF.', time: 'Takes a few minutes' },
   { href: '#report', icon: InfoIcon, title: 'Report a lost pet', text: 'What to do over the next days to give your pet the best chance of coming home.', time: 'Keep going over the next days' },
 ] as const;
 
@@ -104,7 +104,7 @@ function LostPetContent() {
         <PhotoSearch />
       </Option>
 
-      <Option number={2} id="flyer" title="Make a flyer" speed="Takes about ten minutes" tone="tint">
+      <Option number={2} id="flyer" title="Make a flyer" speed="Takes a few minutes" tone="tint">
         <p className="max-w-2xl text-base leading-7 text-stone-800">Fill in a template with your pet&apos;s photo and your phone number, then print it to put up around your neighborhood. Nothing is uploaded or saved: it all stays in your browser, and you do not need an account.</p>
         <div className="mt-5"><ButtonLink variant="primary" href="/lost-pet/flyer">Make a printable flyer</ButtonLink></div>
       </Option>
