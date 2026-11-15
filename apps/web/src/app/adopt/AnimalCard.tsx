@@ -33,7 +33,7 @@ export function PetPhoto({ pet, src, className, priority = false, alt, fit = 'co
       </div>
     );
   }
-  return <img src={url} alt={alt ?? petPhotoAlt(pet)} width={640} height={480} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" onError={() => setFailed(true)} className={cx('bg-stone-200', fit === 'contain' ? 'object-contain' : 'object-cover', className)} />;
+  return <img src={url} alt={alt ?? petPhotoAlt(pet)} width={640} height={480} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" onError={() => setFailed(true)} className={cx('bg-stone-200', fit === 'contain' ? 'object-contain' : 'object-cover object-[50%_30%]', className)} />;
 }
 
 export function SaveButton({ pet, variant = 'icon', className }: { pet: Pet; variant?: 'icon' | 'text'; className?: string }) {
